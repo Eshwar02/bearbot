@@ -13,6 +13,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { embedText } from "./embeddings";
 import { AGENT_CONFIG } from "./config";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { AiMemoryMatch } from "@/types/database";
 
 const MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
@@ -343,6 +344,21 @@ export async function addMemories(
     const operations = await callExtractor(userPrompt);
     if (operations.length === 0) return;
 
+    // Writes run inside Next 16 `after()` — the cookie-scoped supabase client
+    // passed in loses request context once the response closes, so RLS-gated
+    // inserts/updates fail silently. Use service-role for writes; we still
+    // scope every statement by user_id manually.
+    let writeClient: SupabaseClient;
+    try {
+      writeClient = createAdminClient();
+    } catch (err) {
+      console.warn(
+        "[memory] admin client unavailable, falling back to request client:",
+        err instanceof Error ? err.message : err
+      );
+      writeClient = supabase;
+    }
+
     // Per-turn dedupe: extractor occasionally emits two ADDs with the same
     // text. Collapse them so we never insert duplicates from one turn.
     const seenAddText = new Set<string>();
@@ -361,7 +377,7 @@ export async function addMemories(
 
         try {
           const embedding = await embedText(memText);
-          const { error } = await supabase.from("ai_memories").insert({
+          const { error } = await writeClient.from("ai_memories").insert({
             user_id: userId,
             memory: memText,
             embedding: embedding as unknown as number[],
@@ -370,6 +386,10 @@ export async function addMemories(
           });
           if (error) {
             console.warn("[memory] ADD insert failed:", error.message);
+          } else {
+            console.log(
+              `[memory] ADD ok user=${userId.slice(0, 8)} cat=${cat ?? "-"} mem="${memText.slice(0, 60)}"`
+            );
           }
         } catch (err) {
           console.warn(
@@ -390,7 +410,7 @@ export async function addMemories(
 
         try {
           const embedding = await embedText(memText);
-          const { error } = await supabase
+          const { error } = await writeClient
             .from("ai_memories")
             .update({
               memory: memText,
@@ -401,6 +421,10 @@ export async function addMemories(
             .eq("user_id", userId);
           if (error) {
             console.warn("[memory] UPDATE failed:", error.message);
+          } else {
+            console.log(
+              `[memory] UPDATE ok user=${userId.slice(0, 8)} id=${op.id.slice(0, 8)} mem="${memText.slice(0, 60)}"`
+            );
           }
         } catch (err) {
           console.warn(

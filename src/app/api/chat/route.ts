@@ -13,6 +13,11 @@ import {
   formatMemoriesForPrompt,
   addMemories,
 } from "@/lib/ai/memory";
+import { rewriteFollowupQuery, needsRewrite } from "@/lib/ai/query-rewriter";
+import {
+  classifyResponseShape,
+  getResponseShapeDirective,
+} from "@/lib/ai/response-shape";
 import { detectTanglish } from "@/lib/ai/lang-detect";
 import {
   LANG_INSTRUCTION_TANGLISH,
@@ -408,23 +413,50 @@ export async function POST(request: NextRequest) {
     let chatMode: "stock" | "general" = "general";
     let generalKind: "brief" | "normal" = "normal";
 
+    // Coreference resolution: if the user said "tell me about that" / "what
+    // about its dividend?", rewrite into a standalone query naming the entity
+    // from prior turns. Routing (detect/classify/web-search) uses the rewritten
+    // form; the user's original text is still persisted as-is.
+    let routingMessage = incomingMessage;
+    if (needsRewrite(incomingMessage, conversationHistory.length > 0)) {
+      recordProgress("Resolving references from previous turns", 26);
+      try {
+        routingMessage = await withTimeout(
+          rewriteFollowupQuery(incomingMessage, conversationHistory),
+          4500,
+          "rewriteFollowupQuery"
+        );
+      } catch (err) {
+        console.warn(
+          "[chat-api] rewrite failed, using original:",
+          err instanceof Error ? err.message : err
+        );
+        routingMessage = incomingMessage;
+      }
+      if (routingMessage !== incomingMessage) {
+        // Give the LLM both: the explicit standalone query (for accuracy) and
+        // the user's original phrasing (for natural reply tone).
+        llmMessage = `${incomingMessage}\n\n(Resolved standalone form for your reasoning, do not echo verbatim: "${routingMessage}")`;
+      }
+    }
+
     recordProgress("Detecting whether this is a stock or general query", 28);
     // Intent pipeline:
     // 1. Regex (high-confidence stock signals) → stock mode candidate
     // 2. Classifier LLM fallback → stock / greeting / general
-    let stockQuery: string | null = detectStockQuery(incomingMessage);
+    let stockQuery: string | null = detectStockQuery(routingMessage);
     console.debug("[chat-api] regex detection", { stockQuery: stockQuery ?? null });
 
     // Skip classifier for short lowercase general questions — saves quota.
     const looksLikeGeneral =
-      incomingMessage.length < 60 &&
-      !/[A-Z]{2,}/.test(incomingMessage) &&
+      routingMessage.length < 60 &&
+      !/[A-Z]{2,}/.test(routingMessage) &&
       !/\b(stock|share|ticker|price|quote|analyze|analysis|chart|buy|sell)\b/i.test(
-        incomingMessage
+        routingMessage
       );
 
     if (!stockQuery) {
-      if (isGreeting(incomingMessage)) {
+      if (isGreeting(routingMessage)) {
         generalKind = "normal";
         console.debug("[chat-api] greeting shortcut");
       } else if (looksLikeGeneral) {
@@ -433,7 +465,7 @@ export async function POST(request: NextRequest) {
         try {
           recordProgress("Classifying request intent", 31);
           const intent = await withTimeout(
-            classifyIntent(incomingMessage),
+            classifyIntent(routingMessage),
             3000,
             "classifyIntent"
           );
@@ -443,7 +475,7 @@ export async function POST(request: NextRequest) {
               stockQuery =
                 intent.company_name ||
                 (intent.symbols && intent.symbols[0]) ||
-                incomingMessage;
+                routingMessage;
             } else if (intent.intent === "greeting") {
               generalKind = "brief";
             }
@@ -465,7 +497,7 @@ export async function POST(request: NextRequest) {
         // Classifier or regex thought this was a stock, but we couldn't
         // resolve a ticker. Answer in general mode with a short note instead
         // of forcing the 8-section stock prompt.
-        llmMessage = `${incomingMessage}\n\n(Context note for the assistant: I tried to look up live market data for "${stockQuery}" but no matching ticker was found. Answer the user's question helpfully without pretending to have real-time prices.)`;
+        llmMessage = `${incomingMessage}\n\n(Context note for the assistant: I tried to look up live market data for "${stockQuery}" but no matching ticker was found. Answer the user's question helpfully — use the web-search block below if present, never refuse with a "no training data" or "not in my dataset" excuse.)`;
       }
       if (resolvedSymbol) {
         try {
@@ -474,8 +506,11 @@ export async function POST(request: NextRequest) {
           if (!quote) throw new Error("Quote not found");
 
           // Detect if this is a simple query (price, quote, etc.) to skip heavy data fetching
-          const isSimpleQuery = /\b(price|quote|current|worth|cost|value|trading\s+at)\b/i.test(incomingMessage) &&
-                                !/\b(analyze|analysis|technical|fundamental|news|sentiment|recommend|buy|sell|invest)\b/i.test(incomingMessage);
+          const isSimpleQuery =
+            /\b(price|quote|current|worth|cost|value|trading\s+at)\b/i.test(routingMessage) &&
+            !/\b(analyze|analysis|technical|fundamental|news|sentiment|recommend|buy|sell|invest)\b/i.test(
+              routingMessage
+            );
 
           if (isSimpleQuery) {
             console.debug("[chat-api] simple stock query detected, skipping heavy data");
@@ -558,18 +593,32 @@ export async function POST(request: NextRequest) {
 
     // Web search trigger: broadened auto-keywords + manual force flag + stock-mode news intent
     const autoKeywords =
-      /\b(current|latest|news|update|recent|today|now|yesterday|this\s+week|this\s+month|what\s+is|who\s+is|where\s+is|when\s+did|why\s+did|how\s+to|explain|tell\s+me\s+about|compare|vs|versus|alternatives\s+to|review\s+of|opinion\s+on)\b/i;
+      /\b(current|latest|news|update|recent|today|now|yesterday|this\s+week|this\s+month|this\s+year|earnings|results|launch|launched|announce|announced|release|released|merger|acquisition|ipo|funding|valuation|ceo|founder|what\s+is|who\s+is|where\s+is|when\s+did|when\s+is|why\s+did|why\s+is|how\s+to|how\s+much|how\s+many|explain|tell\s+me\s+about|describe|overview\s+of|compare|vs|versus|alternatives\s+to|review\s+of|opinion\s+on|status\s+of|details\s+on|info\s+on)\b/i;
     const stockNewsIntent =
-      chatMode === "stock" && /\b(news|recent|today|latest|update)\b/i.test(incomingMessage);
+      chatMode === "stock" && /\b(news|recent|today|latest|update|earnings|results|guidance)\b/i.test(routingMessage);
+    // If the regex/classifier guessed a stock but ticker resolution failed,
+    // the user is probably asking about a real-world entity we don't know.
+    // Force web search — that's exactly what the user told us to do instead
+    // of refusing with "data not in training set".
+    const unresolvedEntityNeedsSearch = stockQuery !== null && !stockAnalysis;
+    // Proper-noun heuristic: capitalized multi-word token suggests a real
+    // entity we should look up rather than answer from priors.
+    const properNounLike =
+      /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}\b/.test(routingMessage) &&
+      !isGreeting(routingMessage);
     const shouldSearch =
       validateSerpApiSetup().valid &&
-      (forceWebSearch || autoKeywords.test(incomingMessage) || stockNewsIntent);
+      (forceWebSearch ||
+        autoKeywords.test(routingMessage) ||
+        stockNewsIntent ||
+        unresolvedEntityNeedsSearch ||
+        (chatMode === "general" && properNounLike));
 
     let webSearch: WebSearchResult | null = null;
     if (shouldSearch) {
       try {
         recordProgress(forceWebSearch ? "Running requested web search" : "Searching recent web/news sources", 64);
-        webSearch = await searchWeb(incomingMessage, 5);
+        webSearch = await searchWeb(routingMessage, 5);
         const emittedDomains = new Set<string>();
         for (const source of webSearch.sources) {
           const domain = normalizeSourceDomain(source.url);
@@ -583,7 +632,7 @@ export async function POST(request: NextRequest) {
           });
         }
         console.debug("[chat-api] web search complete", {
-          query: incomingMessage.slice(0, 80),
+          query: routingMessage.slice(0, 80),
           sourceCount: webSearch.sources.length,
           forced: forceWebSearch,
         });
@@ -615,6 +664,33 @@ export async function POST(request: NextRequest) {
     }
 
     const conversationId = activeConversationId as string;
+
+    // Adaptive response shape: tell the LLM how deep to go and how to
+    // structure the answer based on the user's intent. Without this, the
+    // model under-delivers after web-search results land — it treats the
+    // search snippets as the answer and replies in 2-3 paragraphs.
+    const isFullStockAnalysis =
+      chatMode === "stock" &&
+      stockAnalysis !== null &&
+      stockAnalysis.history.length > 0;
+    const responseShape = classifyResponseShape({
+      message: incomingMessage,
+      routingMessage,
+      chatMode,
+      isStockAnalysis: isFullStockAnalysis,
+      hasWebSearch: Boolean(webSearch && webSearch.sources.length > 0),
+      historyDepth: conversationHistory.length,
+      generalKind,
+    });
+    const shapeDirective = getResponseShapeDirective(responseShape);
+    userMemory = userMemory
+      ? `${userMemory}\n\n${shapeDirective}`
+      : shapeDirective;
+    console.debug("[chat-api] response shape", {
+      shape: responseShape,
+      chatMode,
+      generalKind,
+    });
 
     let llmStream: ReadableStream<Uint8Array>;
     let usedProvider = "unknown";

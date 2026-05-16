@@ -17,7 +17,6 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
 
   const hasText = value.trim().length > 0;
 
-  // Auto-resize textarea
   const adjustHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -29,7 +28,6 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
     adjustHeight();
   }, [value, adjustHeight]);
 
-  // Focus textarea on mount
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);
@@ -38,7 +36,6 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
     if (!hasText || isStreaming || disabled) return;
     onSend(value.trim());
     setValue('');
-    // Reset height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -55,13 +52,14 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
   );
 
   return (
-    <div className="border-t border-dark-700/50 bg-dark-900 px-4 pb-4 pt-3">
-      <div className="mx-auto max-w-3xl">
+    <div className="w-full">
+      <div className="mx-auto max-w-4xl">
         <div
           className={cn(
-            'relative flex items-end gap-2 rounded-2xl border bg-dark-800 px-4 py-3',
-            'transition-colors duration-200',
-            'border-dark-700 focus-within:border-dark-600 focus-within:ring-1 focus-within:ring-dark-600',
+            'relative flex items-end gap-3 rounded-3xl border bg-white/[0.03] backdrop-blur-xl px-5 py-4 shadow-2xl',
+            'transition-all duration-300',
+            // High-end focus state: subtle glow and brighter border
+            'border-white/10 focus-within:border-emerald-500/40 focus-within:bg-white/[0.05] focus-within:shadow-[0_0_30px_rgba(16,185,129,0.15)]',
           )}
         >
           <textarea
@@ -73,9 +71,9 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
             disabled={disabled}
             rows={1}
             className={cn(
-              'flex-1 resize-none bg-transparent text-sm text-gray-200 outline-none',
-              'placeholder:text-dark-500',
-              'scrollbar-thin scrollbar-thumb-dark-700',
+              'flex-1 resize-none bg-transparent text-base text-gray-100 outline-none leading-relaxed',
+              'placeholder:text-gray-500',
+              'scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20',
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}
             style={{ maxHeight: 200 }}
@@ -84,40 +82,33 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
             aria-multiline="true"
           />
 
-          {/* Send / Stop button */}
           {isStreaming ? (
             <button
               onClick={onStop}
               className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-                'bg-dark-600 text-gray-300 transition-colors hover:bg-dark-500',
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
+                'bg-white/10 text-emerald-400 transition-all hover:bg-white/20 hover:scale-105',
               )}
               aria-label="Stop generating"
             >
-              <Square className="h-3.5 w-3.5 fill-current" />
+              <Square className="h-4 w-4 fill-current" />
             </button>
           ) : (
             <button
               onClick={handleSend}
               disabled={!hasText || disabled}
               className={cn(
-                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-200',
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-all duration-300',
                 hasText && !disabled
-                  ? 'bg-accent-green text-white hover:bg-accent-green/90'
-                  : 'bg-dark-700 text-dark-500 cursor-not-allowed',
+                  // Glowing neon orb effect for the send button
+                  ? 'bg-gradient-to-br from-emerald-400 to-teal-500 text-dark-900 shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] hover:scale-105'
+                  : 'bg-white/5 text-gray-600 border border-white/5 cursor-not-allowed',
               )}
               aria-label="Send message"
             >
-              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+              <ArrowUp className="h-5 w-5" strokeWidth={2.5} />
             </button>
           )}
-        </div>
-
-        {/* Model label */}
-        <div className="mt-2 text-center">
-          <span className="text-[11px] text-dark-500">
-            AlphaSight Pro
-          </span>
         </div>
       </div>
     </div>

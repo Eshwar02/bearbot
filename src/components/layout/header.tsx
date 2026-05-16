@@ -74,25 +74,30 @@ export function Header() {
   }, [router, setActiveView]);
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between border-b border-gray-200 bg-white/80 px-3 backdrop-blur dark:border-dark-800/80 dark:bg-dark-900/80">
+    // Replaced flat header with a floating, glassmorphic pill
+    <header className="relative z-50 mx-4 mt-4 mb-2 flex h-14 shrink-0 items-center justify-between rounded-2xl border border-white/10 bg-[#ffffff05] px-4 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.5)] dark:border-white/5 dark:bg-[#ffffff03]">
+      
+      {/* Subtle top edge highlight for 3D depth */}
+      <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-t-2xl pointer-events-none" />
+
       {/* ── Left: sidebar toggle + back ──────── */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         <button
           onClick={toggleSidebar}
-          className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-850 dark:hover:text-gray-100"
+          className="rounded-xl p-2 text-gray-400 transition-all duration-300 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
           aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
           title="Toggle sidebar (Cmd/Ctrl+B)"
         >
-          <Menu size={17} />
+          <Menu size={18} />
         </button>
         {pathname !== '/' && (
           <button
             onClick={handleBack}
-            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-850 dark:hover:text-gray-100"
+            className="rounded-xl p-2 text-gray-400 transition-all duration-300 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
             aria-label="Go back"
             title="Go back (Alt+←)"
           >
-            <ArrowLeft size={17} />
+            <ArrowLeft size={18} />
           </button>
         )}
       </div>
@@ -103,27 +108,40 @@ export function Header() {
           setActiveView('chat');
           router.push('/');
         }}
-        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-dark-850 dark:hover:text-gray-100"
+        className="group flex items-center gap-2 rounded-xl px-3 py-1.5 transition-all duration-300 hover:bg-white/5"
         aria-label="Go to chat home"
       >
-        <Image src="/logo.svg" alt="AlphaSight" width={14} height={14} />
-        <span>AlphaSight</span>
-        <span className="text-dark-500">/</span>
-        <span className="text-dark-400">Pro</span>
+        <div className="relative p-1 bg-white/5 rounded-lg border border-white/10 shadow-sm group-hover:border-emerald-500/30 transition-colors">
+          <img src="/logo.svg" alt="AlphaSight" width={16} height={16} />
+        </div>
+        <div className="flex items-center text-[14px] font-semibold tracking-wide">
+          <span className="text-gray-100 group-hover:text-white transition-colors">AlphaSight</span>
+          <span className="mx-1 text-white/20">/</span>
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-500">Pro</span>
+        </div>
       </button>
 
       {/* ── Right: PWA install + theme toggle + user avatar + menu ────────── */}
-      <div className="flex items-center gap-2">
-        <PWAInstallButton />
-        <ThemeSwitch />
+      <div className="flex items-center gap-3">
+        <div className="opacity-80 hover:opacity-100 transition-opacity">
+           <PWAInstallButton />
+        </div>
+        <div className="opacity-80 hover:opacity-100 transition-opacity">
+           <ThemeSwitch />
+        </div>
+        
+        {/* Divider */}
+        <div className="h-6 w-px bg-white/10 mx-1" />
+
         <div ref={menuRef} className="relative">
           <button
             onClick={() => setMenuOpen((p) => !p)}
             className={cn(
-              'flex h-8 w-8 items-center justify-center rounded-full',
-              'bg-accent-brand text-sm font-semibold text-dark-950',
-              'ring-1 ring-accent-brand/50 ring-offset-2 ring-offset-dark-900',
-              'transition-transform hover:scale-105',
+              'flex h-9 w-9 items-center justify-center rounded-xl',
+              // Upgraded to a glowing gradient orb instead of a solid color
+              'bg-gradient-to-br from-emerald-400 to-teal-600 text-[15px] font-bold text-dark-950 shadow-lg',
+              'border border-emerald-300/30',
+              'transition-all duration-300 hover:scale-105 hover:shadow-[0_0_20px_rgba(16,185,129,0.4)]',
             )}
             aria-label="Open user menu"
             aria-expanded={menuOpen}
@@ -135,11 +153,11 @@ export function Header() {
 
           {menuOpen && (
             <div 
-              className="absolute right-0 top-10 z-50 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-2xl shadow-black/10 dark:border-dark-800 dark:bg-dark-900 dark:shadow-black/40"
+              className="absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-2xl border border-white/10 bg-[#0a0e17]/95 py-2 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8)]"
               role="menu"
             >
               <button
-                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-850"
+                className="group flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
                 onClick={() => {
                   setMenuOpen(false);
                   setActiveView('settings');
@@ -148,17 +166,23 @@ export function Header() {
                 role="menuitem"
                 aria-label="Open profile settings"
               >
-                <User size={14} />
-                <span>Profile</span>
+                <div className="flex items-center justify-center rounded-lg bg-white/5 p-1.5 text-gray-400 group-hover:text-emerald-400 group-hover:bg-emerald-500/10 transition-colors">
+                  <User size={16} />
+                </div>
+                <span>Profile Settings</span>
               </button>
-              <div className="my-1 border-t border-gray-200 dark:border-dark-800" />
+              
+              <div className="my-1.5 mx-3 border-t border-white/10" />
+              
               <button
-                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 transition-colors hover:bg-gray-100 dark:text-red-400 dark:hover:bg-dark-850"
+                className="group flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-red-500/10 hover:text-red-400"
                 onClick={() => void handleSignOut()}
                 role="menuitem"
                 aria-label="Sign out from account"
               >
-                <LogOut size={14} />
+                <div className="flex items-center justify-center rounded-lg bg-white/5 p-1.5 text-gray-400 group-hover:text-red-400 group-hover:bg-red-500/20 transition-colors">
+                  <LogOut size={16} />
+                </div>
                 <span>Sign out</span>
               </button>
             </div>

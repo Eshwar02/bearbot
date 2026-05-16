@@ -71,8 +71,8 @@ function MobileBackdrop({ onClick }: { onClick: () => void }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-40 bg-black/60 md:hidden"
+      transition={{ duration: 0.3, ease: "easeInOut" }}
+      className="fixed inset-0 z-40 bg-[#03060D]/80 backdrop-blur-sm md:hidden"
       onClick={onClick}
     />
   );
@@ -134,7 +134,6 @@ export function Sidebar() {
   const handleViewSelect = useCallback(
     (view: AppView) => {
       setActiveView(view);
-      // Route to appropriate page based on view
       const routes: Record<AppView, string> = {
         chat: '/',
         portfolio: '/portfolio',
@@ -150,141 +149,167 @@ export function Sidebar() {
   );
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-gray-50 text-sm dark:bg-dark-950">
+    // Replaced flat gray with deep space acrylic glassmorphism
+    <div className="relative flex h-full flex-col bg-[#03060D]/95 backdrop-blur-3xl border-r border-white/5 text-sm overflow-hidden">
+      
+      {/* Subtle top-left ambient glow inside sidebar */}
+      <div className="absolute top-0 left-0 w-full h-64 bg-emerald-500/5 blur-[80px] rounded-full pointer-events-none" />
+
       {/* ── Brand row ────────────────────────── */}
-      <div className="flex items-center justify-between px-3 pt-3 pb-2">
-        <div className="flex items-center gap-2 px-1">
-          <Image src="/logo.svg" alt="AlphaSight" width={20} height={20} />
-          <span className="text-[13px] font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+      <div className="relative flex items-center justify-between px-4 pt-5 pb-4 z-10">
+        <div className="flex items-center gap-3 px-1">
+          <div className="relative flex items-center justify-center p-1.5 bg-white/5 rounded-xl border border-white/10 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+             <Image src="/logo.svg" alt="AlphaSight" width={22} height={22} />
+          </div>
+          <span className="text-[15px] font-bold tracking-tight text-white drop-shadow-md">
             AlphaSight
           </span>
         </div>
         <button
           onClick={toggleSidebar}
-          className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-900 dark:hover:text-gray-200"
+          className="rounded-xl p-2 text-gray-400 transition-all duration-300 hover:bg-white/10 hover:text-white hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] md:hidden"
           aria-label="Close sidebar"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={18} />
         </button>
       </div>
 
       {/* ── New Chat button ──────────────────── */}
-      <div className="px-3 pb-3">
+      <div className="px-4 pb-6 relative z-10">
         <button
           onClick={handleNewChat}
           className={cn(
-            'flex w-full items-center gap-2 rounded-lg px-3 py-2',
-            'border border-gray-200 bg-white text-[13px] font-medium text-gray-900 dark:border-dark-800 dark:bg-dark-900/60 dark:text-gray-200',
-            'transition-all duration-150',
-            'hover:border-accent-brand/40 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-900 dark:hover:text-gray-50',
+            'group flex w-full items-center gap-3 rounded-2xl px-4 py-3.5',
+            // Upgraded to a glowing neon pill
+            'bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 text-[14px] font-semibold text-emerald-400 shadow-[0_4px_20px_rgba(0,0,0,0.3)]',
+            'transition-all duration-300 ease-out',
+            'hover:border-emerald-400/50 hover:from-emerald-500/20 hover:to-teal-500/20 hover:shadow-[0_0_25px_rgba(16,185,129,0.2)] hover:text-emerald-300 hover:-translate-y-0.5',
           )}
         >
-          <Plus size={15} strokeWidth={2} />
-          <span>New chat</span>
+          <Plus size={18} strokeWidth={2.5} className="transition-transform duration-300 group-hover:rotate-90" />
+          <span>New Chat</span>
         </button>
       </div>
 
       {/* ── Chat history ─────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-300 dark:scrollbar-thumb-dark-800">
+      <div className="relative z-10 flex-1 overflow-y-auto px-3 pb-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20">
         {grouped.length === 0 && (
-          <p className="px-3 py-8 text-center text-xs text-dark-500">
-            No conversations yet
-          </p>
+          <div className="flex flex-col items-center justify-center h-40 opacity-50">
+            <MessageSquare size={24} className="mb-3 text-gray-500" />
+            <p className="text-xs text-gray-400 font-medium tracking-wide">
+              No conversations yet
+            </p>
+          </div>
         )}
+        
         {grouped.map((group) => (
-          <div key={group.label} className="mb-4">
-            <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-dark-500">
+          <div key={group.label} className="mb-6">
+            <h3 className="mb-2 px-3 text-[11px] font-bold uppercase tracking-widest text-gray-500/80">
               {group.label}
             </h3>
-            {group.items.map((conv) => {
-              const isActive = conv.id === activeConversationId;
-              return (
-                <div
-                  key={conv.id}
-                  className={cn(
-                    'group relative flex cursor-pointer items-center rounded-lg px-3 py-1.5',
-                    'transition-colors duration-100',
-                    isActive
-                      ? 'bg-gray-100 text-gray-900 dark:bg-dark-850 dark:text-gray-50'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-900 dark:hover:text-gray-200',
-                  )}
-                  onClick={() => handleSelectChat(conv.id)}
-                >
-                  {isActive && (
-                    <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full bg-accent-brand" />
-                  )}
-                  <MessageSquare
-                    size={13}
+            <div className="space-y-1">
+              {group.items.map((conv) => {
+                const isActive = conv.id === activeConversationId;
+                return (
+                  <div
+                    key={conv.id}
                     className={cn(
-                      'mr-2.5 shrink-0',
-                      isActive ? 'text-accent-brand' : 'text-gray-400 dark:text-dark-500',
+                      'group relative flex cursor-pointer items-center rounded-xl px-3 py-2.5',
+                      'transition-all duration-300 ease-out overflow-hidden',
+                      isActive
+                        ? 'bg-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]'
+                        : 'text-gray-400 hover:bg-white/5 hover:text-gray-200',
                     )}
-                  />
-                  <span className="flex-1 truncate text-[13px]">{conv.title}</span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void handleDeleteConversation(conv.id);
-                    }}
-                    className="ml-1 hidden shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-red-500 group-hover:block dark:text-dark-500 dark:hover:bg-dark-800 dark:hover:text-red-400"
-                    aria-label="Delete conversation"
+                    onClick={() => handleSelectChat(conv.id)}
                   >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              );
-            })}
+                    {isActive && (
+                      <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                    )}
+                    
+                    <MessageSquare
+                      size={15}
+                      className={cn(
+                        'mr-3 shrink-0 transition-colors duration-300',
+                        isActive ? 'text-emerald-400' : 'text-gray-500 group-hover:text-gray-400',
+                      )}
+                    />
+                    
+                    <span className="flex-1 truncate text-[13px] font-medium leading-relaxed">
+                      {conv.title}
+                    </span>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDeleteConversation(conv.id);
+                      }}
+                      className={cn(
+                        "ml-2 shrink-0 rounded-lg p-1.5 opacity-0 transition-all duration-200",
+                        "text-gray-500 hover:bg-red-500/20 hover:text-red-400",
+                        "group-hover:opacity-100" // Only shows on parent hover
+                      )}
+                      aria-label="Delete conversation"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ))}
       </div>
 
       {/* ── Bottom nav ───────────────────────── */}
-      <div className="border-t border-dark-800/80 p-2">
-        {navLinks.map((link) => {
-          const isActive = activeView === link.view;
-          return (
-            <button
-              key={link.view}
-              onClick={() => handleViewSelect(link.view)}
-              className={cn(
-                'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px]',
-                'transition-colors duration-100',
-                isActive
-                  ? 'bg-dark-850 text-gray-50'
-                  : 'text-gray-400 hover:bg-dark-900 hover:text-gray-200',
-              )}
-            >
-              <link.icon
-                size={15}
-                className={isActive ? 'text-accent-brand' : undefined}
-              />
-              <span>{link.label}</span>
-            </button>
-          );
-        })}
+      <div className="relative z-10 border-t border-white/5 bg-[#03060D]/80 p-3 backdrop-blur-xl">
+        <div className="space-y-1">
+          {navLinks.map((link) => {
+            const isActive = activeView === link.view;
+            return (
+              <button
+                key={link.view}
+                onClick={() => handleViewSelect(link.view)}
+                className={cn(
+                  'relative flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[14px] font-medium',
+                  'transition-all duration-300 overflow-hidden',
+                  isActive
+                    ? 'bg-gradient-to-r from-emerald-500/10 to-transparent text-emerald-400'
+                    : 'text-gray-400 hover:bg-white/5 hover:text-gray-200',
+                )}
+              >
+                {isActive && (
+                   <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-emerald-400" />
+                )}
+                <link.icon
+                  size={18}
+                  className={isActive ? 'text-emerald-400' : 'text-gray-500'}
+                />
+                <span>{link.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Mobile backdrop */}
       <AnimatePresence>
         {sidebarOpen && (
           <MobileBackdrop onClick={toggleSidebar} />
         )}
       </AnimatePresence>
 
-      {/* Sidebar - unified for desktop and mobile */}
       <AnimatePresence initial={false}>
         {sidebarOpen && (
           <motion.aside
             key="sidebar"
-            initial={{ x: -260, opacity: 0 }}
+            initial={{ x: -280, opacity: 0 }} // Slightly wider animation sweep
             animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -260, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="fixed left-0 top-0 z-40 h-full w-[260px] md:static md:z-auto"
+            exit={{ x: -280, opacity: 0 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }} // Springier, premium easing
+            className="fixed left-0 top-0 z-50 h-full w-[280px] md:static md:z-auto shadow-[20px_0_40px_rgba(0,0,0,0.5)] md:shadow-none"
           >
             {sidebarContent}
           </motion.aside>

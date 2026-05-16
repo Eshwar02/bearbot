@@ -10,35 +10,13 @@ interface ChartWidgetProps {
   height?: number;
 }
 
-/**
- * Convert Yahoo Finance symbol to TradingView format.
- * TradingView requires an exchange prefix for reliable resolution — a bare
- * ticker like "AAPL" often fails to render. We map common Yahoo suffix and
- * exchange codes; when the exchange is unknown but the symbol looks US-listed
- * we default to NASDAQ (TradingView will auto-redirect to NYSE/AMEX if needed).
- */
 function toTradingViewSymbol(yahooSymbol: string, exchange?: string): string {
-  // ── Suffix-based routing (exchange hint embedded in the ticker) ──
   const suffixMap: Record<string, string> = {
-    '.NS': 'NSE',
-    '.BO': 'BSE',
-    '.L': 'LSE',
-    '.TO': 'TSX',
-    '.V': 'TSXV',
-    '.HK': 'HKEX',
-    '.T': 'TSE',
-    '.SS': 'SSE',
-    '.SZ': 'SZSE',
-    '.PA': 'EURONEXT',
-    '.AS': 'EURONEXT',
-    '.BR': 'EURONEXT',
-    '.DE': 'XETR',
-    '.F': 'FWB',
-    '.MI': 'MIL',
-    '.MC': 'BME',
-    '.SW': 'SIX',
-    '.AX': 'ASX',
-    '.NZ': 'NZX',
+    '.NS': 'NSE', '.BO': 'BSE', '.L': 'LSE', '.TO': 'TSX',
+    '.V': 'TSXV', '.HK': 'HKEX', '.T': 'TSE', '.SS': 'SSE',
+    '.SZ': 'SZSE', '.PA': 'EURONEXT', '.AS': 'EURONEXT',
+    '.BR': 'EURONEXT', '.DE': 'XETR', '.F': 'FWB', '.MI': 'MIL',
+    '.MC': 'BME', '.SW': 'SIX', '.AX': 'ASX', '.NZ': 'NZX',
     '.SA': 'BMFBOVESPA',
   };
   for (const [suffix, prefix] of Object.entries(suffixMap)) {
@@ -47,32 +25,16 @@ function toTradingViewSymbol(yahooSymbol: string, exchange?: string): string {
     }
   }
 
-  // Crypto pairs (e.g. BTC-USD) — TradingView uses BINANCE/COINBASE prefixes
   if (/^[A-Z]+-USD$/.test(yahooSymbol)) {
     return `BINANCE:${yahooSymbol.replace('-USD', 'USDT')}`;
   }
 
-  // ── Exchange-based routing for US tickers ──
   if (exchange) {
     const ex = exchange.toUpperCase();
-    if (
-      ex.includes('NASDAQ') ||
-      ex === 'NMS' ||
-      ex === 'NGM' ||
-      ex === 'NCM' ||
-      ex === 'NAS'
-    ) {
+    if (ex.includes('NASDAQ') || ex === 'NMS' || ex === 'NGM' || ex === 'NCM' || ex === 'NAS') {
       return `NASDAQ:${yahooSymbol}`;
     }
-    if (
-      ex.includes('NYSE') ||
-      ex === 'NYQ' ||
-      ex === 'NYS' ||
-      ex === 'PCX' ||
-      ex === 'ARCA' ||
-      ex === 'NYSEARCA' ||
-      ex === 'BATS'
-    ) {
+    if (ex.includes('NYSE') || ex === 'NYQ' || ex === 'NYS' || ex === 'PCX' || ex === 'ARCA' || ex === 'NYSEARCA' || ex === 'BATS') {
       return `NYSE:${yahooSymbol}`;
     }
     if (ex.includes('AMEX') || ex === 'ASE') {
@@ -80,9 +42,6 @@ function toTradingViewSymbol(yahooSymbol: string, exchange?: string): string {
     }
   }
 
-  // Unknown exchange but looks like a US ticker (no suffix, uppercase letters
-  // only) — default to NASDAQ. TradingView's resolver will surface the
-  // correct listing, and `allow_symbol_change: true` lets users adjust.
   if (/^[A-Z][A-Z0-9.-]{0,9}$/.test(yahooSymbol) && !yahooSymbol.includes('.')) {
     return `NASDAQ:${yahooSymbol}`;
   }
@@ -100,7 +59,6 @@ function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWi
 
     let cancelled = false;
 
-    // Clean up previous widget
     if (scriptRef.current) {
       scriptRef.current.remove();
       scriptRef.current = null;
@@ -109,8 +67,6 @@ function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWi
 
     const tvSymbol = toTradingViewSymbol(symbol, exchange);
 
-    // Use requestAnimationFrame to ensure the container is painted & attached
-    // before injecting the TradingView script (avoids contentWindow errors)
     const rafId = requestAnimationFrame(() => {
       if (cancelled || !containerRef.current) return;
 
@@ -131,8 +87,9 @@ function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWi
         theme: 'dark',
         style: '1',
         locale: 'en',
-        backgroundColor: '#202123',
-        gridColor: '#2a2b36',
+        // Darkened the background to match our #03060D theme seamlessly
+        backgroundColor: 'rgba(3, 6, 13, 0)', 
+        gridColor: 'rgba(255, 255, 255, 0.05)',
         hide_top_toolbar: false,
         hide_legend: false,
         allow_symbol_change: true,
@@ -163,14 +120,18 @@ function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWi
   return (
     <div
       className={cn(
-        'my-4 overflow-hidden rounded-xl border border-dark-700',
+        // High-end SaaS Glassmorphism Wrapper
+        'group relative my-6 overflow-hidden rounded-3xl border border-white/10 bg-[#ffffff05] backdrop-blur-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] transition-all duration-500 hover:border-white/20 hover:shadow-[0_10px_50px_rgba(16,185,129,0.1)]',
         className,
       )}
       style={{ height }}
     >
+      {/* Decorative top glowing edge */}
+      <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-10" />
+      
       <div
         ref={containerRef}
-        className="tradingview-widget-container"
+        className="tradingview-widget-container relative z-0"
         style={{ height: '100%', width: '100%' }}
       />
     </div>

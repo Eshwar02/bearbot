@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
+import { useAIProgressStore } from '@/stores/ai-progress-store';
 import { ThemeProvider } from '@/components/theme-provider';
 import type { ChatMessage } from '@/stores/app-store';
 import type { Json } from '@/types/database';
@@ -20,6 +21,27 @@ export function Providers({ children }: ProvidersProps) {
   const setActiveConversation = useAppStore((s) => s.setActiveConversation);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const pathname = usePathname();
+
+  const hydrateProgressFromMessages = (messages: ChatMessage[]) => {
+    const latestWithSources = [...messages]
+      .reverse()
+      .find((m) => m.role === 'assistant' && Array.isArray(m.sources) && m.sources.length > 0);
+    const hydratedSources =
+      latestWithSources?.sources?.map((source, idx) => {
+        let domain = source.source;
+        try {
+          domain = new URL(source.url).hostname.replace(/^www\./, '');
+        } catch {
+          domain = source.source || '';
+        }
+        return {
+          domain,
+          title: source.title,
+          timestamp: Date.now() + idx,
+        };
+      }) ?? [];
+    useAIProgressStore.getState().hydrateFromChatSources(hydratedSources);
+  };
 
   useEffect(() => {
     if (!pathname) return;
@@ -67,6 +89,7 @@ export function Providers({ children }: ProvidersProps) {
   useEffect(() => {
     if (!activeConversationId) {
       setMessages([]);
+      useAIProgressStore.getState().hydrateFromChatSources([]);
       return;
     }
     async function loadMessages() {
@@ -204,6 +227,7 @@ export function Providers({ children }: ProvidersProps) {
           }
 
           setMessages(mappedMessages);
+          hydrateProgressFromMessages(mappedMessages);
           console.debug(
             '[providers] loaded messages',
             mappedMessages.length,

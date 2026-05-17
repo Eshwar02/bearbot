@@ -100,6 +100,10 @@ export function AIProgressExpanded({ tasks, activeTask, sources, lastSourceDomai
           </div>
         </>
       )}
+
+      {!activeTask && tasks.length === 0 && visibleSources.length === 0 && (
+        <div className="text-xs text-white/50">No search activity yet for this chat.</div>
+      )}
     </div>
   );
 }

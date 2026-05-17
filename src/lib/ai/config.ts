@@ -29,6 +29,11 @@ export const AGENT_CONFIG = {
     maxTokens: num(process.env.AGENT_BRIEF_MAX_TOKENS, 3000),
     timeoutMs: num(process.env.AGENT_BRIEF_TIMEOUT_MS, 90_000),
   },
+  risk: {
+    temp:      num(process.env.AGENT_RISK_TEMP, 0.5),
+    maxTokens: num(process.env.AGENT_RISK_MAX_TOKENS, 4096),
+    timeoutMs: num(process.env.AGENT_RISK_TIMEOUT_MS, 120_000),
+  },
   memory: {
     // Top-K memories returned by semantic search and injected into the prompt.
     searchLimit:         num(process.env.MEMORY_SEARCH_LIMIT, 5),
@@ -45,4 +50,4 @@ export const AGENT_CONFIG = {
   },
 } as const;
 
-export type AgentType = "stock" | "general" | "brief";
+export type AgentType = "stock" | "general" | "brief" | "risk";

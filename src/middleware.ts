@@ -1,6 +1,7 @@
 import { updateSession } from "@/lib/supabase/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { getRequestOrigin } from "@/lib/url/server-origin";
 
 type SetAllCookies = (
   cookies: Array<{ name: string; value: string; options?: CookieOptions }>
@@ -72,14 +73,15 @@ export async function middleware(request: NextRequest) {
 
   // Unauthenticated user trying to access protected route
   if (!user && !isPublicPath) {
-    const loginUrl = new URL("/login", request.url);
+    const origin = getRequestOrigin(request);
+    const loginUrl = new URL("/login", origin);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // Authenticated user visiting login or signup — send them home
   if (user && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/", getRequestOrigin(request)));
   }
 
   return response;

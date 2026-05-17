@@ -18,6 +18,9 @@ interface ClassifyInput {
   hasWebSearch: boolean;
   historyDepth: number;     // number of prior turns
   generalKind: "brief" | "normal";
+  // Optional LLM-derived signals. When present, take precedence over regex.
+  llmKind?: "small_talk" | "stock" | "general_finance" | "general_other";
+  llmDepth?: "tiny" | "short" | "medium" | "long";
 }
 
 const EXPLORE_PATTERNS = [
@@ -78,16 +81,64 @@ const FOLLOWUP_PATTERNS = [
   /^\s*(yes|yeah|yep|sure|ok|okay)[!.?\s]+/i,
 ];
 
+// Small-talk / chitchat: user is making casual conversation (mood, plans,
+// daily life, brief acks). These should NEVER be answered with a 500-word
+// finance essay. Detected by topic words and short length.
+const SMALL_TALK_PATTERNS = [
+  /\b(tmrw|tomorrow|today|tonight|yesterday)\s+(is|got|have|i\s+have)\b/i,
+  /\b(exam|test|quiz|class|college|school|office|meeting|interview|sleep|sleepy|tired|bored|busy|free)\b/i,
+  /\b(i'?m|im|i\s+am)\s+(tired|bored|happy|sad|angry|excited|nervous|stressed|fine|good|ok|okay)\b/i,
+  /\b(thanks|thank\s*you|thx|ty|ok|okay|cool|nice|great|lol|haha|hmm+|alright|sure|np|no\s+problem)\b/i,
+  /\b(good\s+(morning|afternoon|evening|night))\b/i,
+  /\b(how\s+are\s+you|whats\s+up|what'?s\s+up|sup)\b/i,
+  /\b(bro|dude|da|bruh|mate|man)\b/i,
+];
+
+// Cheap, regex-only small-talk gate. Skips when there's a clear finance
+// signal in the same message.
+export function isSmallTalk(message: string): boolean {
+  const t = message.trim();
+  if (!t) return false;
+  // Very short messages with no question mark are almost always small-talk
+  // unless they contain a finance signal.
+  const hasFinanceSignal =
+    /\b(stock|share|ticker|price|quote|portfolio|invest|market|nifty|sensex|sp500|nasdaq|crypto|btc|eth|usd|inr|eur|gbp|earnings|dividend|sector|rsi|p\/?e|sma|ema|macd)\b/i.test(
+      t
+    ) || /\$[A-Z]{1,10}\b/.test(t);
+  if (hasFinanceSignal) return false;
+
+  // Explicit small-talk pattern match
+  if (SMALL_TALK_PATTERNS.some((p) => p.test(t))) return true;
+
+  // Very short non-question messages are almost always chitchat.
+  const words = t.split(/\s+/).length;
+  if (words <= 5 && !/\?/.test(t)) return true;
+
+  return false;
+}
+
 function matchesAny(patterns: RegExp[], text: string): boolean {
   return patterns.some((p) => p.test(text));
 }
 
 export function classifyResponseShape(input: ClassifyInput): ResponseShape {
-  const { message, routingMessage, chatMode, isStockAnalysis, generalKind } = input;
+  const { message, routingMessage, chatMode, isStockAnalysis, generalKind, llmKind, llmDepth } = input;
 
-  // Hard overrides first.
-  if (generalKind === "brief") return "quick_fact"; // greetings, short acks
+  // LLM classifier takes priority when available.
+  if (llmKind === "small_talk") return "small_talk";
   if (chatMode === "stock" && isStockAnalysis) return "deep_analysis";
+
+  // Map LLM depth → shape for non-stock cases.
+  if (llmKind && llmKind !== "stock") {
+    if (llmDepth === "tiny") return "quick_fact";
+    if (llmDepth === "short") return "definition";
+    if (llmDepth === "medium") return "explore";
+    if (llmDepth === "long") return "deep_analysis";
+  }
+
+  // Legacy regex fallback (used only when classifier output is missing).
+  if (chatMode === "general" && isSmallTalk(message)) return "small_talk";
+  if (generalKind === "brief") return "quick_fact";
 
   // Combined text — use original for style cues, routing for entity cues.
   const t = `${message} ${routingMessage}`;

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { classifyIntent, streamChat, validateAiSetup } from "@/lib/ai";
+import {
+  classifyMessage,
+  streamChat,
+  validateAiSetup,
+  type MessageClassification,
+} from "@/lib/ai";
 import {
   searchWeb,
   validateSerpApiSetup,
@@ -394,9 +399,10 @@ export async function POST(request: NextRequest) {
       chars: semanticMemoryBlock.length,
     });
 
-    let userMemory = [semanticMemoryBlock, userMemoryBase, languageInstruction]
-      .filter((s) => s && s.length > 0)
-      .join("\n\n");
+    // Defer building the full userMemory until after we know the intent.
+    // Small-talk turns must NOT receive portfolio / watchlist / deep research
+    // context — that's what causes the "answer hi with a portfolio dump" bug.
+    let userMemory = "";
 
     const historyRows = historyResponse.data;
     const conversationHistory: Array<{ role: "user" | "assistant"; content: string }> = (
@@ -417,8 +423,38 @@ export async function POST(request: NextRequest) {
     // about its dividend?", rewrite into a standalone query naming the entity
     // from prior turns. Routing (detect/classify/web-search) uses the rewritten
     // form; the user's original text is still persisted as-is.
+    // SKIP rewriting when the user is just chitchatting — rewriting "i'm
+    // tired" into "the user is tired about TCS shares" was the bug behind
+    // the random-company hallucinations.
+    // LLM-based intent classifier — single source of truth for small-talk
+    // vs stock vs finance vs other, depth, and whether to web-search.
+    // Cheap (mistral-small, json mode, ~200 tokens) and runs in parallel
+    // with the rewrite step. Falls back to a safe default on timeout.
+    recordProgress("Understanding what you mean", 25);
+    let llmIntent: MessageClassification;
+    try {
+      llmIntent = await withTimeout(
+        classifyMessage(incomingMessage, conversationHistory),
+        4000,
+        "classifyMessage"
+      );
+    } catch (err) {
+      console.warn(
+        "[chat-api] classifyMessage timed out; using safe fallback:",
+        err instanceof Error ? err.message : err
+      );
+      llmIntent = {
+        kind: "general_other",
+        needs_web_search: false,
+        company_or_topic: null,
+        depth: "short",
+      };
+    }
+    const earlySmallTalk = llmIntent.kind === "small_talk";
+    console.debug("[chat-api] llm classifier", llmIntent);
+
     let routingMessage = incomingMessage;
-    if (needsRewrite(incomingMessage, conversationHistory.length > 0)) {
+    if (!earlySmallTalk && needsRewrite(incomingMessage, conversationHistory.length > 0)) {
       recordProgress("Resolving references from previous turns", 26);
       try {
         routingMessage = await withTimeout(
@@ -441,50 +477,28 @@ export async function POST(request: NextRequest) {
     }
 
     recordProgress("Detecting whether this is a stock or general query", 28);
-    // Intent pipeline:
-    // 1. Regex (high-confidence stock signals) → stock mode candidate
-    // 2. Classifier LLM fallback → stock / greeting / general
-    let stockQuery: string | null = detectStockQuery(routingMessage);
-    console.debug("[chat-api] regex detection", { stockQuery: stockQuery ?? null });
-
-    // Skip classifier for short lowercase general questions — saves quota.
-    const looksLikeGeneral =
-      routingMessage.length < 60 &&
-      !/[A-Z]{2,}/.test(routingMessage) &&
-      !/\b(stock|share|ticker|price|quote|analyze|analysis|chart|buy|sell)\b/i.test(
-        routingMessage
-      );
-
-    if (!stockQuery) {
-      if (isGreeting(routingMessage)) {
-        generalKind = "normal";
-        console.debug("[chat-api] greeting shortcut");
-      } else if (looksLikeGeneral) {
-        console.debug("[chat-api] general shortcut (skip classifier)");
+    // Stock detection driven primarily by the LLM classifier:
+    // - small_talk → never a stock query
+    // - stock → trust the classifier's company_or_topic
+    // - other → fall back to regex tickers / explicit symbols only
+    let stockQuery: string | null = null;
+    if (!earlySmallTalk) {
+      if (llmIntent.kind === "stock") {
+        stockQuery = llmIntent.company_or_topic ?? detectStockQuery(routingMessage);
       } else {
-        try {
-          recordProgress("Classifying request intent", 31);
-          const intent = await withTimeout(
-            classifyIntent(routingMessage),
-            3000,
-            "classifyIntent"
-          );
-          console.debug("[chat-api] classifier result", intent ?? null);
-          if (intent) {
-            if (intent.intent === "stock_query" || intent.intent === "comparison") {
-              stockQuery =
-                intent.company_name ||
-                (intent.symbols && intent.symbols[0]) ||
-                routingMessage;
-            } else if (intent.intent === "greeting") {
-              generalKind = "brief";
-            }
-          }
-        } catch (error) {
-          console.warn("[chat-api] classifier failed", error instanceof Error ? error.message : error);
-        }
+        // Even when the classifier said "general", honor an explicit ticker
+        // like "$TCS" in the message — that's an unambiguous stock signal.
+        stockQuery = detectStockQuery(routingMessage);
       }
     }
+    if (earlySmallTalk) {
+      generalKind = "brief";
+    }
+    console.debug("[chat-api] stock detection", {
+      stockQuery: stockQuery ?? null,
+      classifierKind: llmIntent.kind,
+      smallTalk: earlySmallTalk,
+    });
 
     if (stockQuery) {
       recordProgress(`Resolving ticker for "${stockQuery}"`, 35);
@@ -591,28 +605,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Web search trigger: broadened auto-keywords + manual force flag + stock-mode news intent
-    const autoKeywords =
-      /\b(current|latest|news|update|recent|today|now|yesterday|this\s+week|this\s+month|this\s+year|earnings|results|launch|launched|announce|announced|release|released|merger|acquisition|ipo|funding|valuation|ceo|founder|what\s+is|who\s+is|where\s+is|when\s+did|when\s+is|why\s+did|why\s+is|how\s+to|how\s+much|how\s+many|explain|tell\s+me\s+about|describe|overview\s+of|compare|vs|versus|alternatives\s+to|review\s+of|opinion\s+on|status\s+of|details\s+on|info\s+on)\b/i;
-    const stockNewsIntent =
-      chatMode === "stock" && /\b(news|recent|today|latest|update|earnings|results|guidance)\b/i.test(routingMessage);
-    // If the regex/classifier guessed a stock but ticker resolution failed,
-    // the user is probably asking about a real-world entity we don't know.
-    // Force web search — that's exactly what the user told us to do instead
-    // of refusing with "data not in training set".
+    // Build the userMemory context block, gated by intent.
+    //   - small_talk: NOTHING but the language hint. No portfolio, no
+    //     watchlist, no semantic memory. Casual messages must not pull
+    //     finance context into the prompt.
+    //   - everything else: full context, as before.
+    if (earlySmallTalk) {
+      userMemory = languageInstruction;
+    } else {
+      userMemory = [semanticMemoryBlock, userMemoryBase, languageInstruction]
+        .filter((s) => s && s.length > 0)
+        .join("\n\n");
+    }
+
+    // Web search trigger driven by the LLM classifier instead of brittle
+    // keyword regex. The classifier already told us whether fresh / external
+    // info is needed; small_talk is hard-blocked from searching.
     const unresolvedEntityNeedsSearch = stockQuery !== null && !stockAnalysis;
-    // Proper-noun heuristic: capitalized multi-word token suggests a real
-    // entity we should look up rather than answer from priors.
-    const properNounLike =
-      /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}\b/.test(routingMessage) &&
-      !isGreeting(routingMessage);
     const shouldSearch =
       validateSerpApiSetup().valid &&
-      (forceWebSearch ||
-        autoKeywords.test(routingMessage) ||
-        stockNewsIntent ||
-        unresolvedEntityNeedsSearch ||
-        (chatMode === "general" && properNounLike));
+      !earlySmallTalk &&
+      (forceWebSearch || llmIntent.needs_web_search || unresolvedEntityNeedsSearch);
 
     let webSearch: WebSearchResult | null = null;
     if (shouldSearch) {
@@ -665,6 +678,18 @@ export async function POST(request: NextRequest) {
 
     const conversationId = activeConversationId as string;
 
+    // Whether the user explicitly asked about a stock in THIS message. Used
+    // to gate the stock-chart UI: a coreference rewrite could otherwise
+    // attach a chart to a casual follow-up like "ok bro".
+    const userExplicitlyAskedAboutStock =
+      stockAnalysis !== null &&
+      !earlySmallTalk &&
+      (detectStockQuery(incomingMessage) !== null ||
+        /\b(stock|share|ticker|price|quote|analyze|analysis|chart|buy|sell|portfolio|invest)\b/i.test(
+          incomingMessage
+        ) ||
+        /\$[A-Z]{1,10}\b/.test(incomingMessage));
+
     // Adaptive response shape: tell the LLM how deep to go and how to
     // structure the answer based on the user's intent. Without this, the
     // model under-delivers after web-search results land — it treats the
@@ -681,6 +706,8 @@ export async function POST(request: NextRequest) {
       hasWebSearch: Boolean(webSearch && webSearch.sources.length > 0),
       historyDepth: conversationHistory.length,
       generalKind,
+      llmKind: llmIntent.kind,
+      llmDepth: llmIntent.depth,
     });
     const shapeDirective = getResponseShapeDirective(responseShape);
     userMemory = userMemory
@@ -743,7 +770,12 @@ export async function POST(request: NextRequest) {
         visible: hasVisibleText(fullResponse),
       });
 
-      const metadata = buildStockMetadata(stockAnalysis);
+      // Only persist stock metadata if the user explicitly asked. Otherwise
+      // a turn that incidentally resolved a ticker (via coreference) would
+      // leave a stale chart on a casual reply.
+      const metadata = userExplicitlyAskedAboutStock
+        ? buildStockMetadata(stockAnalysis)
+        : ({} as Record<string, unknown>);
       metadata.provider = usedProvider;
       if (webSearch && webSearch.sources.length > 0) {
         metadata.sources = webSearch.sources;
@@ -869,12 +901,12 @@ export async function POST(request: NextRequest) {
       "Content-Type": "text/plain; charset=utf-8",
       "Transfer-Encoding": "chunked",
       "X-Conversation-Id": conversationId,
-      "X-Has-Stock-Data": stockAnalysis ? "true" : "false",
+      "X-Has-Stock-Data": userExplicitlyAskedAboutStock ? "true" : "false",
       "X-Has-Web-Sources": hasWebSources ? "true" : "false",
       "Access-Control-Expose-Headers":
         "X-Conversation-Id, X-Has-Stock-Data, X-Stock-Symbol, X-Stock-Exchange, X-Has-Web-Sources",
     };
-    if (stockAnalysis) {
+    if (stockAnalysis && userExplicitlyAskedAboutStock) {
       responseHeaders["X-Stock-Symbol"] = stockAnalysis.quote.symbol;
       responseHeaders["X-Stock-Exchange"] = stockAnalysis.quote.exchange || "";
     }

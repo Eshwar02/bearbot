@@ -30,6 +30,8 @@ interface AIProgressState {
   hideTimer: NodeJS.Timeout | null;
 
   // Actions
+  beginPromptSession: () => void;
+  hydrateFromChatSources: (sources: AISearchSource[]) => void;
   addTask: (task: Omit<AITask, 'startTime' | 'status'>) => void;
   startTask: (taskId: string) => void;
   completeTask: (taskId: string) => void;
@@ -56,6 +58,47 @@ export const useAIProgressStore = create<AIProgressState>((set, get) => ({
   isExpanded: false,
   autoCollapseTimer: null,
   hideTimer: null,
+
+  beginPromptSession: () => {
+    const state = get();
+    if (state.autoCollapseTimer) {
+      clearTimeout(state.autoCollapseTimer);
+    }
+    if (state.hideTimer) {
+      clearTimeout(state.hideTimer);
+    }
+    set((curr) => ({
+      activeTask: null,
+      completedTasks: [],
+      pendingTasks: [],
+      progressPercentage: 0,
+      phase: null,
+      searchSources: [],
+      lastSourceDomain: null,
+      autoCollapseTimer: null,
+      hideTimer: null,
+      isExpanded: curr.isExpanded,
+    }));
+  },
+
+  hydrateFromChatSources: (sources) => {
+    const normalized: AISearchSource[] = [];
+    const seen = new Set<string>();
+    for (const source of sources) {
+      if (!source.domain || seen.has(source.domain)) continue;
+      seen.add(source.domain);
+      normalized.push(source);
+    }
+    set(() => ({
+      activeTask: null,
+      pendingTasks: [],
+      completedTasks: [],
+      phase: null,
+      progressPercentage: normalized.length > 0 ? 100 : 0,
+      searchSources: normalized,
+      lastSourceDomain: normalized.length > 0 ? normalized[normalized.length - 1].domain : null,
+    }));
+  },
 
   addTask: (task) => {
     get().cancelHideTimer();
@@ -195,9 +238,6 @@ export const useAIProgressStore = create<AIProgressState>((set, get) => ({
     }
     const timer = setTimeout(() => {
       set({ isExpanded: false, hideTimer: null });
-      setTimeout(() => {
-        get().clearAll();
-      }, 1000);
     }, 2000);
     set({ hideTimer: timer });
   },

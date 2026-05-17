@@ -41,7 +41,7 @@ export function AIProgressIndicator() {
       items.push('Finalizing response...');
     }
     if (items.length === 0) {
-      items.push('Building response...');
+      items.push('AI context ready for this chat...');
     }
     return [...new Set(items)];
   }, [activeTask, completedTasks.length, lastSourceDomain, searchSources]);
@@ -62,7 +62,7 @@ export function AIProgressIndicator() {
     return () => clearInterval(timer);
   }, [collapsedMessages]);
 
-  if (!mounted || (!activeTask && completedTasks.length === 0)) return null;
+  if (!mounted) return null;
 
   const showExpanded = isExpanded && (completedTasks.length > 0 || searchSources.length > 0 || Boolean(activeTask));
   const estimatedSourceRows = Math.min(searchSources.length, 8) + (searchSources.length > 8 ? 1 : 0);

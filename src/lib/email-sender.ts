@@ -87,6 +87,52 @@ export async function sendEmailWithAttachment(
   return false;
 }
 
+async function sendEmail(
+  to: string,
+  subject: string,
+  text: string,
+  maxRetries: number = 3
+): Promise<boolean> {
+  const config = getEmailConfig();
+  if (!config) {
+    console.error('Email configuration not found. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS env vars.');
+    return false;
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: config.auth,
+  });
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const info = await transporter.sendMail({
+        from: `"AlphaSight AI" <${config.from}>`,
+        to,
+        subject,
+        text,
+      });
+
+      console.log(`Email sent successfully to ${to}, message ID: ${info.messageId}`);
+      return true;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`Email send attempt ${attempt} failed:`, lastError.message);
+
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      }
+    }
+  }
+
+  console.error(`Failed to send email to ${to} after ${maxRetries} attempts:`, lastError?.message);
+  return false;
+}
+
 export async function sendDailyBriefEmail(
   to: string,
   aiSummary: string,
@@ -96,4 +142,13 @@ export async function sendDailyBriefEmail(
   const text = `Good morning!\n\nHere's your daily stock market summary:\n\n${aiSummary}\n\nPlease find the detailed Excel report attached.\n\nBest regards,\nAlphaSight AI`;
 
   return sendEmailWithAttachment(to, subject, text, attachmentBuffer, 'daily-stock-report.xlsx');
+}
+
+export async function sendPasswordChangedConfirmationEmail(
+  to: string
+): Promise<boolean> {
+  const subject = "Your AlphaSight AI password was changed";
+  const text = `Hi,\n\nThis is a confirmation that your AlphaSight AI account password was changed successfully.\n\nIf you did not make this change, please reset your password immediately and contact support.\n\n- AlphaSight AI`;
+
+  return sendEmail(to, subject, text);
 }

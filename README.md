@@ -30,6 +30,8 @@ AlphaSight AI is an AI-first market intelligence workspace with:
 - Portfolio valuation, P&L, and health summaries
 - Watchlist tracking with movement checks
 - Daily briefs for portfolio and market pulse
+- Live AI activity monitor with source transparency (`search_source`, phase/task progress)
+- Multi-turn follow-up intelligence (coreference rewrite for “that/it” style queries)
 
 ---
 
@@ -183,6 +185,16 @@ npm run start
 
 ---
 
+## Intelligence & UX Upgrades
+
+- **Context-linked follow-ups:** queries like “tell me about ITC” → “tell me about that” are resolved to standalone intent before routing/search.
+- **Web-search grounding:** generalized query rewrite path improves retrieval quality and reduces literal bad searches.
+- **No weak refusal style:** prompts enforce use of available search/context instead of “not in training data” style responses.
+- **AI transparency indicator:** staged phases, domain-only source tracking, dedupe, capped source list, smooth progress transitions.
+- **Live settings behavior:** theme, chart/news visibility, and in-app notification toggles now apply instantly to UI.
+
+---
+
 ## Response Model
 
 Chat responses follow **Contextual AI Synthesis**:
@@ -199,19 +211,14 @@ The UI stays **text-first** to keep chat clean and focused.
 
 ## Recent Changes
 
-### Latest Commits
+### Latest Platform Updates
 
-```
-╔════════════════════════════════════════════════════════════════╗
-║                      Last 5 Commits                           ║
-╠════════════════════════════════════════════════════════════════╣
-║ 89721b6  docs: refresh README presentation                    ║
-║ 5022c2c  Fix scheduled daily brief cron processing            ║
-║ 9bae401  Fix first chat rendering and stale cache issues      ║
-║ 581be66  fix(cron): revert to daily schedule for Vercel       ║
-║ dd64348  chore: bump version to 1.1.0                         ║
-╚════════════════════════════════════════════════════════════════╝
-```
+- Portfolio intelligence + dashboard refinements
+- Daily-brief modularization + watchlist polish
+- Semantic memory extraction/write reliability improvements
+- Follow-up query rewrite + response-shape routing for stronger multi-turn chat
+- AI progress transparency monitor (source tracking + smooth phase progression)
+- Vercel Hobby-safe daily cron schedule (`0 9 * * *`)
 
 ---
 
@@ -237,5 +244,5 @@ The UI stays **text-first** to keep chat clean and focused.
 
 - Active AI provider: Mistral
 - Branding: AlphaSight logo
-- Current version: 1.1.0
+- Current version: 1.2.0
 - Deployment target: Vercel

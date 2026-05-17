@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
   Settings as SettingsIcon,
@@ -16,6 +16,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { UserPreferences } from '@/types/database';
+import { useTheme } from '@/components/theme-provider';
+import { publishPrefsUpdate, type Prefs as ClientPrefs } from '@/lib/hooks/use-prefs';
 
 type Prefs = Partial<UserPreferences> & {
   default_market?: 'US' | 'IN';
@@ -83,30 +85,54 @@ const COMMON_TZ = [
 export default function SettingsPage() {
   const [preferences, setPreferences] = useState<Prefs | null>(null);
   const [loading, setLoading] = useState(true);
+  const { setTheme } = useTheme();
+
+  const applyThemePreference = useCallback((theme: string) => {
+    if (theme === 'light' || theme === 'dark') {
+      setTheme(theme);
+      return;
+    }
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(prefersDark ? 'dark' : 'light');
+  }, [setTheme]);
 
   useEffect(() => {
-    fetchPreferences();
-  }, []);
-
-  const fetchPreferences = async () => {
-    try {
-      const response = await fetch('/api/user/preferences');
-      if (response.ok) {
-        const data = await response.json();
-        setPreferences(data.preferences);
-      } else {
-        toast.error('Failed to load preferences');
+    let mounted = true;
+    (async () => {
+      try {
+        const response = await fetch('/api/user/preferences');
+        if (!mounted) return;
+        if (response.ok) {
+          const data = await response.json();
+          setPreferences(data.preferences);
+          if (data.preferences?.theme) {
+            applyThemePreference(data.preferences.theme);
+          }
+        } else {
+          toast.error('Failed to load preferences');
+        }
+      } catch {
+        if (mounted) {
+          toast.error('Failed to load preferences');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    } catch {
-      toast.error('Failed to load preferences');
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [applyThemePreference]);
 
   const updatePreference = async (key: string, value: unknown) => {
+    const prev = preferences ?? {};
     // Optimistic
     setPreferences((p) => ({ ...(p ?? {}), [key]: value }));
+    if (key === 'theme' && typeof value === 'string') {
+      applyThemePreference(value);
+    }
     try {
       const response = await fetch('/api/user/preferences', {
         method: 'PUT',
@@ -116,13 +142,47 @@ export default function SettingsPage() {
       if (response.ok) {
         const data = await response.json();
         setPreferences(data.preferences);
-        toast.success('Saved');
+        const p = data.preferences as Prefs;
+        if (typeof p?.theme === 'string') {
+          applyThemePreference(p.theme);
+        }
+
+        const livePatch: Partial<ClientPrefs> = {};
+        if (key === 'show_charts' && typeof value === 'boolean') livePatch.show_charts = value;
+        if (key === 'show_news_cards' && typeof value === 'boolean') livePatch.show_news_cards = value;
+        if (key === 'language_mode' && (value === 'auto' || value === 'english' || value === 'tanglish')) {
+          livePatch.language_mode = value;
+        }
+        if (key === 'notif_in_app' && typeof value === 'boolean') livePatch.notif_in_app = value;
+        if (Object.keys(livePatch).length > 0) {
+          publishPrefsUpdate(livePatch);
+        }
+
+        const toastEnabled =
+          key === 'notif_in_app'
+            ? Boolean(value)
+            : Boolean(data.preferences?.notif_in_app ?? prev.notif_in_app ?? true);
+        if (toastEnabled) {
+          toast.success('Saved');
+        }
       } else {
+        setPreferences(prev);
+        if (key === 'theme' && typeof prev.theme === 'string') {
+          applyThemePreference(prev.theme);
+        }
         const err = await response.json().catch(() => ({}));
-        toast.error(err.error ?? 'Save failed');
+        if (prev.notif_in_app ?? true) {
+          toast.error(err.error ?? 'Save failed');
+        }
       }
     } catch {
-      toast.error('Network error');
+      setPreferences(prev);
+      if (key === 'theme' && typeof prev.theme === 'string') {
+        applyThemePreference(prev.theme);
+      }
+      if (prev.notif_in_app ?? true) {
+        toast.error('Network error');
+      }
     }
   };
 
@@ -235,7 +295,7 @@ export default function SettingsPage() {
 
         {/* Daily brief schedule */}
         <SettingCard icon={Clock} title="Daily Brief Schedule" description="Pick when the brief lands in your inbox">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${p.notif_brief_email === false ? 'opacity-60' : ''}`}>
             <div>
               <label className="block text-sm font-medium text-gray-100 mb-2">Time (HH:MM, local)</label>
               <input
@@ -243,6 +303,7 @@ export default function SettingsPage() {
                 className="w-full rounded-lg bg-dark-750 border border-dark-700 px-3 py-2 text-sm text-gray-100"
                 value={p.daily_brief_time ?? '09:00'}
                 onChange={(e) => updatePreference('daily_brief_time', e.target.value)}
+                disabled={p.notif_brief_email === false}
               />
             </div>
             <div>
@@ -251,6 +312,7 @@ export default function SettingsPage() {
                 className="w-full rounded-lg bg-dark-750 border border-dark-700 px-3 py-2 text-sm text-gray-100"
                 value={p.daily_brief_tz ?? 'Asia/Kolkata'}
                 onChange={(e) => updatePreference('daily_brief_tz', e.target.value)}
+                disabled={p.notif_brief_email === false}
               >
                 {COMMON_TZ.map((tz) => (
                   <option key={tz} value={tz}>{tz}</option>
@@ -258,6 +320,9 @@ export default function SettingsPage() {
               </select>
             </div>
           </div>
+          {p.notif_brief_email === false && (
+            <p className="text-xs text-dark-400 mt-2">Enable Daily Brief Emails to edit schedule.</p>
+          )}
         </SettingCard>
 
         {/* Account */}

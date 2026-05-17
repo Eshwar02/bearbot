@@ -45,7 +45,7 @@ export function useChat() {
     setMessages,
   } = useAppStore();
 
-  const { startStep, updateProgress, finishAll, updatePhase, trackSearchSource, completeCurrentTask } =
+  const { beginPrompt, startStep, updateProgress, finishAll, updatePhase, trackSearchSource, completeCurrentTask } =
     useAIProgress();
   const abortRef = useRef<AbortController | null>(null);
   const frameBatchRef = useRef<AIProgressFrame[]>([]);
@@ -177,6 +177,7 @@ export function useChat() {
       addMessage(userMsg);
       addMessage(assistantMsg);
       setIsStreaming(true);
+      beginPrompt();
       updatePhase('planning', 'Planning request');
       startStep('Sending request to AlphaSight...', 6);
        
@@ -428,10 +429,15 @@ export function useChat() {
           console.debug('[useChat] sendMessage:metadata-hydrate', {
             conversationId: effectiveConversationId,
           });
-          const hydrateRes = await fetch(
-            `/api/conversations/${effectiveConversationId}/messages?limit=200`
-          );
-          if (hydrateRes.ok) {
+          let hydrateRes: Response | null = null;
+          try {
+            hydrateRes = await fetch(
+              `/api/conversations/${effectiveConversationId}/messages?limit=200`
+            );
+          } catch (hydrateErr) {
+            console.warn('[useChat] hydrate fetch failed (non-fatal):', hydrateErr);
+          }
+          if (hydrateRes && hydrateRes.ok) {
             const hydrateData = await hydrateRes.json();
             const latestAssistant = [...(hydrateData.messages || [])]
               .reverse()
@@ -512,6 +518,7 @@ export function useChat() {
       setActiveConversation,
       setActiveView,
       addConversation,
+      beginPrompt,
       startStep,
       finishAll,
       updatePhase,

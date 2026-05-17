@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getBrowserAppOrigin } from "@/lib/url/client-origin";
 
 function ForgotPasswordContent() {
   const searchParams = useSearchParams();
@@ -51,8 +52,9 @@ function ForgotPasswordContent() {
     setEmailSent(false);
     setSendingEmail(true);
 
+    const appOrigin = getBrowserAppOrigin();
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/forgot-password?mode=reset`,
+      redirectTo: `${appOrigin}/forgot-password?mode=reset`,
     });
 
     if (resetError) {

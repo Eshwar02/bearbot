@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { getBrowserAppOrigin } from "@/lib/url/client-origin";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 function LoginPageContent() {
@@ -46,10 +47,11 @@ function LoginPageContent() {
     setGoogleLoading(true);
 
     try {
+      const appOrigin = getBrowserAppOrigin();
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
+          redirectTo: `${appOrigin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
           scopes: "openid email profile",
           queryParams: {
             access_type: "offline",

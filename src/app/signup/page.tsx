@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
+import { getBrowserAppOrigin } from "@/lib/url/client-origin";
 import { Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 
 export default function SignupPage() {
@@ -39,6 +40,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
+      const appOrigin = getBrowserAppOrigin();
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -46,7 +48,7 @@ export default function SignupPage() {
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${appOrigin}/auth/callback`,
         },
       });
 
@@ -70,10 +72,11 @@ export default function SignupPage() {
     setGoogleLoading(true);
 
     try {
+      const appOrigin = getBrowserAppOrigin();
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${appOrigin}/auth/callback`,
           scopes: 'openid email profile',
           queryParams: {
             access_type: 'offline',

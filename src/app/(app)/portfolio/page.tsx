@@ -21,6 +21,7 @@ import { LivePrice } from '@/components/ui/live-price';
 import { useLiveQuotes } from '@/lib/hooks/use-live-quotes';
 import type { PortfolioHolding } from '@/types/stock';
 import { AddHoldingModal } from '@/components/portfolio/add-holding-modal';
+import { BacktestPanel } from '@/components/portfolio/BacktestPanel';
 import type {
   AssetIntelligenceCard,
   PortfolioIntelligence,
@@ -446,6 +447,8 @@ export default function PortfolioPage() {
           <Skeleton className="h-3 w-3/4" />
         </div>
       )}
+
+      {enriched.length > 0 && <BacktestPanel />}
 
       {enriched.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">

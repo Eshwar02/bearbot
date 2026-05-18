@@ -18,15 +18,10 @@ interface ChatMessageProps {
 const EMPTY_RESPONSE_FALLBACK =
   'Unable to generate analysis right now. Showing available data below.';
 
-/**
- * Assistant "avatar" — a simple sparkle mark in the brand teal. Replaces the
- * Bot-in-a-circle so the layout reads as plain text (Claude-style) rather
- * than a chat bubble with an icon chip.
- */
 function AssistantMark() {
   return (
-    <div className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md">
-      <Image src="/logo.svg" alt="AlphaSight" width={18} height={18} />
+    <div className="mt-1.5 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900">
+      <img src="/logo.svg" alt="AlphaSight" width={16} height={16} className="opacity-90" />
     </div>
   );
 }
@@ -47,9 +42,9 @@ function ShareButton({ content }: { content: string }) {
   return (
     <button
       onClick={handleShare}
-      className="flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-800 hover:text-gray-900 dark:hover:text-gray-200"
+      className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-800 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
     >
-      {copied ? <Check className="h-3 w-3" /> : <Share className="h-3 w-3" />}
+      {copied ? <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" /> : <Share className="h-3.5 w-3.5" />}
       {copied ? 'Copied' : 'Share'}
     </button>
   );
@@ -57,10 +52,10 @@ function ShareButton({ content }: { content: string }) {
 
 function StreamingDots() {
   return (
-    <div className="flex items-center gap-1.5 py-2">
-      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-300 [animation-delay:0ms]" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-300 [animation-delay:150ms]" />
-      <span className="h-2 w-2 animate-bounce rounded-full bg-gray-300 [animation-delay:300ms]" />
+    <div className="flex items-center gap-1.5 py-3">
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gray-400 dark:bg-gray-500 [animation-delay:0ms]" />
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gray-400 dark:bg-gray-500 [animation-delay:150ms]" />
+      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-gray-400 dark:bg-gray-500 [animation-delay:300ms]" />
     </div>
   );
 }
@@ -70,6 +65,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const prefs = usePrefs();
   const isUser = message.role === 'user';
   const isStreaming = message.isStreaming;
+  
   const normalizedContent = useMemo(
     () => {
       if (typeof message.content !== 'string') return '';
@@ -85,10 +81,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
     [normalizedContent],
   );
 
-  // Count text that would actually render visibly. During streaming, the LLM
-  // often opens with `---` separators or pure whitespace that markdown renders
-  // as an invisible <hr/> — which made the bubble look "stuck" with just a
-  // cursor. Treat content as visible only once we have real characters.
   const visibleText = useMemo(
     () =>
       normalizedContent
@@ -96,116 +88,111 @@ export function ChatMessage({ message }: ChatMessageProps) {
         .trim(),
     [normalizedContent],
   );
+  
   const hasContent = visibleText.length > 0;
   const hasStreamingText = normalizedContent.trim().length > 0;
 
-  if (process.env.NODE_ENV !== 'production' && !isUser) {
-    console.debug('[ChatMessage] render', {
-      id: message.id,
-      isStreaming,
-      rawLen: message.content.length,
-      visibleLen: visibleText.length,
-      rawPreview: message.content.slice(0, 80),
-    });
-  }
-
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: 'easeOut' }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
       className={cn(
-        'px-4 sm:px-6',
-        isUser ? 'py-2' : 'py-4',
+        'w-full mb-6',
+        isUser ? 'py-4' : 'py-2',
       )}
     >
       {isUser ? (
-        /* ── User: right-aligned rounded pill ───────────────────────── */
-        <div className="mx-auto flex max-w-3xl justify-end">
+        /* ── User: Subtle, muted gray pill (ChatGPT style) ───────────────────────── */
+        <div className="flex w-full justify-end">
           <div
             className={cn(
               'max-w-[85%] whitespace-pre-wrap break-words',
-              'rounded-2xl rounded-tr-md bg-blue-500 dark:bg-dark-800 px-4 py-2.5',
-              'text-[15px] leading-relaxed text-white dark:text-gray-100',
-              'border border-gray-200 dark:border-dark-700/60',
-              'shadow-[0_1px_0_rgba(0,0,0,0.2)]',
+              'rounded-3xl bg-gray-100 dark:bg-[#2F2F2F] px-5 py-3',
+              'text-[15px] leading-relaxed text-gray-900 dark:text-gray-100',
             )}
           >
             {message.content}
           </div>
         </div>
       ) : (
-        /* ── Assistant: plain text, no bubble, sparkle mark on the left ── */
-        <div className="mx-auto flex max-w-3xl gap-3">
+        /* ── Assistant: Plain text, readable width, icon on left ── */
+        <div className="flex w-full gap-4">
           <AssistantMark />
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 pt-1">
+            
             {/* Stock card (top of message) */}
             {!isStreaming && prefs.show_charts && message.stockData && message.stockData[0] && (
-              <>
+              <div className="mb-5 max-w-2xl">
                 <StockCard stock={message.stockData[0]} />
                 <ChartWidget
                   symbol={message.stockData[0].symbol}
                   exchange={message.stockData[0].exchange}
-                  height={360}
+                  height={320}
                 />
-              </>
-            )}
-
-            {/* Body */}
-            {hasStreamingText && (
-              <MarkdownRenderer
-                content={normalizedContent}
-                streaming={isStreaming}
-                sources={message.sources}
-              />
-            )}
-            {!hasStreamingText && isStreaming && <StreamingDots />}
-            {!hasContent && !isStreaming && (
-              <div className="text-[15px] leading-7 text-gray-400 dark:text-gray-400 italic">
-                {EMPTY_RESPONSE_FALLBACK}
               </div>
             )}
 
-            {/* Web sources footer */}
+            {/* Body - highly readable typography */}
+            <div className="prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-gray-100">
+              {hasStreamingText && (
+                <MarkdownRenderer
+                  content={normalizedContent}
+                  streaming={isStreaming}
+                  sources={message.sources}
+                />
+              )}
+              {!hasStreamingText && isStreaming && <StreamingDots />}
+              {!hasContent && !isStreaming && (
+                <div className="text-[15px] leading-7 text-gray-500 italic">
+                  {EMPTY_RESPONSE_FALLBACK}
+                </div>
+              )}
+            </div>
+
+            {/* Web sources footer - Clean, flat borders */}
             {!isStreaming && message.sources && message.sources.length > 0 && (
-              <div className="mt-4 rounded-lg border border-dark-700 bg-dark-900 p-3">
-                <div className="mb-2 text-[11px] uppercase tracking-wide text-dark-500">
+              <div className="mt-6 rounded-xl border border-gray-200 dark:border-dark-700 bg-gray-50 dark:bg-dark-900 p-4 max-w-2xl">
+                <div className="mb-3 text-xs font-semibold text-gray-900 dark:text-gray-100">
                   Sources
                 </div>
-                <ol className="space-y-1.5">
+                <ol className="space-y-2.5">
                   {message.sources.map((s, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="shrink-0 font-mono text-dark-500">[{i + 1}]</span>
+                    <li key={i} className="flex items-start gap-3 text-sm">
+                      <span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-gray-200 dark:bg-dark-800 text-[10px] font-medium text-gray-600 dark:text-gray-400">
+                        {i + 1}
+                      </span>
                       <a
                         href={s.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="line-clamp-1 text-accent-green hover:underline"
+                        className="line-clamp-1 font-medium text-blue-600 dark:text-blue-400 hover:underline pt-0.5"
                       >
                         {s.title}
                       </a>
-                      <span className="shrink-0 text-xs text-dark-500">· {s.source}</span>
                     </li>
                   ))}
                 </ol>
               </div>
             )}
 
-            {/* News cards */}
+            {/* News cards - Structured and minimal */}
             {!isStreaming && prefs.show_news_cards && message.newsData && message.newsData.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <div className="text-xs uppercase tracking-wide text-dark-500">Recent News</div>
+              <div className="mt-6 space-y-3 max-w-2xl">
+                <div className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                  Recent News
+                </div>
                 {message.newsData.slice(0, 4).map((n, i) => (
                   <a
                     key={i}
                     href={n.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block rounded-lg border border-dark-700 bg-dark-900 px-3 py-2 transition-colors hover:border-dark-600 hover:bg-dark-850"
+                    className="block rounded-xl border border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 p-3.5 transition-colors hover:bg-gray-50 dark:hover:bg-dark-800"
                   >
-                    <div className="line-clamp-2 text-sm text-gray-200">{n.title}</div>
-                    <div className="mt-1 flex items-center gap-2 text-[11px] text-dark-500">
-                      <span>{n.source}</span>
+                    <div className="line-clamp-2 text-[14px] font-medium leading-snug text-gray-900 dark:text-gray-100">{n.title}</div>
+                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                      <span className="font-medium">{n.source}</span>
                       {n.publishedAt && (
                         <>
                           <span>·</span>
@@ -218,38 +205,34 @@ export function ChatMessage({ message }: ChatMessageProps) {
               </div>
             )}
 
-            {/* Feedback buttons for assistant messages */}
+            {/* Feedback buttons - Subtle flat design */}
             {!isUser && !isStreaming && hasContent && (
-              <div className="mt-3 flex gap-2">
+              <div className="mt-5 flex gap-2">
                 <button
                   onClick={() => setFeedback('good')}
-                  aria-label="Mark response as helpful"
-                  aria-pressed={feedback === 'good'}
                   className={cn(
-                    'flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors',
+                    'flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-colors',
                     feedback === 'good'
-                      ? 'bg-accent-brand text-dark-950'
-                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-800 hover:text-gray-900 dark:hover:text-gray-200'
+                      ? 'bg-gray-200 text-gray-900 dark:bg-dark-700 dark:text-gray-100'
+                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-800 dark:hover:text-gray-200'
                   )}
                 >
-                  <ThumbsUp className="h-3 w-3" />
-                  Good
+                  <ThumbsUp className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={() => setFeedback('poor')}
-                  aria-label="Mark response as unhelpful"
-                  aria-pressed={feedback === 'poor'}
                   className={cn(
-                    'flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors',
+                    'flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium transition-colors',
                     feedback === 'poor'
-                      ? 'bg-red-600 text-white'
-                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-800 hover:text-gray-900 dark:hover:text-gray-200'
+                      ? 'bg-gray-200 text-gray-900 dark:bg-dark-700 dark:text-gray-100'
+                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-800 dark:hover:text-gray-200'
                   )}
                 >
-                  <ThumbsDown className="h-3 w-3" />
-                  Poor
+                  <ThumbsDown className="h-3.5 w-3.5" />
                 </button>
-                <ShareButton content={normalizedContent} />
+                <div className="ml-2 border-l border-gray-200 dark:border-dark-800 pl-2">
+                  <ShareButton content={normalizedContent} />
+                </div>
               </div>
             )}
 

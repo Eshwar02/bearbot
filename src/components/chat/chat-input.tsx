@@ -53,13 +53,15 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
 
   return (
     <div className="w-full">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-3xl">
         <div
           className={cn(
-            'relative flex items-end gap-3 rounded-3xl border bg-white/[0.03] backdrop-blur-xl px-5 py-4 shadow-2xl',
-            'transition-all duration-300',
-            // High-end focus state: subtle glow and brighter border
-            'border-white/10 focus-within:border-emerald-500/40 focus-within:bg-white/[0.05] focus-within:shadow-[0_0_30px_rgba(16,185,129,0.15)]',
+            'relative flex items-end gap-3 rounded-2xl border px-4 py-3 shadow-sm',
+            'transition-colors duration-200',
+            // Clean, flat design respecting light/dark mode
+            'bg-white border-gray-300 dark:bg-dark-900 dark:border-dark-700',
+            // Crisp, professional focus state without glows
+            'focus-within:border-gray-400 dark:focus-within:border-dark-500',
           )}
         >
           <textarea
@@ -71,9 +73,9 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
             disabled={disabled}
             rows={1}
             className={cn(
-              'flex-1 resize-none bg-transparent text-base text-gray-100 outline-none leading-relaxed',
-              'placeholder:text-gray-500',
-              'scrollbar-thin scrollbar-thumb-white/10 hover:scrollbar-thumb-white/20',
+              'flex-1 resize-none bg-transparent text-[15px] text-gray-900 dark:text-gray-100 outline-none leading-relaxed py-1',
+              'placeholder:text-gray-500 dark:placeholder:text-gray-400',
+              'scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-dark-600',
               'disabled:cursor-not-allowed disabled:opacity-50',
             )}
             style={{ maxHeight: 200 }}
@@ -86,27 +88,27 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled }: ChatInputPr
             <button
               onClick={onStop}
               className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
-                'bg-white/10 text-emerald-400 transition-all hover:bg-white/20 hover:scale-105',
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg mb-0.5',
+                'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700 transition-colors',
               )}
               aria-label="Stop generating"
             >
-              <Square className="h-4 w-4 fill-current" />
+              <Square className="h-3.5 w-3.5 fill-current" />
             </button>
           ) : (
             <button
               onClick={handleSend}
               disabled={!hasText || disabled}
               className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl transition-all duration-300',
+                'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg mb-0.5 transition-colors duration-200',
                 hasText && !disabled
-                  // Glowing neon orb effect for the send button
-                  ? 'bg-gradient-to-br from-emerald-400 to-teal-500 text-dark-900 shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] hover:scale-105'
-                  : 'bg-white/5 text-gray-600 border border-white/5 cursor-not-allowed',
+                  // Solid, professional active state (no neon gradients)
+                  ? 'bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 shadow-sm'
+                  : 'bg-gray-100 text-gray-400 dark:bg-dark-800 dark:text-dark-500 cursor-not-allowed',
               )}
               aria-label="Send message"
             >
-              <ArrowUp className="h-5 w-5" strokeWidth={2.5} />
+              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
             </button>
           )}
         </div>

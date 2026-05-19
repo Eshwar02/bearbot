@@ -370,7 +370,6 @@ git push origin feature/your-feature-name
 - 🐛 **Report Bugs**: [GitHub Issues](https://github.com/Eshwar02/bearbot/issues)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/Eshwar02/bearbot/discussions)
 - 📧 **Email**: support@alphasight.ai
-- 🐦 **Twitter**: [@AlphaSightAI](https://twitter.com)
 
 ---
 

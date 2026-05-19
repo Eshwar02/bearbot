@@ -34,7 +34,7 @@ export function AIProgressExpanded({ tasks, activeTask, sources, lastSourceDomai
   const hiddenSourcesCount = Math.max(0, sources.length - visibleSources.length);
 
   return (
-    <div className="flex h-full flex-col px-3 py-2.5">
+    <div className="flex h-full flex-col px-3 py-2.5 font-mono">
       {/* Tasks section — scrollable */}
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
         {tasks.map((task, idx) => (
@@ -44,8 +44,8 @@ export function AIProgressExpanded({ tasks, activeTask, sources, lastSourceDomai
             style={{ opacity: 0.78 - Math.min(idx * 0.05, 0.2) }}
           >
             <div className="min-w-0 flex items-center gap-2">
-              <span className="text-teal-400 text-xs font-semibold flex-shrink-0">✓</span>
-              <span className="truncate text-xs font-medium text-white/72">{task.name}</span>
+              <span className="text-teal-400 text-[11px] font-semibold flex-shrink-0">✓</span>
+              <span className="truncate text-[11px] font-medium text-white/72">{task.name}</span>
             </div>
             <span className="flex-shrink-0 tabular-nums text-[10px] text-white/40">
               {task.duration ? formatTime(task.duration) : '—'}
@@ -60,7 +60,7 @@ export function AIProgressExpanded({ tasks, activeTask, sources, lastSourceDomai
                 <div className="h-1.5 w-1.5 rounded-full bg-teal-400" />
                 <div className="absolute inset-0 h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
               </div>
-              <span className="truncate text-xs font-medium text-white/86">{activeTask.name}</span>
+              <span className="truncate text-[11px] font-medium text-white/86">{activeTask.name}</span>
             </div>
             <span className="flex-shrink-0 tabular-nums text-[10px] text-white/40">
               {formatTime(elapsedTime)}
@@ -102,7 +102,7 @@ export function AIProgressExpanded({ tasks, activeTask, sources, lastSourceDomai
       )}
 
       {!activeTask && tasks.length === 0 && visibleSources.length === 0 && (
-        <div className="text-xs text-white/50">No search activity yet.</div>
+        <div className="text-[11px] text-white/50">No search activity yet.</div>
       )}
     </div>
   );

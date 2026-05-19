@@ -8,7 +8,7 @@ import { AIProgressExpanded } from './ai-progress-expanded';
 
 const FIXED_HEIGHT = 280;
 const COLLAPSED_HEIGHT = 44;
-const FIXED_WIDTH = 320;
+const FIXED_WIDTH = 270;
 
 export function AIProgressIndicator() {
   const {
@@ -83,7 +83,7 @@ export function AIProgressIndicator() {
       aria-label="AI processing status"
     >
       <div
-        className="relative cursor-pointer overflow-hidden rounded-xl backdrop-blur-xl transition-all duration-300 ease-out"
+        className="relative cursor-pointer overflow-hidden rounded-xl backdrop-blur-xl transition-all duration-300 ease-out font-mono"
         style={{
           background: 'rgba(15, 15, 15, 0.85)',
           border: '1px solid rgba(255, 255, 255, 0.08)',

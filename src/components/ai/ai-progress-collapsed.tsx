@@ -12,7 +12,7 @@ export function AIProgressCollapsed({ text }: CollapsedProps) {
           <div className="h-1.5 w-1.5 rounded-full bg-teal-400" />
           <div className="absolute inset-0 h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
         </div>
-        <span className="truncate text-xs font-medium tracking-tight text-white/82 transition-opacity duration-300 ease-out">
+        <span className="truncate text-[11px] font-medium tracking-tight text-white/82 transition-opacity duration-300 ease-out font-mono">
           {text}
         </span>
       </div>

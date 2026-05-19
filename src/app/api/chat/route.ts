@@ -288,9 +288,16 @@ async function analyzeImageAttachment(file: File): Promise<string> {
     console.warn("[chat-api] Groq image analysis failed, falling back to OCR:", error);
   }
 
-  const { recognize } = await import("tesseract.js");
-  const result = await recognize(Buffer.from(await file.arrayBuffer()), "eng");
-  return result?.data?.text?.trim() || "";
+  try {
+    const { recognize } = await import("tesseract.js");
+    const result = await recognize(Buffer.from(await file.arrayBuffer()), "eng");
+    const text = result?.data?.text?.trim() || "";
+    if (text) return text;
+  } catch (error) {
+    console.warn("[chat-api] OCR image analysis failed:", error);
+  }
+
+  return `[Image uploaded: ${file.name || "attachment"}]`;
 }
 
 async function extractAttachmentText(file: File): Promise<AttachmentSummary> {
@@ -409,7 +416,7 @@ export async function POST(request: NextRequest) {
     const contentType = request.headers.get("content-type") || "";
     let incomingMessage = "";
     let requestedConversationId: string | null = null;
-    let requestedModel: "mistral" = "mistral";
+    let requestedModel = "mistral" as const;
     let forceWebSearch = false;
     let attachmentSummaries: AttachmentSummary[] = [];
 

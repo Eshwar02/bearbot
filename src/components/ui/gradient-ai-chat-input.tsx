@@ -157,6 +157,37 @@ export function GradientAIChatInput({
     [attachments, onAttachmentsChange],
   );
 
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = Array.from(event.clipboardData.items ?? []);
+      const pastedFiles = items
+        .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+        .map((item) => item.getAsFile() ?? undefined)
+        .filter((file): file is File => Boolean(file))
+        .map((file, index) =>
+          new File([file], file.name || `pasted-image-${index + 1}.png`, {
+            type: file.type || 'image/png',
+            lastModified: Date.now(),
+          }),
+        );
+
+      if (pastedFiles.length === 0) return;
+
+      event.preventDefault();
+      const merged = [...attachments, ...pastedFiles].filter(
+        (file, index, list) =>
+          list.findIndex(
+            (candidate) =>
+              candidate.name === file.name &&
+              candidate.size === file.size &&
+              candidate.lastModified === file.lastModified,
+          ) === index,
+      );
+      onAttachmentsChange?.(merged.slice(0, 5));
+    },
+    [attachments, onAttachmentsChange],
+  );
+
   const idleBorder = 'rgba(200, 200, 200, 0.5)';
 
   return (
@@ -235,14 +266,15 @@ export function GradientAIChatInput({
 
         <div className="relative px-4 pb-3 pt-3.5">
           <div className="mb-2 flex items-start gap-3">
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              placeholder={placeholder}
+              <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                placeholder={placeholder}
               disabled={disabled}
               rows={1}
               className={cn(

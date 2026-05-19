@@ -96,6 +96,7 @@ export function GradientAIChatInput({
   const hasText = value.trim().length > 0;
   const showDropdown = modelOptions.length > 0;
   const hasAttachments = attachments.length > 0;
+  const canSend = hasText || hasAttachments;
   const supportedTypes =
     'image/*,.txt,.md,.csv,.tsv,.json,.xml,.html,.htm,.yaml,.yml,.xlsx,.xls';
 
@@ -129,12 +130,12 @@ export function GradientAIChatInput({
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        if (hasText && !isStreaming && !disabled) {
+        if (canSend && !isStreaming && !disabled) {
           onSend();
         }
       }
     },
-    [hasText, isStreaming, disabled, onSend],
+    [canSend, isStreaming, disabled, onSend],
   );
 
   const handleFileSelection = useCallback(
@@ -287,17 +288,17 @@ export function GradientAIChatInput({
                 </motion.button>
                 <motion.button
                   type="button"
-                  onClick={() => hasText && !disabled && onSend()}
-                  disabled={!hasText || disabled}
+                  onClick={() => canSend && !disabled && onSend()}
+                  disabled={!canSend || disabled}
                   className={cn(
                     'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
                     'transition-all duration-200',
-                    hasText && !disabled
+                    canSend && !disabled
                       ? 'bg-accent-brand text-dark-950 shadow-[0_0_0_1px_rgba(20,184,166,0.4)] hover:bg-accent-brand-hover'
                       : 'cursor-not-allowed bg-elevated text-muted',
                   )}
-                  whileHover={shouldAnimate && hasText && !disabled ? { scale: 1.05 } : {}}
-                  whileTap={shouldAnimate && hasText && !disabled ? { scale: 0.92 } : {}}
+                  whileHover={shouldAnimate && canSend && !disabled ? { scale: 1.05 } : {}}
+                  whileTap={shouldAnimate && canSend && !disabled ? { scale: 0.92 } : {}}
                   aria-label="Send message"
                 >
                   <ArrowUp className="h-4 w-4" strokeWidth={2.5} />

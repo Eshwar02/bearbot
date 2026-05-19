@@ -211,6 +211,44 @@ const styles = StyleSheet.create({
     border: 1,
     borderColor: '#ececec',
   },
+  // Markdown styles
+  mdHeading1: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0d0d0d',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  mdHeading2: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#0d0d0d',
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  mdHeading3: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#0d0d0d',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  mdParagraph: {
+    fontSize: 10,
+    lineHeight: 1.6,
+    color: '#333333',
+    marginBottom: 8,
+  },
+  mdListItem: {
+    fontSize: 10,
+    lineHeight: 1.5,
+    color: '#333333',
+    marginBottom: 3,
+    paddingLeft: 10,
+  },
+  mdBold: {
+    fontWeight: 'bold',
+  },
 });
 
 const formatCurrency = (value: number, currency: string = 'USD') => {
@@ -245,6 +283,61 @@ const formatNewsDate = (dateString: string) => {
     day: 'numeric',
     year: 'numeric',
   });
+};
+
+// Simple Markdown Parser for PDF
+const parseMarkdown = (markdown: string) => {
+  const lines = markdown.split('\n');
+  const elements: any[] = [];
+  let inList = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Headings
+    if (trimmed.startsWith('### ')) {
+      elements.push(<Text key={elements.length} style={styles.mdHeading3}>{trimmed.replace('### ', '')}</Text>);
+      continue;
+    }
+    if (trimmed.startsWith('## ')) {
+      elements.push(<Text key={elements.length} style={styles.mdHeading2}>{trimmed.replace('## ', '')}</Text>);
+      continue;
+    }
+    if (trimmed.startsWith('# ')) {
+      elements.push(<Text key={elements.length} style={styles.mdHeading1}>{trimmed.replace('# ', '')}</Text>);
+      continue;
+    }
+
+    // Lists
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      if (!inList) {
+        inList = true;
+      }
+      const content = trimmed.replace(/^[-*] /, '');
+      elements.push(<Text key={elements.length} style={styles.mdListItem}>• {content}</Text>);
+      continue;
+    } else {
+      inList = false;
+    }
+
+    // Bold text handling (simple)
+    if (trimmed.includes('**')) {
+      const parts = trimmed.split(/(\*\*.*?\*\*)/g);
+      const children = parts.map((part, i) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <Text key={i} style={styles.mdBold}>{part.replace(/\*\*/g, '')}</Text>;
+        }
+        return <Text key={i}>{part}</Text>;
+      });
+      elements.push(<Text key={elements.length} style={styles.mdParagraph}>{children}</Text>);
+    } else {
+      // Regular paragraph
+      elements.push(<Text key={elements.length} style={styles.mdParagraph}>{trimmed}</Text>);
+    }
+  }
+
+  return elements;
 };
 
 export const BriefPDF = ({ brief }: BriefPDFProps) => {
@@ -352,10 +445,10 @@ export const BriefPDF = ({ brief }: BriefPDFProps) => {
           </View>
         )}
 
-        {/* AI Analysis Content */}
+        {/* AI Analysis Content (Parsed Markdown) */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>AI Analysis</Text>
-          <Text style={styles.overviewText}>{brief.content}</Text>
+          <Text style={styles.sectionTitle}>Comprehensive Analysis</Text>
+          {parseMarkdown(brief.content)}
         </View>
 
         {/* Disclaimer */}

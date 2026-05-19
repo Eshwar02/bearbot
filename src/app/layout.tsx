@@ -13,12 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 const fraunces = Fraunces({
-  weight: ['400', '500', '600', '700'],
   style: ['normal', 'italic'],
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-serif',
-  axes: ['opsz', 'SOFT', 'WONK'],
+  axes: ['SOFT', 'WONK'],
 });
 
 export const metadata: Metadata = {

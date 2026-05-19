@@ -50,7 +50,8 @@
       "Bash(vercel --version)",
       "Bash(gh api *)",
       "WebFetch(domain:vercel.link)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git stash *)"
     ]
   },
   "enableAllProjectMcpServers": true,

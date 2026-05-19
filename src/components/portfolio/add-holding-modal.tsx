@@ -29,7 +29,7 @@ function AddHoldingModal({
   const [symbol, setSymbol] = useState('');
   const [quantity, setQuantity] = useState('');
   const [avgBuyPrice, setAvgBuyPrice] = useState('');
-  const [currency, setCurrency] = useState<'USD' | 'INR' | 'EUR' | 'GBP'>('USD');
+  const [currency, setCurrency] = useState<'USD' | 'INR' | 'EUR' | 'GBP'>('INR');
   const [currencyTouched, setCurrencyTouched] = useState(false);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -79,7 +79,7 @@ function AddHoldingModal({
       upper.endsWith('.MI')
     )
       setCurrency('EUR');
-    else setCurrency('USD');
+    else setCurrency('INR');
   }, [symbol, currencyTouched]);
 
   const searchSymbols = useCallback(async (query: string) => {

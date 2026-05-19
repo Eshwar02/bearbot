@@ -104,7 +104,12 @@ export default function SettingsPage() {
         if (!mounted) return;
         if (response.ok) {
           const data = await response.json();
-          setPreferences(data.preferences);
+          // Default to Indian Market if not set
+          const prefs = {
+            ...data.preferences,
+            default_market: data.preferences?.default_market || 'IN',
+          };
+          setPreferences(prefs);
           if (data.preferences?.theme) {
             applyThemePreference(data.preferences.theme);
           }

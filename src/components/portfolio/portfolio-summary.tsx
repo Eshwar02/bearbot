@@ -16,7 +16,7 @@ function PortfolioSummary({ holdings }: PortfolioSummaryProps) {
   );
   const totalPnl = totalValue - totalCost;
   const totalPnlPercent = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
-  const primaryCurrency = holdings.length > 0 ? (holdings[0].currency || "USD") : 'USD';
+  const primaryCurrency = holdings.length > 0 ? (holdings[0].currency || "INR") : 'INR';
 
   const best = holdings.length
     ? holdings.reduce((a, b) => (a.pnlPercent > b.pnlPercent ? a : b))

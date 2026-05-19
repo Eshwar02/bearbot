@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet, Image, Link } from '@react-pdf/renderer';
+import React from 'react';
 
 interface HoldingSnapshot {
   id?: string;
@@ -10,6 +11,17 @@ interface HoldingSnapshot {
   currentValue?: number;
   pnl?: number;
   currency?: string;
+}
+
+interface CompanyNews {
+  symbol: string;
+  name: string;
+  items: Array<{
+    title: string;
+    source: string;
+    publishedAt: string;
+    summary: string;
+  }>;
 }
 
 interface BriefPDFProps {
@@ -24,14 +36,7 @@ interface BriefPDFProps {
       holdings: HoldingSnapshot[];
       currency: string;
     };
-    news?: Array<{
-      symbol: string;
-      title: string;
-      source: string;
-      publishedAt: string;
-      summary: string;
-      url: string;
-    }>;
+    news?: CompanyNews[];
   };
 }
 
@@ -93,12 +98,6 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
     borderBottom: 1,
     borderBottomColor: '#ececec',
-  },
-  overviewText: {
-    fontSize: 10,
-    lineHeight: 1.6,
-    color: '#333333',
-    marginBottom: 8,
   },
   statsRow: {
     flexDirection: 'row',
@@ -166,27 +165,37 @@ const styles = StyleSheet.create({
   colPnl: { width: '15%', textAlign: 'right' },
   positive: { color: '#10b981' },
   negative: { color: '#ef4444' },
+  newsSection: {
+    marginBottom: 15,
+  },
+  newsCompanyTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#0d0d0d',
+    marginBottom: 5,
+    marginTop: 10,
+  },
   newsItem: {
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottom: 1,
-    borderBottomColor: '#ececec',
+    marginBottom: 8,
+    paddingLeft: 10,
+    borderLeft: 2,
+    borderLeftColor: '#ececec',
   },
   newsTitle: {
     fontSize: 10,
     fontWeight: 'bold',
     color: '#0d0d0d',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   newsMeta: {
     fontSize: 8,
     color: '#6e6e80',
-    marginBottom: 3,
+    marginBottom: 2,
   },
   newsSummary: {
     fontSize: 9,
     color: '#333333',
-    lineHeight: 1.5,
+    lineHeight: 1.4,
   },
   footer: {
     position: 'absolute',
@@ -213,24 +222,24 @@ const styles = StyleSheet.create({
   },
   // Markdown styles
   mdHeading1: {
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#0d0d0d',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  mdHeading2: {
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#0d0d0d',
     marginTop: 12,
     marginBottom: 6,
   },
-  mdHeading2: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#0d0d0d',
-    marginTop: 10,
-    marginBottom: 5,
-  },
   mdHeading3: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#0d0d0d',
-    marginTop: 8,
+    marginTop: 10,
     marginBottom: 4,
   },
   mdParagraph: {
@@ -249,17 +258,47 @@ const styles = StyleSheet.create({
   mdBold: {
     fontWeight: 'bold',
   },
+  // Table styles for markdown
+  mdTable: {
+    marginTop: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ececec',
+  },
+  mdTableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ececec',
+  },
+  mdTableCell: {
+    flex: 1,
+    padding: 6,
+    fontSize: 9,
+    color: '#333333',
+    borderRightWidth: 1,
+    borderRightColor: '#ececec',
+  },
+  mdTableHeaderCell: {
+    flex: 1,
+    padding: 6,
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#0d0d0d',
+    backgroundColor: '#f7f7f8',
+    borderRightWidth: 1,
+    borderRightColor: '#ececec',
+  },
 });
 
-const formatCurrency = (value: number, currency: string = 'USD') => {
-  const symbols: Record<string, string> = { USD: '$', INR: '', EUR: '€', GBP: '£' };
-  const symbol = symbols[currency] || '$';
-  return `${symbol}${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const formatCurrency = (value: number, currency: string = 'INR') => {
+  const symbols: Record<string, string> = { USD: '$', INR: '₹', EUR: '€', GBP: '£' };
+  const symbol = symbols[currency] || '₹';
+  return `${symbol}${Math.abs(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('en-IN', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -269,7 +308,7 @@ const formatDate = (dateString: string) => {
 
 const formatTime = (dateString: string) => {
   const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', {
+  return date.toLocaleTimeString('en-IN', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
@@ -278,71 +317,117 @@ const formatTime = (dateString: string) => {
 
 const formatNewsDate = (dateString: string) => {
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+  return date.toLocaleDateString('en-IN', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
   });
 };
 
-// Simple Markdown Parser for PDF
+// Robust Markdown Parser for PDF
+const parseBoldText = (text: string) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <Text key={i} style={styles.mdBold}>{part.replace(/\*\*/g, '')}</Text>;
+    }
+    return <Text key={i}>{part}</Text>;
+  });
+};
+
+const parseTable = (lines: string[]) => {
+  if (lines.length < 2) return null;
+
+  const parseRow = (line: string) => {
+    return line.split('|').map(cell => cell.trim()).filter(cell => cell !== '');
+  };
+
+  const headers = parseRow(lines[0]);
+  // Skip separator line (lines[1])
+  const dataRows = lines.slice(2).map(parseRow);
+
+  return (
+    <View style={styles.mdTable} key={Math.random()}>
+      <View style={styles.mdTableRow}>
+        {headers.map((h, i) => (
+          <Text key={i} style={styles.mdTableHeaderCell}>{h}</Text>
+        ))}
+      </View>
+      {dataRows.map((row, ri) => (
+        <View key={ri} style={styles.mdTableRow}>
+          {row.map((cell, ci) => (
+            <Text key={ci} style={styles.mdTableCell}>{cell}</Text>
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+};
+
 const parseMarkdown = (markdown: string) => {
   const lines = markdown.split('\n');
   const elements: any[] = [];
   let inList = false;
+  let tableBuffer: string[] = [];
+  let keyCounter = 0;
+
+  const flushTable = () => {
+    if (tableBuffer.length > 0) {
+      elements.push(parseTable(tableBuffer));
+      tableBuffer = [];
+    }
+  };
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
+    if (!trimmed) {
+      flushTable();
+      continue;
+    }
+
+    // Table detection
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      tableBuffer.push(trimmed);
+      continue;
+    } else {
+      flushTable();
+    }
 
     // Headings
     if (trimmed.startsWith('### ')) {
-      elements.push(<Text key={elements.length} style={styles.mdHeading3}>{trimmed.replace('### ', '')}</Text>);
+      elements.push(<Text key={keyCounter++} style={styles.mdHeading3}>{trimmed.replace('### ', '')}</Text>);
       continue;
     }
     if (trimmed.startsWith('## ')) {
-      elements.push(<Text key={elements.length} style={styles.mdHeading2}>{trimmed.replace('## ', '')}</Text>);
+      elements.push(<Text key={keyCounter++} style={styles.mdHeading2}>{trimmed.replace('## ', '')}</Text>);
       continue;
     }
     if (trimmed.startsWith('# ')) {
-      elements.push(<Text key={elements.length} style={styles.mdHeading1}>{trimmed.replace('# ', '')}</Text>);
+      elements.push(<Text key={keyCounter++} style={styles.mdHeading1}>{trimmed.replace('# ', '')}</Text>);
       continue;
     }
 
     // Lists
     if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      if (!inList) {
-        inList = true;
-      }
+      if (!inList) inList = true;
       const content = trimmed.replace(/^[-*] /, '');
-      elements.push(<Text key={elements.length} style={styles.mdListItem}>• {content}</Text>);
+      elements.push(<Text key={keyCounter++} style={styles.mdListItem}>• {parseBoldText(content)}</Text>);
       continue;
     } else {
       inList = false;
     }
 
-    // Bold text handling (simple)
-    if (trimmed.includes('**')) {
-      const parts = trimmed.split(/(\*\*.*?\*\*)/g);
-      const children = parts.map((part, i) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return <Text key={i} style={styles.mdBold}>{part.replace(/\*\*/g, '')}</Text>;
-        }
-        return <Text key={i}>{part}</Text>;
-      });
-      elements.push(<Text key={elements.length} style={styles.mdParagraph}>{children}</Text>);
-    } else {
-      // Regular paragraph
-      elements.push(<Text key={elements.length} style={styles.mdParagraph}>{trimmed}</Text>);
-    }
+    // Regular paragraph with bold support
+    elements.push(<Text key={keyCounter++} style={styles.mdParagraph}>{parseBoldText(trimmed)}</Text>);
   }
 
+  flushTable();
   return elements;
 };
 
 export const BriefPDF = ({ brief }: BriefPDFProps) => {
   const snapshot = brief.portfolio_snapshot;
-  const currency = snapshot?.currency || 'USD';
+  const currency = snapshot?.currency || 'INR';
   const news = brief.news || [];
 
   return (
@@ -401,7 +486,7 @@ export const BriefPDF = ({ brief }: BriefPDFProps) => {
             <View style={styles.holdingsTable}>
               <View style={styles.tableHeader}>
                 <Text style={styles.colSymbol}>Symbol</Text>
-                <Text style={styles.colName}>Name</Text>
+                <Text style={styles.colName}>Company</Text>
                 <Text style={styles.colQty}>Qty</Text>
                 <Text style={styles.colPrice}>Avg Price</Text>
                 <Text style={styles.colValue}>Value</Text>
@@ -416,7 +501,7 @@ export const BriefPDF = ({ brief }: BriefPDFProps) => {
                   ]}
                 >
                   <Text style={styles.colSymbol}>{holding.symbol}</Text>
-                  <Text style={styles.colName}>{holding.name || '-'}</Text>
+                  <Text style={styles.colName}>{holding.name || holding.symbol}</Text>
                   <Text style={styles.colQty}>{holding.quantity}</Text>
                   <Text style={styles.colPrice}>{formatCurrency(holding.avg_buy_price, currency)}</Text>
                   <Text style={styles.colValue}>{formatCurrency(holding.current_value || holding.currentValue || 0, currency)}</Text>
@@ -429,17 +514,22 @@ export const BriefPDF = ({ brief }: BriefPDFProps) => {
           </View>
         )}
 
-        {/* Latest News Section */}
+        {/* Latest News Section (Grouped by Company) */}
         {news.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Latest News</Text>
-            {news.map((item, index) => (
-              <View key={index} style={styles.newsItem}>
-                <Text style={styles.newsTitle}>{item.title}</Text>
-                <Text style={styles.newsMeta}>
-                  {item.source} • {formatNewsDate(item.publishedAt)}
-                </Text>
-                <Text style={styles.newsSummary}>{item.summary}</Text>
+            {news.map((companyNews, index) => (
+              <View key={index} style={styles.newsSection}>
+                <Text style={styles.newsCompanyTitle}>{companyNews.name} ({companyNews.symbol})</Text>
+                {companyNews.items.map((item, nIndex) => (
+                  <View key={nIndex} style={styles.newsItem}>
+                    <Text style={styles.newsTitle}>{item.title}</Text>
+                    <Text style={styles.newsMeta}>
+                      {item.source} • {formatNewsDate(item.publishedAt)}
+                    </Text>
+                    <Text style={styles.newsSummary}>{item.summary}</Text>
+                  </View>
+                ))}
               </View>
             ))}
           </View>

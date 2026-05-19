@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { BriefPDF } from '@/components/pdf/brief-pdf';
 import { fetchStockNews } from '@/lib/stock/news';
+import { yahoo } from '@/lib/stock/yahoo';
 
 export async function GET(
   request: NextRequest,
@@ -40,46 +41,90 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch holdings' }, { status: 500 });
     }
 
+    // Fetch company names and current prices for better data
+    const enrichedHoldings = await Promise.all(
+      holdings.map(async (h) => {
+        let name = h.name;
+        let currentPrice = h.current_price || 0;
+        
+        // Try to fetch name/price from Yahoo if missing
+        if (!name || !currentPrice) {
+          try {
+            const quote = await yahoo.quote(h.symbol);
+            if (quote) {
+              name = name || quote.longName || quote.shortName || h.symbol;
+              currentPrice = currentPrice || quote.regularMarketPrice || 0;
+            }
+          } catch {
+            // Fallback to symbol
+            name = name || h.symbol;
+          }
+        }
+
+        const currentValue = currentPrice * h.quantity;
+        const costBasis = h.avg_buy_price * h.quantity;
+        const pnl = currentValue - costBasis;
+
+        return {
+          id: h.id,
+          symbol: h.symbol,
+          name: name || h.symbol,
+          quantity: h.quantity,
+          avg_buy_price: h.avg_buy_price,
+          current_value: currentValue,
+          pnl: pnl,
+          currency: 'INR', // Force INR for Indian market focus
+        };
+      })
+    );
+
+    const totalValue = enrichedHoldings.reduce((sum, h) => sum + h.current_value, 0);
+    const totalPnl = enrichedHoldings.reduce((sum, h) => sum + h.pnl, 0);
+    const totalCost = enrichedHoldings.reduce((sum, h) => sum + (h.avg_buy_price * h.quantity), 0);
+    const totalPnlPercent = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+
     const snapshot = {
-      total_value: holdings.reduce((sum, h) => sum + (h.current_value || 0), 0),
-      total_pnl: holdings.reduce((sum, h) => sum + (h.pnl || 0), 0),
-      total_pnl_percent: holdings.length
-        ? (holdings.reduce((sum, h) => sum + (h.pnl || 0), 0) /
-            holdings.reduce((sum, h) => sum + h.quantity * h.avg_buy_price, 0)) *
-          100
-        : 0,
-      holdings: holdings.map((h) => ({
-        id: h.id,
-        symbol: h.symbol,
-        name: h.name || '',
-        quantity: h.quantity,
-        avg_buy_price: h.avg_buy_price,
-        current_value: h.current_value || 0,
-        pnl: h.pnl || 0,
-        currency: h.currency || 'USD',
-      })),
-      currency: holdings[0]?.currency || 'USD',
+      total_value: totalValue,
+      total_pnl: totalPnl,
+      total_pnl_percent: totalPnlPercent,
+      holdings: enrichedHoldings,
+      currency: 'INR',
     };
 
-    // Fetch REAL news for each holding - no hallucinations
-    const newsPromises = holdings.slice(0, 5).map(async (holding) => {
+    // Fetch REAL news for each holding - Grouped by Company
+    // Focus on Indian Market symbols (.NS, .BO) or major Indian companies
+    const newsPromises = enrichedHoldings.map(async (holding) => {
       try {
-        const newsItems = await fetchStockNews(holding.symbol, holding.name || holding.symbol);
-        return newsItems.slice(0, 3).map((item) => ({
+        // Fetch news specifically for this symbol
+        const newsItems = await fetchStockNews(holding.symbol, holding.name);
+        
+        // Filter/Sort to prioritize recent and relevant news
+        const relevantNews = newsItems
+          .slice(0, 3) // Max 3 news per company
+          .map((item) => ({
+            title: item.title,
+            source: item.source,
+            publishedAt: item.publishedAt,
+            summary: item.summary,
+          }));
+
+        return {
           symbol: holding.symbol,
-          title: item.title,
-          source: item.source,
-          publishedAt: item.publishedAt,
-          summary: item.summary,
-          url: item.url,
-        }));
+          name: holding.name,
+          items: relevantNews,
+        };
       } catch {
-        return [];
+        return {
+          symbol: holding.symbol,
+          name: holding.name,
+          items: [],
+        };
       }
     });
 
     const newsResults = await Promise.all(newsPromises);
-    const allNews = newsResults.flat().slice(0, 10);
+    // Filter out companies with no news
+    const groupedNews = newsResults.filter(n => n.items.length > 0);
 
     const pdfDoc = (
       <BriefPDF
@@ -88,7 +133,7 @@ export async function GET(
           created_at: brief.created_at,
           content: brief.content,
           portfolio_snapshot: snapshot,
-          news: allNews,
+          news: groupedNews,
         }}
       />
     );

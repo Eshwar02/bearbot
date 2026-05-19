@@ -6,9 +6,10 @@ import { fetchStockNews } from '@/lib/stock/news';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const supabase = await createClient();
     const {
       data: { user },
@@ -21,7 +22,7 @@ export async function GET(
     const { data: brief, error } = await supabase
       .from('daily_briefs')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
       .single();
 
@@ -97,7 +98,7 @@ export async function GET(
     return new NextResponse(buffer as unknown as BodyInit, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="alphasight-brief-${params.id}.pdf"`,
+        'Content-Disposition': `attachment; filename="alphasight-brief-${id}.pdf"`,
       },
     });
   } catch (error) {

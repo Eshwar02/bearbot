@@ -85,9 +85,9 @@ export function AIProgressIndicator() {
       <div
         className="relative cursor-pointer overflow-hidden rounded-xl backdrop-blur-xl transition-all duration-300 ease-out font-mono"
         style={{
-          background: 'rgba(15, 15, 15, 0.85)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          background: 'var(--progress-bg)',
+          border: '1px solid var(--progress-border)',
+          boxShadow: 'var(--progress-shadow)',
           height: showExpanded ? FIXED_HEIGHT : COLLAPSED_HEIGHT,
           width: FIXED_WIDTH,
           transform: showExpanded ? 'scale(1)' : 'scale(0.98)',

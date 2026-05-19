@@ -2,15 +2,7 @@
 
 /**
  * Gradient AI chat input — adapted from the shadcn snippet for AlphaSight.
- *
- * Key differences vs the original:
- *  - Dark-mode only (app doesn't use next-themes).
- *  - Teal/cyan gradient palette to match accent-brand, not the warm amber.
- *  - No file-attach UI (not yet supported by the backend).
- *  - Send button is a ChatGPT-style circular arrow, not the plain Send glyph.
- *  - Exposes `value` + `onChange` + `onStop` + `isStreaming` so it can slot
- *    into the existing `ChatPanel` flow without duplicating state.
- *  - Grey border when idle, teal gradient outline on focus.
+ * Theme-aware: uses CSS variables for light/dark mode.
  */
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
@@ -32,21 +24,15 @@ interface GradientAIChatInputProps {
   onStop?: () => void;
   isStreaming?: boolean;
   disabled?: boolean;
-
-  /** Model picker options. Pass an empty array to hide the dropdown. */
   modelOptions?: ModelOption[];
   selectedModel?: ModelOption | null;
   onModelSelect?: (option: ModelOption) => void;
-
   enableAnimations?: boolean;
   className?: string;
-
-  /** Web-search toggle (per-turn) */
   webSearchEnabled?: boolean;
   onWebSearchToggle?: (next: boolean) => void;
 }
 
-// ── Teal/cyan gradient palette (dark-mode only) ──────────────────────
 const MAIN_GRADIENT = {
   topLeft: '#0e7490',
   topRight: '#0d9488',
@@ -61,10 +47,8 @@ const OUTER_GRADIENT = {
   bottomLeft: '#172554',
 };
 
-const BUTTON_BORDER = '#3f3f46';
-const SHADOW_COLOR = 'rgb(45, 212, 191)';
+const SHADOW_COLOR = 'rgb(20, 184, 166)';
 
-// ── Utils ────────────────────────────────────────────────────────────
 function hexToRgba(color: string, alpha: number): string {
   if (color.startsWith('rgb(')) {
     const parts = color.slice(4, -1).split(',').map((v) => parseInt(v.trim(), 10));
@@ -143,6 +127,8 @@ export function GradientAIChatInput({
     [hasText, isStreaming, disabled, onSend],
   );
 
+  const idleBorder = 'rgba(200, 200, 200, 0.5)';
+
   return (
     <motion.div
       className={cn('relative', className)}
@@ -151,7 +137,6 @@ export function GradientAIChatInput({
       transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
     >
       <div className="relative">
-        {/* Border layer: grey when idle, gradient when focused */}
         <div
           className="absolute inset-0 rounded-[20px] p-[0.5px] transition-opacity duration-200"
           style={{
@@ -162,8 +147,7 @@ export function GradientAIChatInput({
                   ${OUTER_GRADIENT.bottomRight} 180deg,
                   ${OUTER_GRADIENT.bottomLeft} 270deg,
                   ${OUTER_GRADIENT.topLeft} 360deg)`
-              : 'rgba(63, 63, 63, 0.5)',
-            opacity: isFocused ? 1 : 1,
+              : idleBorder,
           }}
         >
           <div
@@ -179,7 +163,7 @@ export function GradientAIChatInput({
                 : 'transparent',
             }}
           >
-            <div className="relative h-full w-full rounded-[17.5px] bg-dark-900">
+            <div className="relative h-full w-full rounded-[17.5px] bg-input">
               {isFocused && (
                 <div
                   className="absolute inset-0 rounded-[17.5px] p-[0.5px]"
@@ -192,11 +176,11 @@ export function GradientAIChatInput({
                       ${hexToRgba(OUTER_GRADIENT.topLeft, 0.1)} 360deg)`,
                   }}
                 >
-                  <div className="h-full w-full rounded-[17px] bg-dark-900" />
+                  <div className="h-full w-full rounded-[17px] bg-input" />
                 </div>
               )}
               {!isFocused && (
-                <div className="h-full w-full rounded-[17px] bg-dark-900" />
+                <div className="h-full w-full rounded-[17px] bg-input" />
               )}
 
               {isFocused && (
@@ -219,7 +203,6 @@ export function GradientAIChatInput({
           </div>
         </div>
 
-        {/* Content */}
         <div className="relative px-4 pb-3 pt-3.5">
           <div className="mb-2 flex items-start gap-3">
             <textarea
@@ -234,9 +217,9 @@ export function GradientAIChatInput({
               rows={1}
               className={cn(
                 'flex-1 resize-none border-0 bg-transparent px-0 py-1.5',
-                'text-[15px] leading-6 text-gray-100 placeholder:text-dark-500',
+                'text-[15px] leading-6 text-primary placeholder:text-muted',
                 'outline-none focus:outline-none focus:ring-0',
-                'scrollbar-thin scrollbar-thumb-dark-700',
+                'scrollbar-thin scrollbar-thumb-borderStrong',
                 disabled && 'cursor-not-allowed opacity-50',
               )}
               style={{ minHeight: 28, maxHeight: 160 }}
@@ -248,7 +231,7 @@ export function GradientAIChatInput({
                 onClick={onStop}
                 className={cn(
                   'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-                  'bg-dark-700 text-gray-200 transition-colors hover:bg-dark-600',
+                  'bg-elevated text-secondary transition-colors hover:bg-elevated-hover',
                 )}
                 whileHover={shouldAnimate ? { scale: 1.05 } : {}}
                 whileTap={shouldAnimate ? { scale: 0.95 } : {}}
@@ -265,8 +248,8 @@ export function GradientAIChatInput({
                   'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
                   'transition-all duration-200',
                   hasText && !disabled
-                    ? 'bg-accent-brand text-dark-950 shadow-[0_0_0_1px_rgba(45,212,191,0.4)] hover:bg-accent-brand-hover'
-                    : 'cursor-not-allowed bg-dark-700 text-dark-500',
+                    ? 'bg-accent-brand text-dark-950 shadow-[0_0_0_1px_rgba(20,184,166,0.4)] hover:bg-accent-brand-hover'
+                    : 'cursor-not-allowed bg-elevated text-muted',
                 )}
                 whileHover={shouldAnimate && hasText && !disabled ? { scale: 1.05 } : {}}
                 whileTap={shouldAnimate && hasText && !disabled ? { scale: 0.92 } : {}}
@@ -293,8 +276,8 @@ export function GradientAIChatInput({
                     'flex items-center gap-1.5 rounded-full px-3 py-1',
                     'text-xs font-medium transition-colors border',
                     webSearchEnabled
-                      ? 'bg-accent-brand/15 text-accent-brand border-accent-brand/40 shadow-[0_0_0_1px_rgba(45,212,191,0.25)]'
-                      : 'bg-dark-850 text-gray-300 border-dark-700 hover:bg-dark-800 hover:text-gray-100',
+                      ? 'bg-accent-brand/15 text-accent-brand border-accent-brand/40 shadow-[0_0_0_1px_rgba(20,184,166,0.25)]'
+                      : 'bg-elevated text-secondary border-borderSubtle hover:bg-elevated-hover hover:text-primary',
                     disabled && 'cursor-not-allowed opacity-50',
                   )}
                   whileHover={shouldAnimate && !disabled ? { scale: 1.02 } : {}}
@@ -321,14 +304,13 @@ export function GradientAIChatInput({
                   disabled={disabled}
                   className={cn(
                     'flex items-center gap-1.5 rounded-full px-3 py-1',
-                    'text-xs font-medium text-gray-300 transition-colors',
-                    'bg-dark-850 hover:bg-dark-800 hover:text-gray-100',
-                    'border border-dark-700',
+                    'text-xs font-medium text-secondary transition-colors',
+                    'bg-elevated hover:bg-elevated-hover hover:text-primary',
+                    'border border-borderSubtle',
                     disabled && 'cursor-not-allowed opacity-50',
                   )}
                   whileHover={shouldAnimate ? { scale: 1.02 } : {}}
                   whileTap={shouldAnimate ? { scale: 0.98 } : {}}
-                  style={{ borderColor: BUTTON_BORDER }}
                   aria-haspopup="listbox"
                   aria-expanded={isDropdownOpen}
                 >
@@ -351,8 +333,8 @@ export function GradientAIChatInput({
                       transition={{ duration: 0.12 }}
                       className={cn(
                         'absolute bottom-full left-0 z-20 mb-2 min-w-[200px]',
-                        'rounded-xl border border-dark-700 bg-dark-850',
-                        'p-1 shadow-xl shadow-black/40',
+                        'rounded-xl border border-borderSubtle bg-canvas',
+                        'p-1 shadow-lg',
                       )}
                       role="listbox"
                     >
@@ -371,10 +353,10 @@ export function GradientAIChatInput({
                             className={cn(
                               'flex w-full items-start gap-2 rounded-lg px-2.5 py-2',
                               'text-left text-xs transition-colors',
-                              'hover:bg-dark-800',
+                              'hover:bg-elevated',
                               isSelected
-                                ? 'text-gray-100'
-                                : 'text-gray-300',
+                                ? 'text-primary'
+                                : 'text-secondary',
                             )}
                           >
                             <span
@@ -382,7 +364,7 @@ export function GradientAIChatInput({
                                 'mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full',
                                 isSelected
                                   ? 'bg-accent-brand'
-                                  : 'bg-dark-500',
+                                  : 'bg-muted',
                               )}
                             />
                             <span className="flex-1">
@@ -390,7 +372,7 @@ export function GradientAIChatInput({
                                 {option.label}
                               </span>
                               {option.description && (
-                                <span className="mt-0.5 block text-[11px] text-dark-500">
+                                <span className="mt-0.5 block text-[11px] text-muted">
                                   {option.description}
                                 </span>
                               )}
@@ -406,14 +388,13 @@ export function GradientAIChatInput({
                 </AnimatePresence>
               </div>
 
-              <span className="text-[11px] text-dark-500">
+              <span className="text-[11px] text-muted">
                 Shift + Enter for newline
               </span>
             </div>
           )}
         </div>
 
-        {/* Soft teal glow underneath — only when focused */}
         <div
           className="pointer-events-none absolute -bottom-3 left-3 right-3 h-6 rounded-full blur-md transition-opacity duration-200"
           style={{

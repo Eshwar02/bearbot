@@ -7,11 +7,11 @@ const variantStyles = {
   primary:
     'bg-accent-green text-white hover:bg-emerald-400 focus-visible:ring-accent-green',
   secondary:
-    'bg-dark-700 text-gray-200 hover:bg-dark-600 focus-visible:ring-dark-500',
+    'bg-elevated text-primary hover:bg-elevated-hover focus-visible:ring-borderFocus',
   danger:
     'bg-accent-red text-white hover:bg-red-400 focus-visible:ring-accent-red',
   ghost:
-    'bg-transparent text-gray-300 hover:bg-dark-800 focus-visible:ring-dark-500',
+    'bg-transparent text-secondary hover:bg-elevated hover:text-primary focus-visible:ring-borderFocus',
 };
 
 const sizeStyles = {
@@ -45,7 +45,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={disabled || loading}
         className={cn(
           'inline-flex items-center justify-center font-medium transition-colors',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-900',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas',
           'disabled:opacity-50 disabled:pointer-events-none',
           variantStyles[variant],
           sizeStyles[size],

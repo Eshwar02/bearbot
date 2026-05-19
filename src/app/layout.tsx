@@ -104,7 +104,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${inter.variable} font-sans bg-white text-gray-900 dark:bg-dark-900 dark:text-gray-300 transition-colors duration-300`}
+        className={`${inter.variable} font-sans transition-colors duration-200`}
       >
         <ErrorBoundary>
           <Providers>{children}</Providers>

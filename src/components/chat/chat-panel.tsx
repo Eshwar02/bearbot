@@ -23,10 +23,10 @@ function LoadingSkeleton() {
     <div className="mx-auto flex max-w-3xl animate-pulse flex-col gap-6 px-4 py-8 sm:px-6">
       {[1, 2, 3].map((i) => (
         <div key={i} className="flex gap-4">
-          <div className="h-6 w-6 shrink-0 rounded bg-dark-800" />
+          <div className="h-6 w-6 shrink-0 rounded bg-skeleton" />
           <div className="flex-1 space-y-2.5">
-            <div className="h-3 w-full rounded bg-dark-800/70" />
-            <div className="h-3 w-3/4 rounded bg-dark-800/50" />
+            <div className="h-3 w-full rounded bg-skeleton/70" />
+            <div className="h-3 w-3/4 rounded bg-skeleton/50" />
           </div>
         </div>
       ))}
@@ -91,14 +91,14 @@ export function ChatPanel() {
   }, [stopStreaming]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-dark-900">
+    <div className="flex h-full min-h-0 flex-col bg-canvas">
 
 
       <div
         ref={scrollRef}
         className={cn(
           'min-h-0 flex-1 overflow-y-auto',
-          'scrollbar-thin scrollbar-track-transparent scrollbar-thumb-dark-700',
+          'scrollbar-thin scrollbar-track-transparent scrollbar-thumb-borderStrong',
         )}
       >
         {isLoadingConversation ? (
@@ -116,7 +116,7 @@ export function ChatPanel() {
       </div>
 
       {/* Composer */}
-      <div className="bg-dark-900 px-4 pb-5 pt-2 sm:px-6">
+      <div className="bg-canvas px-4 pb-5 pt-2 sm:px-6">
         <div className="mx-auto max-w-3xl">
           <GradientAIChatInput
             value={draft}
@@ -129,7 +129,7 @@ export function ChatPanel() {
             webSearchEnabled={webSearchEnabled}
             onWebSearchToggle={setWebSearchEnabled}
           />
-          <p className="mt-2 text-center text-[11px] text-dark-500">
+          <p className="mt-2 text-center text-[11px] text-muted">
             AlphaSight can make mistakes. Verify critical financial decisions.
           </p>
         </div>

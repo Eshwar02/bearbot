@@ -12,24 +12,12 @@ import type { WebSource } from '@/lib/ai/web-search';
 interface MarkdownRendererProps {
   content: string;
   className?: string;
-  /**
-   * When true, syntax highlighting is skipped. rehype-highlight can throw on
-   * partial code fences while the stream is still in flight, which crashes
-   * the whole render subtree and leaves the bubble blank. Enable highlighting
-   * only once the stream has finished.
-   */
   streaming?: boolean;
-  /** Sources for inline [N] citation pills */
   sources?: WebSource[];
 }
 
-/**
- * Pre-process content: convert [N] (where 1 <= N <= sources.length) into
- * <sup data-cite="N">N</sup> outside of fenced code blocks and inline code.
- */
 function injectCitations(content: string, count: number): string {
   if (count === 0) return content;
-  // Split by fenced code blocks (```...```) and inline code (`...`)
   const parts = content.split(/(```[\s\S]*?```|`[^`]+`)/g);
   return parts
     .map((part) => {
@@ -62,10 +50,9 @@ function CodeBlock({
   }, [codeString]);
 
   if (!className && !codeString.includes('\n')) {
-    // Inline code
     return (
       <code
-        className="rounded bg-dark-950 px-1.5 py-0.5 text-sm font-mono text-accent-green"
+        className="rounded bg-code px-1.5 py-0.5 text-sm font-mono text-accent-green"
         {...props}
       >
         {children}
@@ -74,14 +61,14 @@ function CodeBlock({
   }
 
   return (
-    <div className="group relative my-4 overflow-hidden rounded-lg border border-dark-700 bg-dark-950">
-      <div className="flex items-center justify-between border-b border-dark-700 bg-dark-900 px-4 py-2">
-        <span className="text-xs font-medium text-dark-400 uppercase">
+    <div className="group relative my-4 overflow-hidden rounded-lg border border-borderSubtle dark:border-borderStrong bg-code">
+      <div className="flex items-center justify-between border-b border-borderSubtle dark:border-borderStrong bg-elevated px-4 py-2">
+        <span className="text-xs font-medium text-muted uppercase">
           {language || 'code'}
         </span>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 text-xs text-dark-400 transition-colors hover:text-dark-200"
+          className="flex items-center gap-1.5 text-xs text-muted transition-colors hover:text-primary"
         >
           {copied ? (
             <>
@@ -117,8 +104,6 @@ export function MarkdownRenderer({
     [content, sourceCount],
   );
 
-  // rehype-raw lets us emit <sup> from a string. Always include it when we
-  // have sources, since we inject HTML. Skip highlighting while streaming.
   const rehypePlugins = useMemo(() => {
     const plugins: unknown[] = [];
     if (sourceCount > 0) plugins.push(rehypeRaw);
@@ -137,19 +122,19 @@ export function MarkdownRenderer({
   return (
     <div
       className={cn(
-        'prose prose-invert max-w-none',
-        'prose-p:leading-7 prose-p:my-2',
-        'prose-headings:text-gray-100 prose-headings:font-bold prose-headings:border-b prose-headings:border-gray-700 prose-headings:pb-1',
+        'prose max-w-none',
+        'prose-p:leading-7 prose-p:my-2 prose-p:text-primary',
+        'prose-headings:font-bold prose-headings:border-b prose-headings:border-borderSubtle prose-headings:pb-1 prose-headings:text-primary',
         'prose-h1:text-3xl prose-h1:mt-6 prose-h1:mb-4',
         'prose-h2:text-2xl prose-h2:mt-5 prose-h2:mb-3',
         'prose-h3:text-xl prose-h3:mt-4 prose-h3:mb-2',
         'prose-h4:text-lg prose-h4:mt-3 prose-h4:mb-2',
-        'prose-strong:text-gray-100',
+        'prose-strong:text-primary',
         'prose-a:text-accent-green prose-a:no-underline hover:prose-a:underline',
         'prose-ul:my-3 prose-ol:my-3',
         'prose-li:my-1',
-        'prose-blockquote:border-dark-700 prose-blockquote:text-dark-300',
-        'prose-hr:border-dark-700',
+        'prose-blockquote:border-borderStrong prose-blockquote:text-secondary',
+        'prose-hr:border-borderSubtle',
         className,
       )}
     >
@@ -178,9 +163,9 @@ export function MarkdownRenderer({
           },
           code: CodeBlock as any,
           table: ({ children, ...props }) => (
-            <div className="my-4 overflow-x-auto rounded-lg border border-dark-700">
+            <div className="my-4 overflow-x-auto rounded-lg border border-borderSubtle dark:border-borderStrong">
               <table
-                className="min-w-full divide-y divide-dark-700 text-sm"
+                className="min-w-full divide-y divide-borderSubtle dark:divide-borderStrong text-sm"
                 {...props}
               >
                 {children}
@@ -188,13 +173,13 @@ export function MarkdownRenderer({
             </div>
           ),
           thead: ({ children, ...props }) => (
-            <thead className="bg-dark-900" {...props}>
+            <thead className="bg-elevated" {...props}>
               {children}
             </thead>
           ),
           th: ({ children, ...props }) => (
             <th
-              className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-dark-300"
+              className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-secondary"
               {...props}
             >
               {children}
@@ -202,7 +187,7 @@ export function MarkdownRenderer({
           ),
           td: ({ children, ...props }) => (
             <td
-              className="whitespace-nowrap px-4 py-2.5 text-dark-200"
+              className="whitespace-nowrap px-4 py-2.5 text-primary"
               {...props}
             >
               {children}
@@ -210,7 +195,7 @@ export function MarkdownRenderer({
           ),
           tr: ({ children, ...props }) => (
             <tr
-              className="border-b border-dark-700/50 transition-colors hover:bg-dark-850/50"
+              className="border-b border-borderSubtle/50 transition-colors hover:bg-elevated/50"
               {...props}
             >
               {children}

@@ -10,7 +10,7 @@ function Skeleton({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
-        'animate-pulse rounded-lg bg-dark-700/50',
+        'animate-pulse rounded-lg bg-skeleton',
         className
       )}
     />
@@ -29,7 +29,7 @@ function SkeletonCard({ className }: SkeletonProps) {
   return (
     <div
       className={cn(
-        'rounded-xl border border-dark-700 bg-dark-800 p-5 space-y-3',
+        'rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-5 space-y-3',
         className
       )}
     >

@@ -24,6 +24,10 @@ export interface SearchMemoriesOptions {
   threshold?: number;
 }
 
+export interface ListMemoriesOptions {
+  limit?: number;
+}
+
 export interface AddMemoriesInput {
   userMessage: string;
   assistantResponse: string;
@@ -101,6 +105,45 @@ export async function searchMemories(
   } catch (err) {
     console.warn(
       "[memory] searchMemories failed:",
+      err instanceof Error ? err.message : err
+    );
+    return [];
+  }
+}
+
+/**
+ * Return recent durable memories for explicit memory-management questions
+ * like "what do you remember about me?". Semantic search is not enough for
+ * those prompts because the query often has no topical overlap with saved facts.
+ */
+export async function listRecentMemories(
+  supabase: SupabaseClient,
+  userId: string,
+  opts: ListMemoriesOptions = {}
+): Promise<AiMemoryMatch[]> {
+  if (!userId) return [];
+  const limit = opts.limit ?? AGENT_CONFIG.memory.searchLimit;
+
+  try {
+    const { data, error } = await supabase
+      .from("ai_memories")
+      .select("id, memory, category, metadata, created_at, updated_at")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.warn("[memory] listRecentMemories failed:", error.message);
+      return [];
+    }
+
+    return (data ?? []).map((row) => ({
+      ...row,
+      similarity: 1,
+    })) as AiMemoryMatch[];
+  } catch (err) {
+    console.warn(
+      "[memory] listRecentMemories failed:",
       err instanceof Error ? err.message : err
     );
     return [];

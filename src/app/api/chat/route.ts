@@ -15,6 +15,7 @@ import {
 import { buildUserContext } from "@/lib/ai/user-context";
 import {
   searchMemories,
+  listRecentMemories,
   formatMemoriesForPrompt,
   addMemories,
 } from "@/lib/ai/memory";
@@ -77,12 +78,10 @@ function detectStockQuery(message: string): string | null {
   return null;
 }
 
-function isGreeting(message: string): boolean {
-  const t = message.trim().toLowerCase().replace(/[!.?]+$/g, "");
-  if (t.length <= 20 && /^(hi|hey|hello|yo|sup|howdy|good\s+(morning|afternoon|evening|night)|thanks|thank\s+you|ok|okay|bye)$/.test(t)) {
-    return true;
-  }
-  return false;
+function isMemoryQuery(message: string): boolean {
+  return /\b(remember|memory|memories|know about me|saved facts|what do you know about me|do you know me)\b/i.test(
+    message
+  );
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -335,6 +334,8 @@ export async function POST(request: NextRequest) {
     }
 
     recordProgress("Loading conversation history and preferences", 18);
+    const wantsMemoryAnswer = isMemoryQuery(incomingMessage);
+
     const [historyResponse, userMemoryBase, prefsResponse, semanticMemoryRows] =
       await Promise.all([
         supabase
@@ -352,7 +353,9 @@ export async function POST(request: NextRequest) {
           .select("language_mode")
           .eq("user_id", user.id)
           .maybeSingle(),
-        searchMemories(supabase, user.id, incomingMessage),
+        wantsMemoryAnswer
+          ? listRecentMemories(supabase, user.id, { limit: 10 })
+          : searchMemories(supabase, user.id, incomingMessage),
       ]);
 
     recordProgress("Saving your message", 22);
@@ -369,8 +372,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Detect and save user memory (e.g., name)
-    const nameMatch = incomingMessage.match(/(?:my name is|I am|I'm|call me)\s+([a-zA-Z\s]+)/i);
+    // Detect and save explicit name memory. Avoid broad "I am ..." capture:
+    // "I am tired" is not a name and should not poison structured memory.
+    const nameMatch = incomingMessage.match(
+      /(?:my name is|call me)\s+([a-zA-Z][a-zA-Z\s]{0,40})(?:[.!?]|$)/i
+    );
     if (nameMatch) {
       recordProgress("Updating user memory", 24);
       const name = nameMatch[1].trim();
@@ -450,7 +456,7 @@ export async function POST(request: NextRequest) {
         depth: "short",
       };
     }
-    const earlySmallTalk = llmIntent.kind === "small_talk";
+    const earlySmallTalk = !wantsMemoryAnswer && llmIntent.kind === "small_talk";
     console.debug("[chat-api] llm classifier", llmIntent);
 
     let routingMessage = incomingMessage;
@@ -610,11 +616,20 @@ export async function POST(request: NextRequest) {
     //     watchlist, no semantic memory. Casual messages must not pull
     //     finance context into the prompt.
     //   - everything else: full context, as before.
-    if (earlySmallTalk) {
+    if (earlySmallTalk && !wantsMemoryAnswer) {
       userMemory = languageInstruction;
     } else {
       userMemory = [semanticMemoryBlock, userMemoryBase, languageInstruction]
         .filter((s) => s && s.length > 0)
+        .join("\n\n");
+    }
+
+    if (wantsMemoryAnswer) {
+      userMemory = [
+        userMemory,
+        "Memory-answer instruction: The user is asking about saved memory. Answer directly from the memory/context blocks above. Do not say you lack memory. If there are no saved facts or holdings/watchlist above, say you do not see any saved memories yet.",
+      ]
+        .filter(Boolean)
         .join("\n\n");
     }
 
@@ -706,8 +721,8 @@ export async function POST(request: NextRequest) {
       hasWebSearch: Boolean(webSearch && webSearch.sources.length > 0),
       historyDepth: conversationHistory.length,
       generalKind,
-      llmKind: llmIntent.kind,
-      llmDepth: llmIntent.depth,
+      llmKind: wantsMemoryAnswer ? "general_other" : llmIntent.kind,
+      llmDepth: wantsMemoryAnswer ? "short" : llmIntent.depth,
     });
     const shapeDirective = getResponseShapeDirective(responseShape);
     userMemory = userMemory

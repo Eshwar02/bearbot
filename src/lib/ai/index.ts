@@ -40,7 +40,7 @@ export function validateAiSetup(): {
   const groq = validateGroqSetup();
 
   const stockPrimary = mistral.valid ? "mistral" : groq.valid ? "groq" : "none";
-  const generalPrimary = groq.valid ? "groq" : mistral.valid ? "mistral" : "none";
+  const generalPrimary = mistral.valid ? "mistral" : groq.valid ? "groq" : "none";
   const fallback = groq.valid ? "groq" : mistral.valid ? "mistral" : "none";
 
   const valid = stockPrimary !== "none" && generalPrimary !== "none";

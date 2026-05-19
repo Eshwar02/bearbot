@@ -63,6 +63,9 @@ export function AIProgressIndicator() {
   }, [collapsedMessages]);
 
   if (!mounted) return null;
+  if (!activeTask && completedTasks.length === 0 && searchSources.length === 0 && !lastSourceDomain) {
+    return null;
+  }
 
   const showExpanded = isExpanded && (completedTasks.length > 0 || searchSources.length > 0 || Boolean(activeTask));
   const estimatedSourceRows = Math.min(searchSources.length, 8) + (searchSources.length > 8 ? 1 : 0);

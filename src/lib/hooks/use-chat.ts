@@ -19,6 +19,7 @@ type AIProgressFrame = {
   phase?: 'planning' | 'searching' | 'analyzing' | 'synthesizing' | 'finalizing';
   domain?: string;
   title?: string;
+  url?: string;
   timestamp?: number;
 };
 
@@ -50,7 +51,7 @@ export function useChat() {
   const abortRef = useRef<AbortController | null>(null);
   const frameBatchRef = useRef<AIProgressFrame[]>([]);
   const frameFlushTimerRef = useRef<number | null>(null);
-  const sourceQueueRef = useRef<Array<{ domain: string; title: string; timestamp?: number }>>([]);
+  const sourceQueueRef = useRef<Array<{ domain: string; title: string; url: string; timestamp?: number }>>([]);
   const sourcePumpTimerRef = useRef<number | null>(null);
   const pendingFinishRef = useRef(false);
   const seenSourceDomainsRef = useRef<Set<string>>(new Set());
@@ -98,6 +99,7 @@ export function useChat() {
         sourceQueueRef.current.push({
           domain: frame.domain,
           title: frame.title,
+          url: frame.url || `https://${frame.domain}`,
           timestamp: frame.timestamp,
         });
       }

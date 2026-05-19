@@ -52,6 +52,7 @@ type AIProgressFrame = {
   phase?: "planning" | "searching" | "analyzing" | "synthesizing" | "finalizing";
   domain?: string;
   title?: string;
+  url?: string;
   timestamp?: number;
 };
 
@@ -656,6 +657,7 @@ export async function POST(request: NextRequest) {
             type: "search_source",
             domain,
             title: source.title,
+            url: source.url,
             timestamp: source.publishedAt ? Date.parse(source.publishedAt) || Date.now() : Date.now(),
           });
         }

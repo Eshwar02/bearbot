@@ -6,6 +6,10 @@ import { AIProgressLine } from './ai-progress-line';
 import { AIProgressCollapsed } from './ai-progress-collapsed';
 import { AIProgressExpanded } from './ai-progress-expanded';
 
+const FIXED_HEIGHT = 280;
+const COLLAPSED_HEIGHT = 44;
+const FIXED_WIDTH = 320;
+
 export function AIProgressIndicator() {
   const {
     activeTask,
@@ -21,9 +25,9 @@ export function AIProgressIndicator() {
   const [rotationIndex, setRotationIndex] = useState(0);
   const [collapsedFade, setCollapsedFade] = useState(true);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
+
+  const hasActivity = completedTasks.length > 0 || searchSources.length > 0 || Boolean(activeTask);
 
   const collapsedMessages = useMemo(() => {
     const items: string[] = [];
@@ -63,50 +67,33 @@ export function AIProgressIndicator() {
   }, [collapsedMessages]);
 
   if (!mounted) return null;
-  if (!activeTask && completedTasks.length === 0 && searchSources.length === 0 && !lastSourceDomain) {
-    return null;
-  }
+  if (!hasActivity && !activeTask) return null;
 
-  const showExpanded = isExpanded && (completedTasks.length > 0 || searchSources.length > 0 || Boolean(activeTask));
-  const estimatedSourceRows = Math.min(searchSources.length, 8) + (searchSources.length > 8 ? 1 : 0);
-  const expandedHeight = Math.min(64 + completedTasks.length * 26 + estimatedSourceRows * 18 + 72, 330);
+  const showExpanded = isExpanded;
   const collapsedText = collapsedMessages[rotationIndex % collapsedMessages.length];
 
   return (
     <div
-      className="fixed bottom-5 right-5 z-50 md:bottom-6 md:right-6"
-      onMouseEnter={() => {
-        cancelAutoCollapse();
-        setExpanded(true);
-      }}
-      onMouseLeave={() => {
-        setExpanded(false);
-        if (activeTask) {
-          scheduleAutoCollapse();
-        }
-      }}
-      onClick={() => {
-        setExpanded(!isExpanded);
-      }}
+      className="fixed bottom-20 right-4 z-40 md:bottom-24 md:right-6"
+      onMouseEnter={() => { cancelAutoCollapse(); setExpanded(true); }}
+      onMouseLeave={() => { setExpanded(false); if (activeTask) scheduleAutoCollapse(); }}
+      onClick={() => setExpanded(!isExpanded)}
       role="region"
       aria-live="polite"
       aria-label="AI processing status"
     >
-      {/* Glassmorphic container */}
       <div
-        className="relative cursor-pointer overflow-hidden rounded-2xl backdrop-blur-xl transition-[height,min-width,max-height,transform,opacity] duration-300 ease-out"
+        className="relative cursor-pointer overflow-hidden rounded-xl backdrop-blur-xl transition-all duration-300 ease-out"
         style={{
-          background: 'rgba(18, 18, 18, 0.72)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-          height: showExpanded ? `${expandedHeight}px` : '48px',
-          minWidth: showExpanded ? '290px' : '272px',
-          maxHeight: showExpanded ? '330px' : '48px',
-          transform: showExpanded ? 'scale(1)' : 'scale(0.995)',
+          background: 'rgba(15, 15, 15, 0.85)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          height: showExpanded ? FIXED_HEIGHT : COLLAPSED_HEIGHT,
+          width: FIXED_WIDTH,
+          transform: showExpanded ? 'scale(1)' : 'scale(0.98)',
         }}
       >
         <AIProgressLine />
-
         <div className="relative h-full overflow-hidden">
           {showExpanded ? (
             <div className="animate-in fade-in duration-200">
@@ -127,13 +114,6 @@ export function AIProgressIndicator() {
           )}
         </div>
       </div>
-
-      <div
-        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500"
-        style={{
-          background: 'radial-gradient(circle at top right, rgba(45, 212, 191, 0.1), transparent)',
-        }}
-      />
     </div>
   );
 }

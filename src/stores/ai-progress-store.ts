@@ -5,6 +5,7 @@ export type AIPhase = 'planning' | 'searching' | 'analyzing' | 'synthesizing' | 
 export interface AISearchSource {
   domain: string;
   title: string;
+  url: string;
   timestamp: number;
 }
 

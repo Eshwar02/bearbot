@@ -37,6 +37,7 @@ export function Providers({ children }: ProvidersProps) {
         return {
           domain,
           title: source.title,
+          url: source.url,
           timestamp: Date.now() + idx,
         };
       }) ?? [];

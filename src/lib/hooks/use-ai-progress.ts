@@ -76,19 +76,21 @@ export function useAIProgress() {
     }
   }, [setPhase, setProgress, startStep]);
 
-  const trackSearchSource = useCallback((source: { domain: string; title: string; timestamp?: number }) => {
+  const trackSearchSource = useCallback((source: { domain: string; title: string; url: string; timestamp?: number }) => {
     addSearchSource({
       domain: source.domain,
       title: source.title,
+      url: source.url,
       timestamp: source.timestamp ?? Date.now(),
     });
   }, [addSearchSource]);
 
-  const hydrateSources = useCallback((sources: Array<{ domain: string; title: string; timestamp?: number }>) => {
+  const hydrateSources = useCallback((sources: Array<{ domain: string; title: string; url: string; timestamp?: number }>) => {
     hydrateFromChatSources(
       sources.map((s) => ({
         domain: s.domain,
         title: s.title,
+        url: s.url,
         timestamp: s.timestamp ?? Date.now(),
       }))
     );

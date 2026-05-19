@@ -82,11 +82,11 @@ export function DailyBriefSettings({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-100">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
             <Clock className="h-5 w-5 text-accent-blue" />
             Automated Daily Briefs
           </h2>
-          <p className="mt-1 text-sm text-dark-400">
+          <p className="mt-1 text-sm text-muted">
             Set up automatic email delivery of your stock reports
           </p>
         </div>
@@ -122,14 +122,14 @@ export function DailyBriefSettings({
 
       <div className="space-y-3">
         {reports.length === 0 ? (
-          <div className="py-8 text-center text-dark-400">
+          <div className="py-8 text-center text-muted">
             <Mail className="mx-auto mb-3 h-12 w-12 opacity-50" />
             <p>No scheduled reports yet</p>
             <p className="text-sm">Create your first automated brief above</p>
           </div>
         ) : (
           reports.map((report) => (
-            <div key={report.id} className="rounded-lg border border-dark-700 bg-dark-850">
+            <div key={report.id} className="rounded-lg border border-borderSubtle bg-elevated">
               {editingId === report.id ? (
                 <div className="p-2">
                   <CreateScheduleForm
@@ -147,17 +147,17 @@ export function DailyBriefSettings({
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-accent-blue" />
-                      <span className="text-sm font-medium text-gray-100">{report.schedule_time}</span>
-                      <span className="text-xs text-dark-400">({report.timezone})</span>
+                      <span className="text-sm font-medium text-primary">{report.schedule_time}</span>
+                      <span className="text-xs text-muted">({report.timezone})</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-dark-400" />
-                      <span className="text-sm text-gray-300">{report.email}</span>
+                      <Mail className="h-4 w-4 text-muted" />
+                      <span className="text-sm text-secondary">{report.email}</span>
                     </div>
                     <Badge variant={report.is_active ? 'green' : 'gray'}>
                       {report.is_active ? 'Active' : 'Inactive'}
                     </Badge>
-                    <span className="text-xs text-dark-400">
+                    <span className="text-xs text-muted">
                       {report.stocks.length} stocks · last sent {formatLastSent(report.last_sent_at)}
                     </span>
                   </div>
@@ -172,7 +172,7 @@ export function DailyBriefSettings({
                       <Power
                         className={cn(
                           'h-4 w-4',
-                          report.is_active ? 'text-accent-green' : 'text-dark-400'
+                          report.is_active ? 'text-accent-green' : 'text-muted'
                         )}
                       />
                     </Button>
@@ -301,31 +301,31 @@ function CreateScheduleForm({
   };
 
   return (
-    <div className="space-y-4 rounded-lg border border-dark-700 bg-dark-850 p-4">
+    <div className="space-y-4 rounded-lg border border-borderSubtle bg-elevated p-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-100">Email Address</label>
+          <label className="mb-2 block text-sm font-medium text-primary">Email Address</label>
           <input
             type="email"
             value={formData.email}
             onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
-            className="w-full rounded-md border border-dark-700 bg-dark-800 px-3 py-2 text-gray-100 placeholder-dark-500 focus:border-accent-blue focus:ring-1 focus:ring-accent-blue"
+            className="w-full rounded-md border border-borderStrong bg-input px-3 py-2 text-primary placeholder:text-muted focus:border-accent-blue focus:ring-1 focus:ring-accent-blue"
             placeholder="your@email.com"
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-100">Schedule Time (HH:MM)</label>
+          <label className="mb-2 block text-sm font-medium text-primary">Schedule Time (HH:MM)</label>
           <input
             type="time"
             value={formData.schedule_time}
             onChange={(e) => setFormData((prev) => ({ ...prev, schedule_time: e.target.value }))}
-            className="w-full rounded-md border border-dark-700 bg-dark-800 px-3 py-2 text-gray-100 focus:border-accent-blue focus:ring-1 focus:ring-accent-blue"
+            className="w-full rounded-md border border-borderStrong bg-input px-3 py-2 text-primary focus:border-accent-blue focus:ring-1 focus:ring-accent-blue"
           />
         </div>
       </div>
 
       <div className="relative">
-        <label className="mb-2 block text-sm font-medium text-gray-100">Assets to Track</label>
+        <label className="mb-2 block text-sm font-medium text-primary">Assets to Track</label>
         <div className="mb-2 flex gap-2">
           <div className="relative flex-1">
             <input
@@ -344,7 +344,7 @@ function CreateScheduleForm({
               onBlur={() => {
                 setTimeout(() => setShowSuggestions(false), 200);
               }}
-              className="w-full rounded-md border border-dark-700 bg-dark-800 px-3 py-2 text-gray-100 placeholder-dark-500 focus:border-accent-blue focus:ring-1 focus:ring-accent-blue"
+              className="w-full rounded-md border border-borderStrong bg-input px-3 py-2 text-primary placeholder:text-muted focus:border-accent-blue focus:ring-1 focus:ring-accent-blue"
               placeholder="Search assets (e.g., Bitcoin, Ethereum, Solana)..."
             />
             {searchLoading && (
@@ -359,22 +359,22 @@ function CreateScheduleForm({
         </div>
 
         {showSuggestions && searchResults.length > 0 && (
-          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-dark-700 bg-dark-800 shadow-lg">
+          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-borderSubtle bg-elevated shadow-lg">
             {searchResults.map((result, index) => (
               <div
                 key={`${result.symbol}-${index}`}
-                className="cursor-pointer border-b border-dark-700/50 px-3 py-2 hover:bg-dark-700 last:border-b-0"
+                className="cursor-pointer border-b border-borderSubtle/50 px-3 py-2 hover:bg-borderSubtle last:border-b-0"
                 onClick={() => handleAddStock(result.symbol)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-100">{result.symbol}</span>
+                      <span className="font-medium text-primary">{result.symbol}</span>
                       <Badge variant="gray" className="text-xs">
                         {result.exchange}
                       </Badge>
                     </div>
-                    <div className="truncate text-sm text-dark-400">{result.name}</div>
+                    <div className="truncate text-sm text-muted">{result.name}</div>
                   </div>
                   <Badge variant="blue" className="ml-2 text-xs">
                     {result.type}
@@ -399,13 +399,13 @@ function CreateScheduleForm({
         </div>
 
         {formData.stocks.length === 0 && (
-          <p className="mt-2 text-xs text-dark-400">
+          <p className="mt-2 text-xs text-muted">
             Add assets to track in your daily brief reports.
           </p>
         )}
       </div>
 
-      <div className="flex justify-end gap-3 border-t border-dark-700 pt-4">
+      <div className="flex justify-end gap-3 border-t border-borderSubtle pt-4">
         <Button onClick={onCancel} variant="ghost" size="sm">
           Cancel
         </Button>

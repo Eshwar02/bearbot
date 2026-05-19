@@ -63,20 +63,18 @@ function momentumBadge(momentum: 'strong' | 'moderate' | 'weak') {
 
 function PortfolioCard({ holding }: { holding: EnrichedHolding }) {
   const isPositive = holding.livePnl >= 0;
-  const glow = isPositive ? 'from-accent-green/15' : 'from-accent-red/15';
 
   return (
     <div
       className={cn(
-        'rounded-2xl border border-dark-700/70 bg-dark-800/85 backdrop-blur-xl',
-        'bg-gradient-to-br to-transparent p-4 shadow-[0_8px_30px_rgba(0,0,0,0.18)]',
-        glow
+        'rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4',
+        'transition-colors hover:border-borderStrong'
       )}
     >
       <div className="mb-3 flex items-start justify-between">
         <div>
-          <h3 className="font-semibold text-gray-100">{holding.symbol}</h3>
-          <p className="text-xs text-dark-400">{holding.name || holding.symbol}</p>
+          <h3 className="font-semibold text-primary">{holding.symbol}</h3>
+          <p className="text-xs text-muted">{holding.name || holding.symbol}</p>
         </div>
         <Badge variant={isPositive ? 'green' : 'red'}>
           {formatPercent(holding.livePnlPct)}
@@ -85,23 +83,23 @@ function PortfolioCard({ holding }: { holding: EnrichedHolding }) {
 
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
-          <p className="text-dark-400">Quantity</p>
-          <p className="font-medium text-gray-100">{holding.quantity}</p>
+          <p className="text-muted">Quantity</p>
+          <p className="font-medium text-primary">{holding.quantity}</p>
         </div>
         <div>
-          <p className="text-dark-400">Avg Buy</p>
-          <p className="font-medium text-gray-100">{formatCurrency(holding.avg_buy_price)}</p>
+          <p className="text-muted">Avg Buy</p>
+          <p className="font-medium text-primary">{formatCurrency(holding.avg_buy_price)}</p>
         </div>
         <div>
-          <p className="text-dark-400">Current</p>
+          <p className="text-muted">Current</p>
           <LivePrice
             value={holding.livePrice}
-            className="font-medium text-gray-100"
+            className="font-medium text-primary"
             format={(v) => formatCurrency(v)}
           />
         </div>
         <div>
-          <p className="text-dark-400">P&L</p>
+          <p className="text-muted">P&L</p>
           <LivePrice
             value={holding.livePnl}
             flash={false}
@@ -153,22 +151,21 @@ function PortfolioSummary({ holdings }: { holdings: EnrichedHolding[] }) {
         <div
           key={index}
           className={cn(
-            'rounded-2xl border border-dark-700/70 p-4 shadow-[0_8px_28px_rgba(0,0,0,0.2)]',
-            'bg-gradient-to-br from-dark-800/90 to-dark-900/70 backdrop-blur-xl',
+            'rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4',
             card.bgColor
           )}
         >
           <div className="flex items-center gap-3">
-            <div className={cn('rounded-lg bg-dark-800 p-2', card.color)}>
+            <div className={cn('rounded-lg bg-canvas p-2', card.color)}>
               <card.icon className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm text-dark-400">{card.label}</p>
+              <p className="text-sm text-muted">{card.label}</p>
               <LivePrice
                 value={card.value}
                 format={card.format}
                 flash={index !== 2}
-                className="text-xl font-bold text-gray-100"
+                className="text-xl font-bold text-primary"
               />
             </div>
           </div>
@@ -180,14 +177,14 @@ function PortfolioSummary({ holdings }: { holdings: EnrichedHolding[] }) {
 
 function AIIntelligencePanel({ intelligence }: { intelligence: PortfolioIntelligence }) {
   return (
-    <div className="mb-8 rounded-2xl border border-dark-700/70 bg-gradient-to-br from-dark-800/95 via-dark-850/85 to-dark-900/80 p-6 backdrop-blur-xl shadow-[0_12px_36px_rgba(0,0,0,0.22)]">
+    <div className="mb-8 rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-100">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-primary">
             <BrainCircuit className="h-5 w-5 text-accent-brand" />
             AI Portfolio Intelligence
           </h2>
-          <p className="mt-1 text-sm text-dark-400">
+          <p className="mt-1 text-sm text-muted">
             Real-time confidence signals, momentum mapping, and beginner-safe guidance.
           </p>
         </div>
@@ -202,15 +199,15 @@ function AIIntelligencePanel({ intelligence }: { intelligence: PortfolioIntellig
       </div>
 
       <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-dark-700 bg-dark-900/45 p-4">
-          <p className="mb-2 text-xs uppercase tracking-wide text-dark-400">Portfolio Health Score</p>
+        <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-canvas p-4">
+          <p className="mb-2 text-xs uppercase tracking-wide text-muted">Portfolio Health Score</p>
           <div className="flex items-center gap-3">
             <Gauge className={cn('h-5 w-5', sentimentStyle(intelligence.sentiment))} />
             <span className={cn('text-2xl font-bold', sentimentStyle(intelligence.sentiment))}>
               {intelligence.healthScore}/100
             </span>
           </div>
-          <div className="mt-3 h-2 w-full rounded-full bg-dark-700">
+          <div className="mt-3 h-2 w-full rounded-full bg-borderSubtle">
             <div
               className={cn(
                 'h-full rounded-full transition-all duration-500',
@@ -225,28 +222,28 @@ function AIIntelligencePanel({ intelligence }: { intelligence: PortfolioIntellig
           </div>
         </div>
 
-        <div className="rounded-xl border border-dark-700 bg-dark-900/45 p-4">
-          <p className="mb-2 text-xs uppercase tracking-wide text-dark-400">AI Market Summary</p>
-          <p className="text-sm text-gray-200">{intelligence.marketSummary}</p>
-          <p className="mt-2 text-xs text-dark-400">{intelligence.beginnerInsight}</p>
+        <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-canvas p-4">
+          <p className="mb-2 text-xs uppercase tracking-wide text-muted">AI Market Summary</p>
+          <p className="text-sm text-primary">{intelligence.marketSummary}</p>
+          <p className="mt-2 text-xs text-muted">{intelligence.beginnerInsight}</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         {intelligence.actions.slice(0, 6).map((card) => (
-          <div key={card.symbol} className="rounded-xl border border-dark-700 bg-dark-900/40 p-3">
+          <div key={card.symbol} className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-canvas p-3">
             <div className="mb-2 flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-100">{card.symbol}</p>
-                <p className="text-xs text-dark-400">{card.name}</p>
+                <p className="text-sm font-semibold text-primary">{card.symbol}</p>
+                <p className="text-xs text-muted">{card.name}</p>
               </div>
               <Badge variant={actionBadge(card.action)}>{card.action.toUpperCase()}</Badge>
             </div>
-            <div className="mb-2 flex items-center justify-between text-xs text-dark-400">
+            <div className="mb-2 flex items-center justify-between text-xs text-muted">
               <span>Confidence</span>
               <span>{card.confidence}%</span>
             </div>
-            <div className="mb-2 h-1.5 w-full rounded-full bg-dark-700">
+            <div className="mb-2 h-1.5 w-full rounded-full bg-borderSubtle">
               <div
                 className={cn(
                   'h-full rounded-full',
@@ -259,7 +256,7 @@ function AIIntelligencePanel({ intelligence }: { intelligence: PortfolioIntellig
                 style={{ width: `${card.confidence}%` }}
               />
             </div>
-            <p className="text-xs text-gray-300">{card.reason}</p>
+            <p className="text-xs text-secondary">{card.reason}</p>
           </div>
         ))}
       </div>
@@ -270,39 +267,39 @@ function AIIntelligencePanel({ intelligence }: { intelligence: PortfolioIntellig
 function TechnicalAnalyticsPanel({ technicals }: { technicals: TechnicalSnapshot[] }) {
   if (technicals.length === 0) return null;
   return (
-    <div className="mb-8 rounded-2xl border border-dark-700/70 bg-dark-800/80 p-6 shadow-[0_10px_32px_rgba(0,0,0,0.2)]">
-      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-100">
+    <div className="mb-8 rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
+      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-primary">
         <Sparkles className="h-5 w-5 text-accent-blue" />
         Advanced Technical Analytics
       </h2>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {technicals.slice(0, 9).map((t) => (
-          <div key={t.symbol} className="rounded-xl border border-dark-700 bg-dark-900/40 p-4">
+          <div key={t.symbol} className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-canvas p-4">
             <div className="mb-2 flex items-center justify-between">
-              <p className="font-semibold text-gray-100">{t.symbol}</p>
+              <p className="font-semibold text-primary">{t.symbol}</p>
               <Badge variant={momentumBadge(t.momentum)}>{t.momentum}</Badge>
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <p className="text-dark-400">RSI</p>
-                <p className="text-gray-200">{t.rsi === null ? 'N/A' : t.rsi.toFixed(1)}</p>
+                <p className="text-muted">RSI</p>
+                <p className="text-primary">{t.rsi === null ? 'N/A' : t.rsi.toFixed(1)}</p>
               </div>
               <div>
-                <p className="text-dark-400">MACD Hist</p>
-                <p className="text-gray-200">
+                <p className="text-muted">MACD Hist</p>
+                <p className="text-primary">
                   {t.macdHistogram === null ? 'N/A' : t.macdHistogram.toFixed(2)}
                 </p>
               </div>
               <div>
-                <p className="text-dark-400">SMA 20</p>
-                <p className="text-gray-200">{t.sma20 === null ? 'N/A' : t.sma20.toFixed(2)}</p>
+                <p className="text-muted">SMA 20</p>
+                <p className="text-primary">{t.sma20 === null ? 'N/A' : t.sma20.toFixed(2)}</p>
               </div>
               <div>
-                <p className="text-dark-400">SMA 50</p>
-                <p className="text-gray-200">{t.sma50 === null ? 'N/A' : t.sma50.toFixed(2)}</p>
+                <p className="text-muted">SMA 50</p>
+                <p className="text-primary">{t.sma50 === null ? 'N/A' : t.sma50.toFixed(2)}</p>
               </div>
             </div>
-            <p className="mt-2 text-xs text-dark-400">Trend: {t.trend}</p>
+            <p className="mt-2 text-xs text-muted">Trend: {t.trend}</p>
           </div>
         ))}
       </div>
@@ -375,7 +372,7 @@ export default function PortfolioPage() {
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-dark-700 bg-dark-800 p-4">
+            <div key={i} className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
               <Skeleton className="mb-2 h-6 w-24" />
               <Skeleton className="mb-4 h-4 w-32" />
               <div className="grid grid-cols-2 gap-4">
@@ -397,11 +394,11 @@ export default function PortfolioPage() {
     <div className="mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-100">
+          <h1 className="flex items-center gap-2 text-2xl font-bold text-primary">
             <BarChart3 className="h-6 w-6 text-accent-blue" />
             Portfolio Intelligence
           </h1>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-dark-400">
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70" />
               <span className="absolute inset-0 rounded-full bg-emerald-400" />
@@ -437,8 +434,8 @@ export default function PortfolioPage() {
       )}
 
       {intelLoading && (
-        <div className="mb-8 rounded-xl border border-dark-700 bg-dark-800 p-6">
-          <div className="mb-3 flex items-center gap-2 text-sm text-dark-400">
+        <div className="mb-8 rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
+          <div className="mb-3 flex items-center gap-2 text-sm text-muted">
             <RefreshCw className="h-4 w-4 animate-spin" />
             Loading AI portfolio intelligence...
           </div>
@@ -449,11 +446,11 @@ export default function PortfolioPage() {
 
       {enriched.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="mb-4 rounded-full bg-dark-800 p-6">
-            <BarChart3 className="h-12 w-12 text-dark-500" />
+          <div className="mb-4 rounded-full bg-elevated p-6">
+            <BarChart3 className="h-12 w-12 text-muted" />
           </div>
-          <h2 className="mb-1 text-lg font-semibold text-gray-100">No assets yet</h2>
-          <p className="mb-6 text-sm text-dark-400">
+          <h2 className="mb-1 text-lg font-semibold text-primary">No assets yet</h2>
+          <p className="mb-6 text-sm text-muted">
             Add your first holding to unlock AI scoring, sentiment, and technical analytics.
           </p>
           <Button onClick={() => setShowAddModal(true)}>

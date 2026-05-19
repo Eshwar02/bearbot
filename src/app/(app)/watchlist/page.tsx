@@ -30,15 +30,15 @@ function WatchlistCard({
   const positive = (change ?? 0) >= 0;
 
   return (
-    <div className="rounded-2xl border border-dark-700/80 bg-dark-800/80 p-4 backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:border-dark-600 hover:bg-dark-750/90">
+    <div className="rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4 transition-all hover:-translate-y-0.5 hover:border-borderStrong">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-accent-amber/10 text-accent-amber">
             <Star className="h-4 w-4 fill-current" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-100">{item.symbol}</h3>
-            <p className="text-sm text-dark-400">{item.name || item.symbol}</p>
+            <h3 className="font-semibold text-primary">{item.symbol}</h3>
+            <p className="text-sm text-muted">{item.name || item.symbol}</p>
           </div>
         </div>
         <Button
@@ -57,7 +57,7 @@ function WatchlistCard({
             <LivePrice
               value={quote.price}
               format={(v) => formatCurrency(v)}
-              className="text-lg font-bold text-gray-100"
+              className="text-lg font-bold text-primary"
             />
             {change != null && changePct != null && (
               <p
@@ -72,14 +72,14 @@ function WatchlistCard({
             )}
           </div>
           <div className="text-right">
-            <p className="text-xs text-dark-500">Added</p>
-            <p className="text-xs text-dark-400">
+            <p className="text-xs text-muted">Added</p>
+            <p className="text-xs text-secondary">
               {new Date(item.added_at).toLocaleDateString()}
             </p>
           </div>
         </div>
       ) : (
-        <div className="text-sm text-dark-400">Loading live price…</div>
+        <div className="text-sm text-muted">Loading live price…</div>
       )}
     </div>
   );
@@ -97,13 +97,13 @@ function InsightCard({
   icon: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-dark-700/80 bg-dark-800/70 p-4 backdrop-blur-xl">
+    <div className="rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-medium uppercase tracking-wide text-dark-400">{title}</p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">{title}</p>
         <div className="text-accent-blue">{icon}</div>
       </div>
-      <p className="text-2xl font-bold text-gray-100">{value}</p>
-      <p className="mt-1 text-xs text-dark-400">{helper}</p>
+      <p className="text-2xl font-bold text-primary">{value}</p>
+      <p className="mt-1 text-xs text-muted">{helper}</p>
     </div>
   );
 }
@@ -246,10 +246,10 @@ export default function WatchlistPage() {
     return (
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-dark-700 rounded w-1/4"></div>
+          <div className="h-8 bg-skeleton rounded w-1/4"></div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-32 bg-dark-800 rounded-xl"></div>
+              <div key={i} className="h-32 bg-skeleton rounded-xl"></div>
             ))}
           </div>
         </div>
@@ -259,16 +259,15 @@ export default function WatchlistPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-6 rounded-2xl border border-dark-700/80 bg-gradient-to-r from-dark-800/90 via-dark-850 to-dark-900 p-5 backdrop-blur-xl">
+      <div className="mb-6 rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-100 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
               <Star className="h-6 w-6 text-accent-amber" />
               Watchlist
               <Badge variant="blue" className="ml-1">AI Live</Badge>
             </h1>
-            <p className="text-sm text-dark-400 mt-1 flex items-center gap-1.5">
+            <p className="text-sm text-muted mt-1 flex items-center gap-1.5">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70" />
                 <span className="absolute inset-0 rounded-full bg-emerald-400" />
@@ -284,20 +283,20 @@ export default function WatchlistPage() {
                 value={stockInput}
                 onChange={(e) => setStockInput(e.target.value)}
                 placeholder="Search assets to add..."
-                className="px-4 py-2 bg-dark-800/80 border border-dark-700 rounded-lg text-gray-100 placeholder-dark-500 focus:border-accent-blue focus:ring-1 focus:ring-accent-blue w-64"
+                className="px-4 py-2 bg-input border border-borderStrong rounded-lg text-primary placeholder:text-muted focus:border-accent-blue focus:ring-1 focus:ring-accent-blue w-64"
               />
               {showSuggestions && searchResults.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-dark-800 border border-dark-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-canvas border border-borderSubtle rounded-lg shadow-lg max-h-60 overflow-y-auto">
                   {searchResults.map((result) => (
                     <div
                       key={result.symbol}
-                      className="px-4 py-2 hover:bg-dark-700 cursor-pointer border-b border-dark-700/50 last:border-b-0"
+                      className="px-4 py-2 hover:bg-elevated cursor-pointer border-b border-borderSubtle last:border-b-0"
                       onClick={() => handleAddToWatchlist(result.symbol)}
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="font-medium text-gray-100">{result.symbol}</div>
-                          <div className="text-sm text-dark-400">{result.name}</div>
+                          <div className="font-medium text-primary">{result.symbol}</div>
+                          <div className="text-sm text-muted">{result.name}</div>
                         </div>
                         <Button
                           size="sm"
@@ -355,16 +354,15 @@ export default function WatchlistPage() {
         />
       </div>
 
-      {/* Watchlist Grid */}
       {watchlist.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="rounded-full bg-dark-800 p-6 mb-4">
-            <Star className="h-12 w-12 text-dark-500" />
+          <div className="rounded-full bg-elevated p-6 mb-4">
+            <Star className="h-12 w-12 text-muted" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-100 mb-1">
+          <h2 className="text-lg font-semibold text-primary mb-1">
             Your watchlist is empty
           </h2>
-          <p className="text-sm text-dark-400 mb-6">
+          <p className="text-sm text-muted mb-6">
             Start tracking stocks by searching and adding them above.
           </p>
         </div>

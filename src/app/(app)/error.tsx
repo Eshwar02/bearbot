@@ -18,11 +18,11 @@ export default function AppError({
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">
-      <div className="max-w-md rounded-2xl border border-dark-700 bg-dark-800/60 p-6 text-center">
-        <h2 className="mb-2 text-lg font-semibold text-gray-100">
+      <div className="max-w-md rounded-2xl border border-borderSubtle bg-elevated/60 p-6 text-center">
+        <h2 className="mb-2 text-lg font-semibold text-primary">
           Something went wrong loading this view
         </h2>
-        <p className="mb-4 text-sm text-dark-400">
+        <p className="mb-4 text-sm text-muted">
           You can keep your conversation — just try again. If it keeps happening,
           refreshing usually fixes it.
         </p>
@@ -35,7 +35,7 @@ export default function AppError({
           </button>
           <button
             onClick={() => window.location.reload()}
-            className="rounded-lg border border-dark-600 px-4 py-2 text-sm text-gray-200 hover:bg-dark-700"
+            className="rounded-lg border border-borderStrong px-4 py-2 text-sm text-primary hover:bg-borderSubtle"
           >
             Reload page
           </button>

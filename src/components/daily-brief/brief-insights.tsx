@@ -19,12 +19,12 @@ import type { DailyBrief, PortfolioSnapshot } from '@/types/stock';
 export function SnapshotCards({ snapshot }: { snapshot: PortfolioSnapshot }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div className="rounded-xl border border-dark-700 bg-dark-800/80 p-4 backdrop-blur-xl">
-        <p className="mb-1 text-xs font-medium text-dark-400">Portfolio Value</p>
-        <p className="text-xl font-bold text-gray-100">{formatCurrency(snapshot.totalValue)}</p>
+      <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
+        <p className="mb-1 text-xs font-medium text-muted">Portfolio Value</p>
+        <p className="text-xl font-bold text-primary">{formatCurrency(snapshot.totalValue)}</p>
       </div>
-      <div className="rounded-xl border border-dark-700 bg-dark-800/80 p-4 backdrop-blur-xl">
-        <p className="mb-1 text-xs font-medium text-dark-400">Total P&L</p>
+      <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
+        <p className="mb-1 text-xs font-medium text-muted">Total P&L</p>
         <p className={cn('text-xl font-bold', getChangeColor(snapshot.totalPnl))}>
           {formatCurrency(snapshot.totalPnl)}
         </p>
@@ -35,10 +35,10 @@ export function SnapshotCards({ snapshot }: { snapshot: PortfolioSnapshot }) {
           {formatPercent(snapshot.totalPnlPercent)}
         </Badge>
       </div>
-      <div className="rounded-xl border border-dark-700 bg-dark-800/80 p-4 backdrop-blur-xl">
-        <p className="mb-1 text-xs font-medium text-dark-400">Holdings</p>
-        <p className="text-xl font-bold text-gray-100">{snapshot.holdings.length}</p>
-        <p className="mt-1 text-xs text-dark-400">assets tracked</p>
+      <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
+        <p className="mb-1 text-xs font-medium text-muted">Holdings</p>
+        <p className="text-xl font-bold text-primary">{snapshot.holdings.length}</p>
+        <p className="mt-1 text-xs text-muted">assets tracked</p>
       </div>
     </div>
   );
@@ -55,14 +55,15 @@ export function GainersLosers({ snapshot }: { snapshot: PortfolioSnapshot }) {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {gainers.length > 0 && (
         <div className="rounded-xl border border-accent-green/20 bg-accent-green/5 p-4">
-          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-accent-green">
-            <TrendingUp className="h-4 w-4" />
+          <p className="mb-1 text-[11px] uppercase tracking-wider text-muted">Top Gainers</p>
+          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-primary">
+            <TrendingUp className="h-4 w-4 text-accent-green" />
             Top Gainers
           </h3>
           <div className="space-y-2">
             {gainers.map((h) => (
               <div key={h.symbol} className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-100">{h.symbol}</span>
+                <span className="text-sm font-medium text-primary">{h.symbol}</span>
                 <span className="text-sm font-semibold text-accent-green">
                   {formatPercent(h.pnlPercent)}
                 </span>
@@ -73,14 +74,15 @@ export function GainersLosers({ snapshot }: { snapshot: PortfolioSnapshot }) {
       )}
       {losers.length > 0 && (
         <div className="rounded-xl border border-accent-red/20 bg-accent-red/5 p-4">
-          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-accent-red">
-            <TrendingDown className="h-4 w-4" />
+          <p className="mb-1 text-[11px] uppercase tracking-wider text-muted">Top Losers</p>
+          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-primary">
+            <TrendingDown className="h-4 w-4 text-accent-red" />
             Top Losers
           </h3>
           <div className="space-y-2">
             {losers.map((h) => (
               <div key={h.symbol} className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-100">{h.symbol}</span>
+                <span className="text-sm font-medium text-primary">{h.symbol}</span>
                 <span className="text-sm font-semibold text-accent-red">
                   {formatPercent(h.pnlPercent)}
                 </span>
@@ -129,14 +131,15 @@ export function SentimentGauge({
   const barColor = score >= 70 ? 'bg-accent-green' : score >= 40 ? 'bg-accent-amber' : 'bg-accent-red';
 
   return (
-    <div className="rounded-xl border border-dark-700 bg-dark-800/85 p-4 backdrop-blur-xl">
-      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-100">
+    <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
+      <p className="mb-1 text-[11px] uppercase tracking-wider text-muted">Sentiment</p>
+      <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-primary">
         <Activity className="h-4 w-4 text-accent-amber" />
         Portfolio Sentiment
       </h3>
       <div className="flex items-center gap-4">
         <div className="flex-1">
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-dark-700">
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-borderSubtle">
             <motion.div
               className={cn('h-full rounded-full', barColor)}
               initial={{ width: 0 }}
@@ -162,11 +165,12 @@ export function ExecutiveSummary({ snapshot }: { snapshot: PortfolioSnapshot }) 
   const isPositive = snapshot.totalPnl >= 0;
   return (
     <div className="rounded-xl border border-accent-amber/20 bg-gradient-to-r from-accent-amber/5 to-accent-green/5 p-6">
-      <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-gray-100">
+      <p className="mb-1 text-[11px] uppercase tracking-wider text-muted">Summary</p>
+      <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold text-primary">
         <Activity className="h-5 w-5 text-accent-amber" />
         Executive Summary
       </h2>
-      <p className="mb-4 text-sm text-gray-300">
+      <p className="mb-4 text-sm text-secondary">
         Your portfolio is valued at <strong>{formatCurrency(snapshot.totalValue)}</strong> with
         a total P&L of{' '}
         <span className={cn('font-semibold', getChangeColor(snapshot.totalPnl))}>
@@ -175,7 +179,7 @@ export function ExecutiveSummary({ snapshot }: { snapshot: PortfolioSnapshot }) 
         . {snapshot.holdings.length} holdings are being tracked with{' '}
         {isPositive ? 'positive momentum' : 'areas for review'}.
       </p>
-      <div className="flex items-center gap-4 text-xs text-dark-400">
+      <div className="flex items-center gap-4 text-xs text-muted">
         <span>📊 Market Analysis Included</span>
         <span>🎯 Actionable Insights</span>
         <span>⚠️ Risk Assessment</span>
@@ -187,16 +191,17 @@ export function ExecutiveSummary({ snapshot }: { snapshot: PortfolioSnapshot }) 
 export function MarketOverview({ snapshot }: { snapshot: PortfolioSnapshot }) {
   const indices = snapshot.marketIndices || [];
   return (
-    <div className="rounded-xl border border-dark-700 bg-dark-800/85 p-4 backdrop-blur-xl">
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-100">
+    <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
+      <p className="mb-1 text-[11px] uppercase tracking-wider text-muted">Markets</p>
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
         <TrendingUp className="h-4 w-4 text-accent-blue" />
         Market Overview
       </h3>
       <div className="grid grid-cols-3 gap-4 text-center">
         {indices.map((idx) => (
           <div key={idx.symbol}>
-            <p className="text-xs text-dark-400">{idx.symbol}</p>
-            <p className="text-sm font-semibold text-gray-100">{formatCurrency(idx.price)}</p>
+            <p className="text-xs text-muted">{idx.symbol}</p>
+            <p className="text-sm font-semibold text-primary">{formatCurrency(idx.price)}</p>
             <Badge variant={idx.changePercent >= 0 ? 'green' : 'red'} className="text-xs">
               {idx.changePercent >= 0 ? '+' : ''}
               {idx.changePercent.toFixed(2)}%
@@ -206,16 +211,16 @@ export function MarketOverview({ snapshot }: { snapshot: PortfolioSnapshot }) {
         {indices.length === 0 && (
           <>
             <div>
-              <p className="text-xs text-dark-400">S&P 500</p>
-              <p className="text-sm font-semibold text-gray-100">N/A</p>
+              <p className="text-xs text-muted">S&P 500</p>
+              <p className="text-sm font-semibold text-primary">N/A</p>
             </div>
             <div>
-              <p className="text-xs text-dark-400">NASDAQ</p>
-              <p className="text-sm font-semibold text-gray-100">N/A</p>
+              <p className="text-xs text-muted">NASDAQ</p>
+              <p className="text-sm font-semibold text-primary">N/A</p>
             </div>
             <div>
-              <p className="text-xs text-dark-400">Dow Jones</p>
-              <p className="text-sm font-semibold text-gray-100">N/A</p>
+              <p className="text-xs text-muted">Dow Jones</p>
+              <p className="text-sm font-semibold text-primary">N/A</p>
             </div>
           </>
         )}
@@ -234,18 +239,19 @@ export function RiskAssessment({ content }: { content: string }) {
         : 'Low';
 
   return (
-    <div className="rounded-xl border border-dark-700 bg-dark-800/85 p-4 backdrop-blur-xl">
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-100">
+    <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
+      <p className="mb-1 text-[11px] uppercase tracking-wider text-muted">Risk</p>
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
         <AlertTriangle className="h-4 w-4 text-accent-red" />
         Risk Assessment
       </h3>
       <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-300">Overall Risk Level</span>
+        <span className="text-sm text-secondary">Overall Risk Level</span>
         <Badge variant={riskLevel === 'High' ? 'red' : riskLevel === 'Medium' ? 'amber' : 'green'}>
           {riskLevel}
         </Badge>
       </div>
-      <p className="mt-2 text-xs text-dark-400">
+      <p className="mt-2 text-xs text-muted">
         Based on portfolio composition and market conditions.
       </p>
     </div>
@@ -261,13 +267,14 @@ export function ActionItems() {
 
   return (
     <div className="rounded-xl border border-accent-green/20 bg-accent-green/5 p-4">
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-accent-green">
-        <Activity className="h-4 w-4" />
+      <p className="mb-1 text-[11px] uppercase tracking-wider text-muted">Next Steps</p>
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
+        <Activity className="h-4 w-4 text-accent-green" />
         Action Items
       </h3>
       <ul className="space-y-1">
         {actions.map((action) => (
-          <li key={action} className="flex items-start gap-2 text-sm text-gray-300">
+          <li key={action} className="flex items-start gap-2 text-sm text-secondary">
             <span className="mt-0.5 text-accent-green">•</span>
             {action}
           </li>
@@ -295,22 +302,22 @@ export function PreviousBriefItem({
   });
 
   return (
-    <div className="overflow-hidden rounded-xl border border-dark-700 bg-dark-800">
+    <div className="overflow-hidden rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated">
       <button
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-dark-850"
+        className="flex w-full items-center justify-between px-4 py-3 text-sm transition-colors hover:bg-elevated-hover"
       >
         <div className="flex items-center gap-2">
-          <Sun className="h-4 w-4 text-dark-400" />
-          <span className="text-gray-300">{date}</span>
+          <Sun className="h-4 w-4 text-muted" />
+          <span className="text-primary">{date}</span>
           <Badge variant={brief.portfolio_snapshot.totalPnl >= 0 ? 'green' : 'red'}>
             {formatPercent(brief.portfolio_snapshot.totalPnlPercent)}
           </Badge>
         </div>
         {expanded ? (
-          <ChevronUp className="h-4 w-4 text-dark-400" />
+          <ChevronUp className="h-4 w-4 text-muted" />
         ) : (
-          <ChevronDown className="h-4 w-4 text-dark-400" />
+          <ChevronDown className="h-4 w-4 text-muted" />
         )}
       </button>
       <AnimatePresence>
@@ -322,8 +329,8 @@ export function PreviousBriefItem({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="border-t border-dark-700/50 px-4 pb-4">
-              <div className="prose prose-sm prose-invert mt-3 max-w-none">
+            <div className="border-t border-borderSubtle px-4 pb-4">
+              <div className="prose prose-sm max-w-none mt-3">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{brief.content}</ReactMarkdown>
               </div>
             </div>

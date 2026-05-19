@@ -43,6 +43,7 @@ export function ChatPanel() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState('');
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const hasMessages = messages.length > 0;
 
@@ -73,13 +74,23 @@ export function ChatPanel() {
     }
   }, [streamingContent]);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const content = draft.trim();
-    if (!content || isStreaming) return;
-    sendMessage(content, { forceWebSearch: webSearchEnabled });
-    setDraft('');
-    setWebSearchEnabled(false);
-  }, [draft, isStreaming, sendMessage, webSearchEnabled]);
+    if (isStreaming || (!content && attachments.length === 0)) return;
+    const sent = await sendMessage(content, {
+      forceWebSearch: webSearchEnabled,
+      attachments,
+    });
+    if (sent) {
+      setDraft('');
+      setWebSearchEnabled(false);
+      setAttachments([]);
+    }
+  }, [attachments, draft, isStreaming, sendMessage, webSearchEnabled]);
+
+  const handleAttachmentRemove = useCallback((index: number) => {
+    setAttachments((current) => current.filter((_, i) => i !== index));
+  }, []);
 
   const handleStop = useCallback(() => {
     stopStreaming();
@@ -128,6 +139,9 @@ export function ChatPanel() {
             modelOptions={[]}
             webSearchEnabled={webSearchEnabled}
             onWebSearchToggle={setWebSearchEnabled}
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
+            onAttachmentRemove={handleAttachmentRemove}
           />
           <p className="mt-2 text-center text-[11px] text-muted">
             AlphaSight can make mistakes. Verify critical financial decisions.

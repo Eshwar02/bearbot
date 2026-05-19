@@ -168,15 +168,33 @@ export function useChat() {
   }, [stopSourcePump]);
 
   const sendMessage = useCallback(
-    async (content: string, opts?: { forceWebSearch?: boolean }) => {
-      if (!content.trim() || isStreaming) return;
+    async (
+      content: string,
+      opts?: { forceWebSearch?: boolean; attachments?: File[] },
+    ): Promise<boolean> => {
+      if (isStreaming) return false;
+
+      const attachments = opts?.attachments ?? [];
+      const trimmedContent = content.trim();
+      const outgoingText = trimmedContent || (attachments.length > 0 ? 'Please analyze the attached file(s).' : '');
+      if (!outgoingText) return false;
 
       const userMsg: ChatMessage = {
         id: generateId(),
         conversation_id: activeConversationId || '',
         role: 'user',
-        content: content.trim(),
-        metadata: null,
+        content: trimmedContent || outgoingText,
+        metadata:
+          attachments.length > 0
+            ? {
+                attachments: attachments.map((file) => ({
+                  name: file.name,
+                  type: file.type || 'application/octet-stream',
+                  size: file.size,
+                  lastModified: file.lastModified,
+                })),
+              }
+            : null,
         created_at: new Date().toISOString(),
       };
 
@@ -222,15 +240,32 @@ export function useChat() {
         seenSourceDomainsRef.current = new Set();
         stopSourcePump();
 
+        const hasAttachments = attachments.length > 0;
+        const requestBody = hasAttachments
+          ? (() => {
+              const formData = new FormData();
+              formData.append('message', outgoingText);
+              if (activeConversationId) {
+                formData.append('conversationId', activeConversationId);
+              }
+              formData.append('model', preferredModel);
+              formData.append('forceWebSearch', String(opts?.forceWebSearch === true));
+              attachments.forEach((file) => {
+                formData.append('attachments', file, file.name);
+              });
+              return formData;
+            })()
+          : JSON.stringify({
+              message: outgoingText,
+              conversationId: activeConversationId,
+              model: preferredModel,
+              forceWebSearch: opts?.forceWebSearch === true,
+            });
+
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: userMsg.content,
-            conversationId: activeConversationId,
-            model: preferredModel,
-            forceWebSearch: opts?.forceWebSearch === true,
-          }),
+          headers: hasAttachments ? undefined : { 'Content-Type': 'application/json' },
+          body: requestBody,
           signal: abortController.signal,
         });
 
@@ -263,7 +298,7 @@ export function useChat() {
           console.debug('[useChat] sendMessage:json-response-applied', {
             hasText: hasVisibleText(text),
           });
-          return;
+          return true;
         }
 
         if (!res.ok) {
@@ -286,7 +321,7 @@ export function useChat() {
             status: res.status,
             errorMsg,
           });
-          return;
+          return false;
         }
 
         // The server sends a short placeholder so the chart can render
@@ -314,7 +349,7 @@ export function useChat() {
           addConversation({
             id: newConvId,
             user_id: '',
-            title: content.trim().slice(0, 60),
+            title: outgoingText.slice(0, 60),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
@@ -330,7 +365,7 @@ export function useChat() {
             content: EMPTY_RESPONSE_FALLBACK,
           });
           console.error('[useChat] sendMessage:no-reader');
-          return;
+          return false;
         }
 
         const decoder = new TextDecoder();
@@ -497,13 +532,13 @@ export function useChat() {
         if (shouldReplaceUrlAfterStream && effectiveConversationId && hasVisibleText(fullAssistantText)) {
           (async () => {
             try {
-              const titleRes = await fetch(
+          const titleRes = await fetch(
                 `/api/conversations/${effectiveConversationId}/generate-title`,
                 {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
-                    userMessage: content,
+                    userMessage: outgoingText,
                     assistantMessage: fullAssistantText.slice(0, 1500),
                   }),
                 },
@@ -522,6 +557,7 @@ export function useChat() {
             }
           })();
         }
+        return true;
       } catch (err: unknown) {
         console.error('CHAT ERROR:', err);
         if (err instanceof DOMException && err.name === 'AbortError') {
@@ -541,6 +577,7 @@ export function useChat() {
             content: message,
           });
         }
+        return false;
       } finally {
         clearTimeout(timeoutId);
         setIsStreaming(false);

@@ -37,6 +37,7 @@ import { fetchStockNews } from "@/lib/stock/news";
 import { analyzeTechnicals } from "@/lib/stock/technicals";
 import { assessMacroRisks, assessRawMaterialRisks } from "@/lib/stock/macro";
 import type { StockAnalysis } from "@/types/stock";
+import * as XLSX from "xlsx";
 
 const EMPTY_RESPONSE_FALLBACK =
   "Unable to generate analysis right now. Showing available data below.";
@@ -207,6 +208,78 @@ function encodeProgressFrame(frame: AIProgressFrame): Uint8Array {
   );
 }
 
+type AttachmentSummary = {
+  name: string;
+  type: string;
+  size: number;
+  text: string;
+  truncated: boolean;
+};
+
+function parseFormBoolean(value: FormDataEntryValue | null): boolean {
+  return value === "true" || value === "1" || value === "on";
+}
+
+function isTextLikeFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  return (
+    type.startsWith("text/") ||
+    type.includes("json") ||
+    type.includes("xml") ||
+    type.includes("html") ||
+    type.includes("csv") ||
+    type.includes("yaml") ||
+    type.includes("markdown")
+  );
+}
+
+async function extractAttachmentText(file: File): Promise<AttachmentSummary> {
+  const maxCharsPerFile = 4000;
+  const normalizedName = file.name || "attachment";
+  const normalizedType = file.type || "application/octet-stream";
+  let text = "";
+
+  if (isTextLikeFile(file)) {
+    text = await file.text();
+  } else if (
+    normalizedName.toLowerCase().endsWith(".xlsx") ||
+    normalizedName.toLowerCase().endsWith(".xls") ||
+    normalizedType.includes("spreadsheet")
+  ) {
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    text = workbook.SheetNames.slice(0, 3)
+      .map((sheetName) => {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        return `Sheet: ${sheetName}\n${csv}`;
+      })
+      .join("\n\n");
+  } else {
+    throw new Error(`Unsupported attachment type: ${normalizedType || normalizedName}`);
+  }
+
+  const truncated = text.length > maxCharsPerFile;
+  return {
+    name: normalizedName,
+    type: normalizedType,
+    size: file.size,
+    text: truncated ? `${text.slice(0, maxCharsPerFile)}\n[truncated]` : text,
+    truncated,
+  };
+}
+
+function formatAttachmentContext(attachments: AttachmentSummary[]): string {
+  return attachments
+    .map((attachment, index) => {
+      const header = `[Attachment ${index + 1}: ${attachment.name} | ${attachment.type} | ${Math.max(
+        1,
+        Math.round(attachment.size / 1024)
+      )} KB${attachment.truncated ? " | truncated" : ""}]`;
+      return `${header}\n${attachment.text}`.trim();
+    })
+    .join("\n\n");
+}
+
 function chatJsonResponse(
   text: string,
   status: number,
@@ -263,18 +336,46 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const body = (await request.json()) as {
-      message?: string;
-      conversationId?: string;
-      model?: "mistral";
-      forceWebSearch?: boolean;
-    };
-    const incomingMessage = body.message?.trim() ?? "";
-    const requestedConversationId = body.conversationId ?? null;
-    const requestedModel: "mistral" = body.model ?? "mistral";
-    const forceWebSearch = body.forceWebSearch === true;
+    const contentType = request.headers.get("content-type") || "";
+    let incomingMessage = "";
+    let requestedConversationId: string | null = null;
+    let requestedModel: "mistral" = "mistral";
+    let forceWebSearch = false;
+    let attachmentSummaries: AttachmentSummary[] = [];
 
-    if (!incomingMessage) {
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      incomingMessage = String(formData.get("message") ?? "").trim();
+      requestedConversationId = String(formData.get("conversationId") ?? "").trim() || null;
+      requestedModel = (String(formData.get("model") ?? "mistral") as "mistral") || "mistral";
+      forceWebSearch = parseFormBoolean(formData.get("forceWebSearch"));
+      const uploadedFiles = formData
+        .getAll("attachments")
+        .filter((value): value is File => value instanceof File);
+      try {
+        attachmentSummaries = await Promise.all(uploadedFiles.map((file) => extractAttachmentText(file)));
+      } catch (error) {
+        return chatJsonResponse("One or more uploaded files are not supported.", 400, {
+          error: error instanceof Error ? error.message : "Unsupported attachment",
+        });
+      }
+    } else {
+      const body = (await request.json()) as {
+        message?: string;
+        conversationId?: string;
+        model?: "mistral";
+        forceWebSearch?: boolean;
+      };
+      incomingMessage = body.message?.trim() ?? "";
+      requestedConversationId = body.conversationId ?? null;
+      requestedModel = body.model ?? "mistral";
+      forceWebSearch = body.forceWebSearch === true;
+    }
+
+    const attachmentContext = formatAttachmentContext(attachmentSummaries);
+    const composedMessage = [incomingMessage, attachmentContext].filter(Boolean).join("\n\n").trim();
+
+    if (!composedMessage) {
       return chatJsonResponse("Please enter a message.", 400, {
         error: "Message is required",
       });
@@ -285,9 +386,15 @@ export async function POST(request: NextRequest) {
         error: "Message too long (max 4000 characters)",
       });
     }
+    if (attachmentSummaries.length > 0 && attachmentContext.length > 14000) {
+      return chatJsonResponse("Uploaded files are too large to process. Please shorten and retry.", 400, {
+        error: "Attachment context too large",
+      });
+    }
     console.debug("[chat-api] validated request", {
       userId: user.id,
       messageLength: incomingMessage.length,
+      attachments: attachmentSummaries.length,
       hasConversationId: Boolean(requestedConversationId),
     });
 
@@ -303,10 +410,9 @@ export async function POST(request: NextRequest) {
     let activeConversationId = requestedConversationId;
     if (!activeConversationId) {
       recordProgress("Creating a new conversation", 12);
+      const titleSeed = incomingMessage || attachmentSummaries[0]?.name || "New chat";
       const title =
-        incomingMessage.length > 60
-          ? `${incomingMessage.substring(0, 60)}...`
-          : incomingMessage;
+        titleSeed.length > 60 ? `${titleSeed.substring(0, 60)}...` : titleSeed;
       const { data: conversation, error } = await supabase
         .from("conversations")
         .insert({ user_id: user.id, title })
@@ -335,13 +441,13 @@ export async function POST(request: NextRequest) {
     }
 
     recordProgress("Loading conversation history and preferences", 18);
-    const wantsMemoryAnswer = isMemoryQuery(incomingMessage);
+    const wantsMemoryAnswer = isMemoryQuery(composedMessage);
 
     const [historyResponse, userMemoryBase, prefsResponse, semanticMemoryRows] =
       await Promise.all([
         supabase
           .from("messages")
-          .select("role, content")
+          .select("role, content, metadata")
           .eq("conversation_id", activeConversationId)
           .order("created_at", { ascending: false })
           .limit(12),
@@ -356,7 +462,7 @@ export async function POST(request: NextRequest) {
           .maybeSingle(),
         wantsMemoryAnswer
           ? listRecentMemories(supabase, user.id, { limit: 10 })
-          : searchMemories(supabase, user.id, incomingMessage),
+          : searchMemories(supabase, user.id, composedMessage),
       ]);
 
     recordProgress("Saving your message", 22);
@@ -364,7 +470,19 @@ export async function POST(request: NextRequest) {
     const { error: userMessageError } = await supabase.from("messages").insert({
       conversation_id: activeConversationId,
       role: "user",
-      content: incomingMessage,
+      content: incomingMessage || composedMessage,
+      metadata:
+        attachmentSummaries.length > 0
+          ? {
+              attachments: attachmentSummaries.map((attachment) => ({
+                name: attachment.name,
+                type: attachment.type,
+                size: attachment.size,
+                truncated: attachment.truncated,
+              })),
+              attachmentContext,
+            }
+          : null,
     });
     if (userMessageError) {
       return chatJsonResponse(EMPTY_RESPONSE_FALLBACK, 500, {
@@ -394,7 +512,7 @@ export async function POST(request: NextRequest) {
     let useTanglish = false;
     if (languageMode === "tanglish") useTanglish = true;
     else if (languageMode === "english") useTanglish = false;
-    else useTanglish = detectTanglish(incomingMessage);
+    else useTanglish = detectTanglish(composedMessage);
 
     const languageInstruction = useTanglish
       ? LANG_INSTRUCTION_TANGLISH
@@ -415,14 +533,20 @@ export async function POST(request: NextRequest) {
     const conversationHistory: Array<{ role: "user" | "assistant"; content: string }> = (
       historyRows || []
     )
-      .filter((m): m is { role: "user" | "assistant"; content: string } =>
-        m.role === "user" || m.role === "assistant"
-      )
+      .filter((m) => m.role === "user" || m.role === "assistant")
       .reverse()
-      .map((m) => ({ role: m.role, content: m.content ?? "" }));
+      .map((m) => {
+        const metadata = m as { role: "user" | "assistant"; content: string; metadata?: unknown };
+        const attachmentMetadata = metadata.metadata as { attachmentContext?: string } | null | undefined;
+        const fileContext =
+          metadata.role === "user" && typeof attachmentMetadata?.attachmentContext === "string"
+            ? `\n\n${attachmentMetadata.attachmentContext}`
+            : "";
+        return { role: metadata.role, content: `${metadata.content ?? ""}${fileContext}` };
+      });
 
     let stockAnalysis: StockAnalysis | null = null;
-    let llmMessage = incomingMessage;
+    let llmMessage = composedMessage;
     let chatMode: "stock" | "general" = "general";
     let generalKind: "brief" | "normal" = "normal";
 
@@ -441,7 +565,7 @@ export async function POST(request: NextRequest) {
     let llmIntent: MessageClassification;
     try {
       llmIntent = await withTimeout(
-        classifyMessage(incomingMessage, conversationHistory),
+        classifyMessage(composedMessage, conversationHistory),
         4000,
         "classifyMessage"
       );
@@ -460,12 +584,12 @@ export async function POST(request: NextRequest) {
     const earlySmallTalk = !wantsMemoryAnswer && llmIntent.kind === "small_talk";
     console.debug("[chat-api] llm classifier", llmIntent);
 
-    let routingMessage = incomingMessage;
-    if (!earlySmallTalk && needsRewrite(incomingMessage, conversationHistory.length > 0)) {
+    let routingMessage = composedMessage;
+    if (!earlySmallTalk && needsRewrite(composedMessage, conversationHistory.length > 0)) {
       recordProgress("Resolving references from previous turns", 26);
       try {
         routingMessage = await withTimeout(
-          rewriteFollowupQuery(incomingMessage, conversationHistory),
+          rewriteFollowupQuery(composedMessage, conversationHistory),
           4500,
           "rewriteFollowupQuery"
         );
@@ -474,12 +598,12 @@ export async function POST(request: NextRequest) {
           "[chat-api] rewrite failed, using original:",
           err instanceof Error ? err.message : err
         );
-        routingMessage = incomingMessage;
+        routingMessage = composedMessage;
       }
-      if (routingMessage !== incomingMessage) {
+      if (routingMessage !== composedMessage) {
         // Give the LLM both: the explicit standalone query (for accuracy) and
         // the user's original phrasing (for natural reply tone).
-        llmMessage = `${incomingMessage}\n\n(Resolved standalone form for your reasoning, do not echo verbatim: "${routingMessage}")`;
+        llmMessage = `${composedMessage}\n\n(Resolved standalone form for your reasoning, do not echo verbatim: "${routingMessage}")`;
       }
     }
 
@@ -518,7 +642,7 @@ export async function POST(request: NextRequest) {
         // Classifier or regex thought this was a stock, but we couldn't
         // resolve a ticker. Answer in general mode with a short note instead
         // of forcing the 8-section stock prompt.
-        llmMessage = `${incomingMessage}\n\n(Context note for the assistant: I tried to look up live market data for "${stockQuery}" but no matching ticker was found. Answer the user's question helpfully — use the web-search block below if present, never refuse with a "no training data" or "not in my dataset" excuse.)`;
+        llmMessage = `${composedMessage}\n\n(Context note for the assistant: I tried to look up live market data for "${stockQuery}" but no matching ticker was found. Answer the user's question helpfully — use the web-search block below if present, never refuse with a "no training data" or "not in my dataset" excuse.)`;
       }
       if (resolvedSymbol) {
         try {
@@ -607,7 +731,7 @@ export async function POST(request: NextRequest) {
           }
         } catch (stockError) {
           console.error("[chat-api] stock enrichment failed", stockError);
-          llmMessage = `${incomingMessage}\n\nNote: Live stock lookup for "${resolvedSymbol}" failed (${stockError instanceof Error ? stockError.message : String(stockError)}). Explain this briefly, then continue with a useful text-only analysis.`;
+          llmMessage = `${composedMessage}\n\nNote: Live stock lookup for "${resolvedSymbol}" failed (${stockError instanceof Error ? stockError.message : String(stockError)}). Explain this briefly, then continue with a useful text-only analysis.`;
         }
       }
     }
@@ -703,11 +827,11 @@ export async function POST(request: NextRequest) {
     const userExplicitlyAskedAboutStock =
       stockAnalysis !== null &&
       !earlySmallTalk &&
-      (detectStockQuery(incomingMessage) !== null ||
+      (detectStockQuery(composedMessage) !== null ||
         /\b(stock|share|ticker|price|quote|analyze|analysis|chart|buy|sell|portfolio|invest)\b/i.test(
-          incomingMessage
+          composedMessage
         ) ||
-        /\$[A-Z]{1,10}\b/.test(incomingMessage));
+        /\$[A-Z]{1,10}\b/.test(composedMessage));
 
     // Adaptive response shape: tell the LLM how deep to go and how to
     // structure the answer based on the user's intent. Without this, the
@@ -718,7 +842,7 @@ export async function POST(request: NextRequest) {
       stockAnalysis !== null &&
       stockAnalysis.history.length > 0;
     const responseShape = classifyResponseShape({
-      message: incomingMessage,
+      message: composedMessage,
       routingMessage,
       chatMode,
       isStockAnalysis: isFullStockAnalysis,
@@ -818,7 +942,7 @@ export async function POST(request: NextRequest) {
       // Failures are logged inside addMemories() — never throws.
       after(
         addMemories(supabase, user.id, {
-          userMessage: incomingMessage,
+          userMessage: composedMessage,
           assistantResponse: fullResponse,
           conversationId,
         })

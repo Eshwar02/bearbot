@@ -6,7 +6,7 @@
  */
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, Square, ChevronDown, Check, Globe } from 'lucide-react';
+import { ArrowUp, Square, ChevronDown, Check, Globe, Paperclip, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ModelOption {
@@ -20,7 +20,7 @@ interface GradientAIChatInputProps {
   placeholder?: string;
   value: string;
   onChange: (value: string) => void;
-  onSend: () => void;
+  onSend: () => void | Promise<void>;
   onStop?: () => void;
   isStreaming?: boolean;
   disabled?: boolean;
@@ -31,6 +31,9 @@ interface GradientAIChatInputProps {
   className?: string;
   webSearchEnabled?: boolean;
   onWebSearchToggle?: (next: boolean) => void;
+  attachments?: File[];
+  onAttachmentsChange?: (attachments: File[]) => void;
+  onAttachmentRemove?: (index: number) => void;
 }
 
 const MAIN_GRADIENT = {
@@ -78,6 +81,9 @@ export function GradientAIChatInput({
   className,
   webSearchEnabled = false,
   onWebSearchToggle,
+  attachments = [],
+  onAttachmentsChange,
+  onAttachmentRemove,
 }: GradientAIChatInputProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -85,9 +91,12 @@ export function GradientAIChatInput({
   const shouldAnimate = enableAnimations && !shouldReduceMotion;
   const dropdownRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasText = value.trim().length > 0;
   const showDropdown = modelOptions.length > 0;
+  const hasAttachments = attachments.length > 0;
+  const supportedTypes = '.txt,.md,.csv,.tsv,.json,.xml,.html,.htm,.yaml,.yml,.xlsx,.xls';
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -125,6 +134,25 @@ export function GradientAIChatInput({
       }
     },
     [hasText, isStreaming, disabled, onSend],
+  );
+
+  const handleFileSelection = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selected = Array.from(event.target.files ?? []);
+      if (selected.length === 0) return;
+      const merged = [...attachments, ...selected].filter(
+        (file, index, list) =>
+          list.findIndex(
+            (candidate) =>
+              candidate.name === file.name &&
+              candidate.size === file.size &&
+              candidate.lastModified === file.lastModified,
+          ) === index,
+      );
+      onAttachmentsChange?.(merged.slice(0, 5));
+      event.target.value = '';
+    },
+    [attachments, onAttachmentsChange],
   );
 
   const idleBorder = 'rgba(200, 200, 200, 0.5)';
@@ -240,25 +268,75 @@ export function GradientAIChatInput({
                 <Square className="h-3.5 w-3.5 fill-current" />
               </motion.button>
             ) : (
-              <motion.button
-                type="button"
-                onClick={() => hasText && !disabled && onSend()}
-                disabled={!hasText || disabled}
-                className={cn(
-                  'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-                  'transition-all duration-200',
-                  hasText && !disabled
-                    ? 'bg-accent-brand text-dark-950 shadow-[0_0_0_1px_rgba(20,184,166,0.4)] hover:bg-accent-brand-hover'
-                    : 'cursor-not-allowed bg-elevated text-muted',
-                )}
-                whileHover={shouldAnimate && hasText && !disabled ? { scale: 1.05 } : {}}
-                whileTap={shouldAnimate && hasText && !disabled ? { scale: 0.92 } : {}}
-                aria-label="Send message"
-              >
-                <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-              </motion.button>
+              <div className="flex shrink-0 items-center gap-2">
+                <motion.button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={disabled || isStreaming || attachments.length >= 5}
+                  className={cn(
+                    'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border',
+                    'border-borderSubtle bg-elevated text-secondary transition-colors hover:bg-elevated-hover hover:text-primary',
+                    (disabled || isStreaming || attachments.length >= 5) && 'cursor-not-allowed opacity-50',
+                  )}
+                  whileHover={shouldAnimate && !disabled && !isStreaming && attachments.length < 5 ? { scale: 1.05 } : {}}
+                  whileTap={shouldAnimate && !disabled && !isStreaming && attachments.length < 5 ? { scale: 0.95 } : {}}
+                  aria-label="Attach files"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={() => hasText && !disabled && onSend()}
+                  disabled={!hasText || disabled}
+                  className={cn(
+                    'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                    'transition-all duration-200',
+                    hasText && !disabled
+                      ? 'bg-accent-brand text-dark-950 shadow-[0_0_0_1px_rgba(20,184,166,0.4)] hover:bg-accent-brand-hover'
+                      : 'cursor-not-allowed bg-elevated text-muted',
+                  )}
+                  whileHover={shouldAnimate && hasText && !disabled ? { scale: 1.05 } : {}}
+                  whileTap={shouldAnimate && hasText && !disabled ? { scale: 0.92 } : {}}
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                </motion.button>
+              </div>
             )}
           </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={supportedTypes}
+            className="hidden"
+            onChange={handleFileSelection}
+          />
+
+          {hasAttachments && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {attachments.map((file, index) => (
+                <div
+                  key={`${file.name}-${file.lastModified}-${file.size}`}
+                  className="flex items-center gap-2 rounded-full border border-borderSubtle bg-elevated px-3 py-1 text-xs text-secondary"
+                >
+                  <span className="max-w-[180px] truncate">{file.name}</span>
+                  <span className="text-muted">{Math.max(1, Math.round(file.size / 1024))} KB</span>
+                  {onAttachmentRemove && (
+                    <button
+                      type="button"
+                      onClick={() => onAttachmentRemove(index)}
+                      className="rounded-full p-0.5 text-muted transition-colors hover:bg-elevated-hover hover:text-primary"
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
           {(showDropdown || onWebSearchToggle) && (
             <div className="flex items-center gap-2">
@@ -393,6 +471,10 @@ export function GradientAIChatInput({
               </span>
             </div>
           )}
+
+          <div className="mt-2 text-[11px] text-muted">
+            Supported: TXT, MD, CSV, JSON, XML, HTML, YAML, XLSX
+          </div>
         </div>
 
         <div

@@ -98,6 +98,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
   );
   const hasContent = visibleText.length > 0;
   const hasStreamingText = normalizedContent.trim().length > 0;
+  const attachments = useMemo(() => {
+    const metadata = message.metadata as { attachments?: Array<{ name?: string; type?: string; size?: number }> } | null;
+    return Array.isArray(metadata?.attachments) ? metadata.attachments : [];
+  }, [message.metadata]);
 
   if (process.env.NODE_ENV !== 'production' && !isUser) {
     console.debug('[ChatMessage] render', {
@@ -132,6 +136,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
             )}
           >
             {message.content}
+            {attachments.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {attachments.map((file, index) => (
+                  <span
+                    key={`${file.name ?? 'attachment'}-${index}`}
+                    className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-white/90"
+                  >
+                    {file.name ?? 'Attachment'}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       ) : (

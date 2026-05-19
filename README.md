@@ -1,249 +1,399 @@
-# AlphaSight AI
+# 🎯 AlphaSight AI
 
-<p align="center">
-  <img src="./logos/final_logo.svg" alt="AlphaSight Logo" width="120" />
-</p>
+<div align="center">
+  <img src="./logos/final_logo.svg" alt="AlphaSight Logo" width="100" />
+  
+  ### AI-Powered Market Intelligence Workspace
+  
+  **Real-time portfolio insights · AI-driven analysis · Seamless streaming chat**
 
-<p align="center">
-  <img
-    src="https://readme-typing-svg.demolab.com?font=Inter&weight=600&size=22&duration=2500&pause=900&color=0EA5E9&center=true&vCenter=true&width=760&lines=AI+market+intelligence+workspace;Streaming+chat+%E2%80%A2+portfolio+tracking+%E2%80%A2+watchlist+monitoring;Daily+briefs+with+real-time+context"
-    alt="Animated AlphaSight tagline"
-  />
-</p>
+  [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs&logoColor=white&style=flat-square)](https://nextjs.org)
+  [![React 19](https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white&style=flat-square)](https://react.dev)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white&style=flat-square)](https://www.typescriptlang.org)
+  [![Supabase](https://img.shields.io/badge/Supabase-Postgres-3ECF8E?logo=supabase&logoColor=white&style=flat-square)](https://supabase.com)
+  [![Mistral AI](https://img.shields.io/badge/AI-Mistral-F97316?style=flat-square)](https://mistral.ai)
+  
+  [![License MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](./LICENSE)
+  [![GitHub Stars](https://img.shields.io/github/stars/Eshwar02/bearbot?style=flat-square)](https://github.com/Eshwar02/bearbot)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Next.js-16-black?logo=nextdotjs" alt="Next.js 16" />
-  <img src="https://img.shields.io/badge/React-19-149ECA?logo=react&logoColor=white" alt="React 19" />
-  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript 5" />
-  <img src="https://img.shields.io/badge/Supabase-Postgres-3ECF8E?logo=supabase&logoColor=white" alt="Supabase" />
-  <img src="https://img.shields.io/badge/AI-Mistral-F97316" alt="Mistral" />
-</p>
-
----
-
-## Overview
-
-AlphaSight AI is an AI-first market intelligence workspace with:
-
-- Streaming chat for low-latency answers
-- Stock-aware analysis with live quote, history, and news context
-- Portfolio valuation, P&L, and health summaries
-- Watchlist tracking with movement checks
-- Daily briefs for portfolio and market pulse
-- Live AI activity monitor with source transparency (`search_source`, phase/task progress)
-- Multi-turn follow-up intelligence (coreference rewrite for “that/it” style queries)
+</div>
 
 ---
 
-## Highlights
+## ✨ Core Capabilities
 
-<table>
-  <tr>
-    <td><strong>Fast UI</strong><br />Text-first streaming responses</td>
-    <td><strong>Market Context</strong><br />Quotes, history, fundamentals, and news</td>
-  </tr>
-  <tr>
-    <td><strong>Secure by Design</strong><br />Supabase auth with RLS</td>
-    <td><strong>Automated Briefs</strong><br />Scheduled summaries for each user</td>
-  </tr>
-</table>
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js App Router, React 19, TypeScript, Tailwind CSS, Framer Motion |
-| State | Zustand |
-| Backend | Next.js Route Handlers |
-| Auth + DB | Supabase (Postgres + RLS) |
-| LLM Provider | Mistral |
-| Market Data | Yahoo Finance endpoints |
-| News | MarketAux, NewsData.io, Yahoo fallback |
+| Feature | Description |
+|---------|-------------|
+| **⚡ Low-Latency Chat** | Streaming responses with real-time market context & source transparency |
+| **📊 Smart Portfolio** | Live P&L tracking, health scores, sentiment analysis & buy/hold/sell signals |
+| **📈 Market Intelligence** | Real-time quotes, technical analysis, fundamentals & synthesized news |
+| **👁️ AI Transparency** | Execution phases, source tracking, deduplication & live activity monitor |
+| **📋 Daily Briefs** | Automated portfolio summaries & market pulse reports (Vercel Cron) |
+| **🔒 Enterprise Security** | RLS-enforced Supabase auth, environment-isolated credentials |
+| **🎯 Multi-Turn Intelligence** | Coreference resolution for "that/it" queries, follow-up grounding |
+| **📱 Responsive UI** | Mobile-first design with Tailwind CSS & Framer Motion animations |
 
 ---
 
-## Architecture
+## 🏗️ Architecture Overview
 
-```text
-Client (Next.js + Zustand)
-  ├─ Chat UI
-  ├─ Portfolio UI
-  ├─ Watchlist UI
-  └─ Daily Brief UI
-
-API (Route Handlers)
-  ├─ /api/chat
-  ├─ /api/conversations/*
-  ├─ /api/portfolio*
-  ├─ /api/watchlist
-  ├─ /api/stock/*
-  └─ /api/daily-brief
-
-Services
-  ├─ Mistral
-  ├─ Yahoo market endpoints
-  └─ News providers
-
-Persistence
-  └─ Supabase Postgres (RLS enforced)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CLIENT (Next.js + React 19)               │
+├─────────────────────────────────────────────────────────────┤
+│  • Chat UI (streaming responses)                              │
+│  • Portfolio Dashboard (real-time P&L)                        │
+│  • Watchlist Monitor (price tracking)                         │
+│  • Settings & Profile Management                              │
+│  • State: Zustand (persistent client state)                   │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│               API LAYER (Next.js Route Handlers)              │
+├─────────────────────────────────────────────────────────────┤
+│  /api/chat ......................... Streaming AI responses    │
+│  /api/portfolio/* .................. Holdings management      │
+│  /api/portfolio/intelligence ........ AI insights & signals   │
+│  /api/watchlist .................... Price monitoring        │
+│  /api/conversations/* .............. Chat history            │
+│  /api/stock/* ...................... Market data            │
+│  /api/daily-brief .................. Report generation      │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    SERVICES LAYER                             │
+├─────────────────────────────────────────────────────────────┤
+│  • Mistral AI (LLM, Embeddings)                               │
+│  • Supabase (Auth, Postgres, RLS)                             │
+│  • Yahoo Finance (Quotes, History, Search)                    │
+│  • MarketAux & NewsData (News Synthesis)                      │
+│  • Vercel Cron (Scheduled Briefs)                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Project Structure
+## 🚀 Tech Stack
 
-```text
-src/
-  app/
-    (app)/                 # authenticated surfaces
-    api/                   # route handlers
-    auth/callback/         # OAuth callback
-    login/, signup/        # auth pages
-  components/              # chat, layout, portfolio, ui
-  lib/                     # ai, stock, supabase, hooks, utils
-  stores/                  # Zustand store
-  types/                   # shared TS types
-supabase/
-  schema.sql
-logos/
-  final_logo.svg
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Frontend** | Next.js 16 App Router, React 19, TypeScript | Fast, type-safe UI with streaming support |
+| **Styling** | Tailwind CSS, Framer Motion | Premium responsive design & animations |
+| **State Management** | Zustand | Lightweight, persistent client state |
+| **Backend** | Next.js Route Handlers | Serverless API functions |
+| **Database** | Supabase (PostgreSQL) | RLS-enforced data isolation |
+| **Auth** | Supabase Auth (PKCE OAuth) | Secure passwordless & email flows |
+| **LLM** | Mistral (Large, Small) | Context-aware AI responses & embeddings |
+| **Market Data** | Yahoo Finance API | Real-time quotes & historical data |
+| **News** | MarketAux, NewsData, Yahoo RSS | Multi-source news aggregation |
+| **Deployment** | Vercel | Serverless, edge-optimized hosting |
+
+---
+
+## 📂 Project Structure
+
+```
+alphasight-ai/
+├── src/
+│   ├── app/
+│   │   ├── (app)/                  # Protected routes (authenticated)
+│   │   │   ├── chat/[id]/         # Chat conversation page
+│   │   │   ├── portfolio/         # Portfolio dashboard
+│   │   │   ├── watchlist/         # Watchlist monitor
+│   │   │   ├── daily-brief/       # Daily report
+│   │   │   ├── settings/          # User preferences
+│   │   │   └── profile/           # Profile management
+│   │   ├── api/                   # Route handlers
+│   │   │   ├── chat/              # AI streaming
+│   │   │   ├── portfolio/         # Holdings CRUD
+│   │   │   ├── conversations/     # Chat history
+│   │   │   ├── watchlist/         # Monitoring
+│   │   │   └── stock/             # Market data
+│   │   ├── auth/                  # Auth pages (login, signup)
+│   │   ├── login/                 # Login page
+│   │   └── signup/                # Signup page
+│   ├── components/
+│   │   ├── chat/                  # Chat UI components
+│   │   ├── portfolio/             # Portfolio cards
+│   │   ├── common/                # Reusable UI elements
+│   │   └── layout/                # Navigation & layout
+│   ├── lib/
+│   │   ├── ai/                    # Mistral integration & prompts
+│   │   ├── stock/                 # Market data utilities
+│   │   ├── supabase/              # DB helpers & RLS
+│   │   ├── hooks/                 # Custom React hooks
+│   │   ├── utils/                 # Helper functions
+│   │   └── __tests__/             # Unit tests
+│   ├── stores/                    # Zustand state management
+│   ├── types/                     # Shared TypeScript types
+│   └── middleware.ts              # Auth middleware
+├── supabase/
+│   └── schema.sql                 # Database schema with RLS
+├── public/                        # Static assets
+├── logos/                         # Brand assets
+└── package.json                   # Dependencies & scripts
 ```
 
 ---
 
-## Quick Start
+## 🎯 Intelligence & UX Innovations
 
-### Install
+### 1. **Context-Linked Follow-Ups**
+Queries like *"tell me about ITC"* → *"tell me about that"* are resolved to standalone intent before routing, enabling natural multi-turn conversations.
+
+### 2. **Web-Search Grounding**
+Query rewrite path improves retrieval quality and reduces literal bad searches, ensuring every search is contextually relevant.
+
+### 3. **Transparent AI Activity Monitor**
+- Real-time execution phases (Searching... → Analyzing... → Finalizing...)
+- Live source tracking with dedupe & domain-only filtering
+- Smooth state transitions for optimal UX
+
+### 4. **No Hallucination Style**
+Prompts enforce use of available search/context instead of "not in training data" responses, keeping all answers grounded in live data.
+
+### 5. **Live Settings Application**
+Theme, chart/news visibility, and notification toggles apply **instantly** to UI without page reloads.
+
+### 6. **Semantic Memory System**
+- Structured key/value memory for explicit facts (risk profile, preferences)
+- pgvector embeddings for semantic facts ("prefers dividend stocks")
+- Top-K retrieval with similarity thresholding
+- Auto-extraction & deduplication on every chat turn
+
+---
+
+## ⚙️ Getting Started
+
+### Prerequisites
+- **Node.js** 18+ or 20+
+- **npm** or **yarn**
+- Supabase project (free tier available)
+- Mistral API key
+
+### 1. Clone & Install
 
 ```bash
+git clone https://github.com/Eshwar02/bearbot.git
+cd bearbot
 npm install
 ```
 
-### Configure `.env.local`
+### 2. Environment Setup
+
+Create `.env.local`:
 
 ```env
 # Supabase (required)
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-NEXT_PUBLIC_APP_URL=
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# AI provider (required)
-MISTRAL_API_KEY=
+# AI Provider (required)
+MISTRAL_API_KEY=your-mistral-key
 
-# News providers (optional but recommended)
-MARKETAUX_API_KEY=
-NEWSDATA_API_KEY=
+# News Providers (optional, but recommended)
+MARKETAUX_API_KEY=your-marketaux-key
+NEWSDATA_API_KEY=your-newsdata-key
 
-# Optional cron auth secret
-CRON_SECRET=
+# Optional: Scheduled report auth
+CRON_SECRET=your-cron-secret
 ```
 
-### Run locally
+### 3. Database Setup
+
+```bash
+# Supabase CLI (optional but recommended)
+supabase start
+
+# Or manually: run supabase/schema.sql in your Supabase SQL editor
+```
+
+### 4. Run Locally
 
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open [http://localhost:3000](http://localhost:3000) and sign up.
 
-### Production
+### 5. Production Deployment
 
 ```bash
 npm run build
 npm run start
 ```
 
----
-
-## Scripts
-
-- `npm run dev` - start dev server (Turbopack)
-- `npm run build` - production build (Turbopack)
-- `npm run start` - run built app
-- `npm run lint` - lint via Next.js
+Deploy to [Vercel](https://vercel.com):
+```bash
+vercel deploy
+```
 
 ---
 
-## API Overview
+## 📚 Available Scripts
 
-| Route | Method | Purpose |
-|---|---|---|
-| `/api/chat` | POST | Stream AI response (general or stock-context mode) |
-| `/api/conversations` | GET, POST | List/create conversations |
-| `/api/conversations/[id]` | GET, DELETE | Read/delete conversation |
-| `/api/conversations/[id]/messages` | GET | Paginated messages |
-| `/api/portfolio` | GET, POST | List/add holdings |
-| `/api/portfolio/[id]` | PUT, DELETE | Update/delete holding |
-| `/api/portfolio/intelligence` | GET | AI health score, sentiment, buy/hold/sell signals |
-| `/api/watchlist` | GET, POST, DELETE | Manage watchlist |
-| `/api/stock/search` | GET | Symbol/company search |
-| `/api/stock/quote` | GET | Quote data |
-| `/api/daily-brief` | GET, POST | Fetch/generate daily brief |
-| `/api/test-ai` | GET | Quick provider readiness check |
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Start dev server with Turbopack |
+| `npm run build` | Optimized production build |
+| `npm run start` | Run production build locally |
+| `npm run lint` | ESLint checks with flat config |
+| `npm test` | Run Jest tests (single-run) |
+| `npm run test:watch` | Jest in watch mode |
+| `npm run test:coverage` | Coverage report |
 
 ---
 
-## Intelligence & UX Upgrades
+## 🔌 API Reference
 
-- **Context-linked follow-ups:** queries like “tell me about ITC” → “tell me about that” are resolved to standalone intent before routing/search.
-- **Web-search grounding:** generalized query rewrite path improves retrieval quality and reduces literal bad searches.
-- **No weak refusal style:** prompts enforce use of available search/context instead of “not in training data” style responses.
-- **AI transparency indicator:** staged phases, domain-only source tracking, dedupe, capped source list, smooth progress transitions.
-- **Live settings behavior:** theme, chart/news visibility, and in-app notification toggles now apply instantly to UI.
+### Chat & Intelligence
 
----
+| Endpoint | Method | Purpose | Auth |
+|----------|--------|---------|------|
+| `/api/chat` | `POST` | Stream AI response with market context | Required |
+| `/api/conversations` | `GET`, `POST` | List or create chat conversations | Required |
+| `/api/conversations/[id]` | `GET`, `DELETE` | Fetch or delete conversation | Required |
+| `/api/conversations/[id]/messages` | `GET` | Paginated message history | Required |
 
-## Response Model
+### Portfolio Management
 
-Chat responses follow **Contextual AI Synthesis**:
+| Endpoint | Method | Purpose | Auth |
+|----------|--------|---------|------|
+| `/api/portfolio` | `GET`, `POST` | List holdings or add new position | Required |
+| `/api/portfolio/[id]` | `PUT`, `DELETE` | Update or remove holding | Required |
+| `/api/portfolio/intelligence` | `GET` | AI health score, sentiment, signals | Required |
 
-1. Direct answer
-2. Context signals
-3. News synthesis
-4. Risks and uncertainty
-5. Practical takeaway
+### Market Data
 
-The UI stays **text-first** to keep chat clean and focused.
+| Endpoint | Method | Purpose | Auth |
+|----------|--------|---------|------|
+| `/api/stock/quote` | `GET` | Real-time stock quote | Optional |
+| `/api/stock/search` | `GET` | Symbol/company search | Optional |
 
----
+### Watchlist & Reports
 
-## Recent Changes
-
-### Latest Platform Updates
-
-- Portfolio intelligence + dashboard refinements
-- Daily-brief modularization + watchlist polish
-- Semantic memory extraction/write reliability improvements
-- Follow-up query rewrite + response-shape routing for stronger multi-turn chat
-- AI progress transparency monitor (source tracking + smooth phase progression)
-- Vercel Hobby-safe daily cron schedule (`0 9 * * *`)
+| Endpoint | Method | Purpose | Auth |
+|----------|--------|---------|------|
+| `/api/watchlist` | `GET`, `POST`, `DELETE` | Manage watchlist | Required |
+| `/api/daily-brief` | `GET`, `POST` | Fetch or generate daily brief | Required |
 
 ---
 
-## Contributing
+## 🌟 Recent Updates
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Commit your changes: `git commit -m "feat: description"`
-4. Push to the branch: `git push origin feature/your-feature`
-5. Open a Pull Request
+### Latest Features (v1.2.0)
+- ✅ **Memory Capture Improvements** - Enhanced semantic extraction & reliability
+- ✅ **Chat Intelligence Refinements** - Coreference resolution & multi-turn grounding
+- ✅ **Transparency Monitor** - Phase tracking & source deduplication
+- ✅ **Live Settings** - Instant theme, chart, and notification toggles
+- ✅ **Progress UI** - Monospace font, narrower boxes, live source links
+- ✅ **Auth Redirects** - Canonical domain support
+- ✅ **Password Reset** - Supabase forgot-password flow
+- ✅ **Profile Management** - Email verification & password updates
+
+### Recent Commits
+```
+968662e - Improve memory capture behavior
+d920f65 - fix: progress box narrower with monospace font
+02c3334 - fix: transparency box fixed size with live source links
+883ba9d - Refine chat memory and model behavior
+f48705b - fix(chat): stop hallucinations, unsolicited content, crashes
+```
 
 ---
 
-## Support
+## 🤝 Contributing
 
-- Email: support@alphasight.ai
-- Bugs: [GitHub Issues](https://github.com/Eshwar02/bearbot/issues)
-- Discussions: [GitHub Discussions](https://github.com/Eshwar02/bearbot/discussions)
+We welcome contributions! Here's how to get started:
+
+### 1. Fork the Repository
+
+```bash
+# Click "Fork" on GitHub
+git clone https://github.com/YOUR_USERNAME/bearbot.git
+cd bearbot
+```
+
+### 2. Create a Feature Branch
+
+```bash
+git checkout -b feature/your-feature-name
+```
+
+### 3. Make Your Changes
+
+- Follow ESLint rules: `npm run lint`
+- Write tests if applicable
+- Keep commits atomic and descriptive
+
+### 4. Commit & Push
+
+```bash
+git commit -m "feat: add your feature description"
+git push origin feature/your-feature-name
+```
+
+### 5. Open a Pull Request
+
+- Describe what your PR does
+- Reference any related issues
+- Request review from maintainers
 
 ---
 
-## Status
+## 🔐 Security & Privacy
 
-- Active AI provider: Mistral
-- Branding: AlphaSight logo
-- Current version: 1.2.0
-- Deployment target: Vercel
+- **RLS Enforced**: All database queries use Row-Level Security
+- **Auth Tokens**: Supabase PKCE OAuth flow, no password stored
+- **API Keys**: Environment-isolated via `.env.local`
+- **User Data**: Scoped to authenticated user (auth.uid())
+- **No Hallucinations**: All AI responses grounded in live market data
+
+---
+
+## 📊 Performance & Scalability
+
+- **Streaming Chat**: Low-latency responses with text-first UI
+- **Edge Functions**: Vercel serverless scaling
+- **Database**: Supabase PostgreSQL with connection pooling
+- **Caching**: Optimized quote & history caching
+- **Bundling**: Turbopack for 5-10x faster builds
+
+---
+
+## 📞 Support & Feedback
+
+- 🐛 **Report Bugs**: [GitHub Issues](https://github.com/Eshwar02/bearbot/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/Eshwar02/bearbot/discussions)
+- 📧 **Email**: support@alphasight.ai
+- 🐦 **Twitter**: [@AlphaSightAI](https://twitter.com)
+
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License**. See [LICENSE](./LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Mistral AI** - LLM & embedding provider
+- **Supabase** - Database & auth backend
+- **Vercel** - Deployment infrastructure
+- **Next.js & React** - Core framework & library
+- **Community Contributors** - All developers who contributed to this project
+
+---
+
+<div align="center">
+
+### Made with ❤️ by the AlphaSight AI team
+
+⭐ If you find this useful, please give us a star on [GitHub](https://github.com/Eshwar02/bearbot)
+
+</div>

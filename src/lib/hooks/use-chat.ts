@@ -192,6 +192,7 @@ export function useChat() {
                   type: file.type || 'application/octet-stream',
                   size: file.size,
                   lastModified: file.lastModified,
+                  kind: file.type.startsWith('image/') ? 'image' : 'file',
                 })),
               }
             : null,
@@ -490,12 +491,31 @@ export function useChat() {
           }
           if (hydrateRes && hydrateRes.ok) {
             const hydrateData = await hydrateRes.json();
+            const latestUser = [...(hydrateData.messages || [])]
+              .reverse()
+              .find(
+                (m: { role?: string; metadata?: unknown; content?: string }) =>
+                  m.role === 'user' && typeof m.content === 'string'
+              );
             const latestAssistant = [...(hydrateData.messages || [])]
               .reverse()
               .find(
                 (m: { role?: string; metadata?: unknown; content?: string }) =>
                   m.role === 'assistant' && typeof m.content === 'string'
               );
+            if (latestUser?.metadata && typeof latestUser.metadata === 'object') {
+              const md = latestUser.metadata as {
+                attachments?: unknown;
+                attachmentContext?: string;
+              };
+              const attachments = Array.isArray(md.attachments) ? md.attachments : undefined;
+              updateMessage(userMsg.id, {
+                ...(attachments ? { metadata: { attachments } } : {}),
+              });
+              console.debug('[useChat] sendMessage:user-metadata-applied', {
+                hasAttachments: Boolean(attachments),
+              });
+            }
             if (latestAssistant?.metadata && typeof latestAssistant.metadata === 'object') {
               const md = latestAssistant.metadata as {
                 stockData?: unknown;

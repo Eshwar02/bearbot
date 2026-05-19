@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import { ThumbsUp, ThumbsDown, Share, Check } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Share, Check, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MarkdownRenderer } from './markdown-renderer';
 import { StockCard } from './stock-card';
@@ -99,7 +99,9 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const hasContent = visibleText.length > 0;
   const hasStreamingText = normalizedContent.trim().length > 0;
   const attachments = useMemo(() => {
-    const metadata = message.metadata as { attachments?: Array<{ name?: string; type?: string; size?: number }> } | null;
+    const metadata = message.metadata as {
+      attachments?: Array<{ name?: string; type?: string; size?: number; kind?: string; text?: string }>;
+    } | null;
     return Array.isArray(metadata?.attachments) ? metadata.attachments : [];
   }, [message.metadata]);
 
@@ -141,11 +143,29 @@ export function ChatMessage({ message }: ChatMessageProps) {
                 {attachments.map((file, index) => (
                   <span
                     key={`${file.name ?? 'attachment'}-${index}`}
-                    className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-white/90"
+                    className="flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-white/90"
                   >
+                    {file.kind === 'image' ? (
+                      <ImageIcon className="h-3 w-3" />
+                    ) : (
+                      <Paperclip className="h-3 w-3" />
+                    )}
                     {file.name ?? 'Attachment'}
                   </span>
                 ))}
+              </div>
+            )}
+            {attachments.some((file) => file.kind === 'image' && typeof file.text === 'string' && file.text.trim()) && (
+              <div className="mt-2 rounded-lg border border-white/15 bg-white/5 p-3 text-[12px] text-white/80">
+                <div className="mb-1 text-[10px] uppercase tracking-wide text-white/60">Image OCR</div>
+                {attachments
+                  .filter((file) => file.kind === 'image' && typeof file.text === 'string' && file.text.trim())
+                  .slice(0, 2)
+                  .map((file, index) => (
+                    <div key={`${file.name ?? 'image'}-ocr-${index}`} className="line-clamp-3">
+                      {file.text}
+                    </div>
+                  ))}
               </div>
             )}
           </div>

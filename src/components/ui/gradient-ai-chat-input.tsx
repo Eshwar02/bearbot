@@ -6,7 +6,7 @@
  */
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, Square, ChevronDown, Check, Globe, Paperclip, X } from 'lucide-react';
+import { ArrowUp, Square, ChevronDown, Check, Globe, Paperclip, X, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ModelOption {
@@ -96,7 +96,8 @@ export function GradientAIChatInput({
   const hasText = value.trim().length > 0;
   const showDropdown = modelOptions.length > 0;
   const hasAttachments = attachments.length > 0;
-  const supportedTypes = '.txt,.md,.csv,.tsv,.json,.xml,.html,.htm,.yaml,.yml,.xlsx,.xls';
+  const supportedTypes =
+    'image/*,.txt,.md,.csv,.tsv,.json,.xml,.html,.htm,.yaml,.yml,.xlsx,.xls';
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -321,6 +322,11 @@ export function GradientAIChatInput({
                   key={`${file.name}-${file.lastModified}-${file.size}`}
                   className="flex items-center gap-2 rounded-full border border-borderSubtle bg-elevated px-3 py-1 text-xs text-secondary"
                 >
+                  {file.type.startsWith('image/') ? (
+                    <ImageIcon className="h-3 w-3 text-muted" />
+                  ) : (
+                    <Paperclip className="h-3 w-3 text-muted" />
+                  )}
                   <span className="max-w-[180px] truncate">{file.name}</span>
                   <span className="text-muted">{Math.max(1, Math.round(file.size / 1024))} KB</span>
                   {onAttachmentRemove && (
@@ -473,7 +479,7 @@ export function GradientAIChatInput({
           )}
 
           <div className="mt-2 text-[11px] text-muted">
-            Supported: TXT, MD, CSV, JSON, XML, HTML, YAML, XLSX
+            Supported: images, TXT, MD, CSV, JSON, XML, HTML, YAML, XLSX
           </div>
         </div>
 

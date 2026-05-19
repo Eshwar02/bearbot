@@ -37,6 +37,7 @@ import { fetchStockNews } from "@/lib/stock/news";
 import { analyzeTechnicals } from "@/lib/stock/technicals";
 import { assessMacroRisks, assessRawMaterialRisks } from "@/lib/stock/macro";
 import type { StockAnalysis } from "@/types/stock";
+import Groq from "groq-sdk";
 import * as XLSX from "xlsx";
 
 const EMPTY_RESPONSE_FALLBACK =
@@ -212,6 +213,7 @@ type AttachmentSummary = {
   name: string;
   type: string;
   size: number;
+  kind: "text" | "spreadsheet" | "image";
   text: string;
   truncated: boolean;
 };
@@ -233,19 +235,80 @@ function isTextLikeFile(file: File): boolean {
   );
 }
 
+function isImageFile(file: File): boolean {
+  return file.type.toLowerCase().startsWith("image/");
+}
+
+function imageDataUrl(file: File, buffer: Buffer): string {
+  const mime = file.type || "image/png";
+  return `data:${mime};base64,${buffer.toString("base64")}`;
+}
+
+async function analyzeImageWithGroq(file: File): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) throw new Error("GROQ_API_KEY environment variable is not set");
+
+  const groq = new Groq({ apiKey });
+  const model = process.env.GROQ_VISION_MODEL || "llama-3.2-11b-vision-preview";
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const dataUrl = imageDataUrl(file, buffer);
+  const response = await groq.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text:
+              "Describe this uploaded image for a chat assistant. If there is readable text, transcribe the important text. If it is a chart, screenshot, document, or photo, summarize the visible details concisely. Return plain text only.",
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: dataUrl,
+            },
+          },
+        ],
+      },
+    ],
+    temperature: 0.2,
+    max_tokens: 500,
+  });
+
+  const text = response.choices[0]?.message?.content;
+  return typeof text === "string" ? text.trim() : "";
+}
+
+async function analyzeImageAttachment(file: File): Promise<string> {
+  try {
+    const groqText = await analyzeImageWithGroq(file);
+    if (groqText) return groqText;
+  } catch (error) {
+    console.warn("[chat-api] Groq image analysis failed, falling back to OCR:", error);
+  }
+
+  const { recognize } = await import("tesseract.js");
+  const result = await recognize(Buffer.from(await file.arrayBuffer()), "eng");
+  return result?.data?.text?.trim() || "";
+}
+
 async function extractAttachmentText(file: File): Promise<AttachmentSummary> {
   const maxCharsPerFile = 4000;
   const normalizedName = file.name || "attachment";
   const normalizedType = file.type || "application/octet-stream";
   let text = "";
+  let kind: AttachmentSummary["kind"] = "text";
 
   if (isTextLikeFile(file)) {
     text = await file.text();
+    kind = "text";
   } else if (
     normalizedName.toLowerCase().endsWith(".xlsx") ||
     normalizedName.toLowerCase().endsWith(".xls") ||
     normalizedType.includes("spreadsheet")
   ) {
+    kind = "spreadsheet";
     const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
     text = workbook.SheetNames.slice(0, 3)
       .map((sheetName) => {
@@ -254,6 +317,12 @@ async function extractAttachmentText(file: File): Promise<AttachmentSummary> {
         return `Sheet: ${sheetName}\n${csv}`;
       })
       .join("\n\n");
+  } else if (isImageFile(file)) {
+    kind = "image";
+    text = await analyzeImageAttachment(file);
+    if (!text) {
+      text = `[Image uploaded: ${normalizedName}]`;
+    }
   } else {
     throw new Error(`Unsupported attachment type: ${normalizedType || normalizedName}`);
   }
@@ -263,6 +332,7 @@ async function extractAttachmentText(file: File): Promise<AttachmentSummary> {
     name: normalizedName,
     type: normalizedType,
     size: file.size,
+    kind,
     text: truncated ? `${text.slice(0, maxCharsPerFile)}\n[truncated]` : text,
     truncated,
   };
@@ -274,7 +344,7 @@ function formatAttachmentContext(attachments: AttachmentSummary[]): string {
       const header = `[Attachment ${index + 1}: ${attachment.name} | ${attachment.type} | ${Math.max(
         1,
         Math.round(attachment.size / 1024)
-      )} KB${attachment.truncated ? " | truncated" : ""}]`;
+      )} KB${attachment.truncated ? " | truncated" : ""}${attachment.kind === "image" ? " | image" : ""}]`;
       return `${header}\n${attachment.text}`.trim();
     })
     .join("\n\n");
@@ -478,7 +548,9 @@ export async function POST(request: NextRequest) {
                 name: attachment.name,
                 type: attachment.type,
                 size: attachment.size,
+                kind: attachment.kind,
                 truncated: attachment.truncated,
+                text: attachment.kind === "image" ? attachment.text : undefined,
               })),
               attachmentContext,
             }

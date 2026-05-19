@@ -61,6 +61,7 @@ type AIProgressFrame = {
 const TICKER_PATTERN = /\$([A-Z]{1,10}(?:\.[A-Z]{1,2})?)\b/;
 const NOUN_PHRASE_PATTERN =
   /(?:analyze|analysis\s+of|price\s+of|quote\s+for|stock\s+of)\s+([a-zA-Z0-9.&\-\s]{2,40})/i;
+const IMAGE_ANALYSIS_TIMEOUT_MS = 12_000;
 
 // Regex-only stock detection. Returns a high-confidence match (dollar ticker,
 // bare all-caps ticker, or explicit "analyze X" noun phrase) or null.
@@ -273,7 +274,7 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
       },
     ],
     temperature: 0.2,
-    max_tokens: 500,
+    max_tokens: 220,
   });
 
   const text = response.choices[0]?.message?.content;
@@ -282,19 +283,14 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
 
 async function analyzeImageAttachment(file: File): Promise<string> {
   try {
-    const groqText = await analyzeImageWithGroq(file);
+    const groqText = await withTimeout(
+      analyzeImageWithGroq(file),
+      IMAGE_ANALYSIS_TIMEOUT_MS,
+      "analyzeImageWithGroq"
+    );
     if (groqText) return groqText;
   } catch (error) {
-    console.warn("[chat-api] Groq image analysis failed, falling back to OCR:", error);
-  }
-
-  try {
-    const { recognize } = await import("tesseract.js");
-    const result = await recognize(Buffer.from(await file.arrayBuffer()), "eng");
-    const text = result?.data?.text?.trim() || "";
-    if (text) return text;
-  } catch (error) {
-    console.warn("[chat-api] OCR image analysis failed:", error);
+    console.warn("[chat-api] image analysis timed out or failed:", error);
   }
 
   return `[Image uploaded: ${file.name || "attachment"}]`;

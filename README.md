@@ -31,7 +31,7 @@
 | **📋 Daily Briefs** | Automated portfolio summaries & market pulse reports (Vercel Cron) |
 | **🔒 Enterprise Security** | RLS-enforced Supabase auth, environment-isolated credentials |
 | **🎯 Multi-Turn Intelligence** | Coreference resolution for "that/it" queries, follow-up grounding |
-| **📱 Responsive UI** | Mobile-first design with Tailwind CSS & Framer Motion animations |
+| **📱 Responsive UI** | Mobile-first design with Tailwind CSS, Framer Motion, native OS body fonts, and Fraunces headings |
 
 ---
 
@@ -80,7 +80,7 @@
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
 | **Frontend** | Next.js 16 App Router, React 19, TypeScript | Fast, type-safe UI with streaming support |
-| **Styling** | Tailwind CSS, Framer Motion | Premium responsive design & animations |
+| **Styling** | Tailwind CSS, Framer Motion, native font stack, Fraunces serif | Premium responsive design, typography & animations |
 | **State Management** | Zustand | Lightweight, persistent client state |
 | **Backend** | Next.js Route Handlers | Serverless API functions |
 | **Database** | Supabase (PostgreSQL) | RLS-enforced data isolation |
@@ -149,13 +149,13 @@ Query rewrite path improves retrieval quality and reduces literal bad searches, 
 ### 3. **Transparent AI Activity Monitor**
 - Real-time execution phases (Searching... → Analyzing... → Finalizing...)
 - Live source tracking with dedupe & domain-only filtering
-- Smooth state transitions for optimal UX
+- Smooth state transitions for optimal UX and clearer AI progress feedback
 
 ### 4. **No Hallucination Style**
 Prompts enforce use of available search/context instead of "not in training data" responses, keeping all answers grounded in live data.
 
 ### 5. **Live Settings Application**
-Theme, chart/news visibility, and notification toggles apply **instantly** to UI without page reloads.
+Theme, chart/news visibility, and notification toggles apply **instantly** to UI without page reloads, with full light-mode token support across settings, profile, portfolio, and brief screens.
 
 ### 6. **Semantic Memory System**
 - Structured key/value memory for explicit facts (risk profile, preferences)
@@ -287,21 +287,22 @@ vercel deploy
 
 ### Latest Features (v1.2.0)
 - ✅ **Memory Capture Improvements** - Enhanced semantic extraction & reliability
-- ✅ **Chat Intelligence Refinements** - Coreference resolution & multi-turn grounding
-- ✅ **Transparency Monitor** - Phase tracking & source deduplication
+- ✅ **Chat Intelligence Refinements** - Coreference resolution, multi-turn grounding, and AI-generated chat titles
+- ✅ **Typography Refresh** - Native OS body font stack with Fraunces serif headlines
+- ✅ **Transparency Monitor** - Phase tracking, source deduplication, and clearer progress UI
+- ✅ **Light Mode Support** - CSS variable tokens across settings, profile, portfolio, and brief screens
 - ✅ **Live Settings** - Instant theme, chart, and notification toggles
-- ✅ **Progress UI** - Monospace font, narrower boxes, live source links
 - ✅ **Auth Redirects** - Canonical domain support
 - ✅ **Password Reset** - Supabase forgot-password flow
 - ✅ **Profile Management** - Email verification & password updates
 
 ### Recent Commits
 ```
-968662e - Improve memory capture behavior
-d920f65 - fix: progress box narrower with monospace font
-02c3334 - fix: transparency box fixed size with live source links
-883ba9d - Refine chat memory and model behavior
-f48705b - fix(chat): stop hallucinations, unsolicited content, crashes
+15750ed - feat(ui): use native OS font stack for body, drop Geist sans webfont
+340551f - fix: light mode tokens for settings, profile, error, portfolio-summary, add-holding-modal, schedule-settings
+e276001 - feat(ui): swap to Fraunces serif and fix sidebar quick-access active state
+0898afe - feat(chat): AI-generated chat titles with typewriter animation + new typography
+37c03ef - feat: full light mode support with CSS variable tokens
 ```
 
 ---

@@ -613,12 +613,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Build the userMemory context block, gated by intent.
-    //   - small_talk: NOTHING but the language hint. No portfolio, no
-    //     watchlist, no semantic memory. Casual messages must not pull
-    //     finance context into the prompt.
+    //   - small_talk: semantic memories + language only. No portfolio /
+    //     watchlist. This lets personal chat remember context without causing
+    //     the old "hi" -> portfolio dump bug.
     //   - everything else: full context, as before.
     if (earlySmallTalk && !wantsMemoryAnswer) {
-      userMemory = languageInstruction;
+      userMemory = [semanticMemoryBlock, languageInstruction]
+        .filter((s) => s && s.length > 0)
+        .join("\n\n");
     } else {
       userMemory = [semanticMemoryBlock, userMemoryBase, languageInstruction]
         .filter((s) => s && s.length > 0)

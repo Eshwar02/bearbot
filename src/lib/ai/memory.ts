@@ -56,23 +56,22 @@ interface ExtractOperation {
 const TRIVIAL_PATTERN =
   /^(hi+|hey+|hello+|yo+|sup|howdy|ok+|okay+|kk|k|thanks|thank\s*you|ty|bye|good\s+(morning|afternoon|evening|night)|cool|nice|great|lol|haha|hmm+|alright|sure|yes|yeah|yep|no|nope|np|done|cancel|stop|pls|please|sorry)[!.?\s]*$/i;
 
-// Small-talk / personal-life chitchat: messages where the user is sharing
-// their day or making a one-off remark. These should NEVER be mined for
-// "durable facts" — they're context for the current turn, not memories.
-const SMALL_TALK_PATTERN =
-  /\b(tmrw|tomorrow|today|tonight|exam|test|sleep|tired|bored|busy|free|movie|food|eat|eating|gym|home|class|college|office|meeting|sad|happy|angry|bro|dude|da|bruh)\b/i;
-
 function isTrivialMessage(text: string): boolean {
   const t = text.trim();
   if (t.length < 8) return true;
   return TRIVIAL_PATTERN.test(t);
 }
 
-function isSmallTalkOrChitchat(text: string): boolean {
+function hasExplicitMemoryIntent(text: string): boolean {
+  return /\b(remember|save|store|memorize|keep\s+in\s+memory|add\s+to\s+memory|note\s+that)\b/i.test(
+    text
+  );
+}
+
+function isPureAckOrGreeting(text: string): boolean {
   const t = text.trim();
   if (t.length < 6) return true;
   if (TRIVIAL_PATTERN.test(t)) return true;
-  if (t.length < 60 && SMALL_TALK_PATTERN.test(t)) return true;
   return false;
 }
 
@@ -177,18 +176,21 @@ export function formatMemoriesForPrompt(rows: AiMemoryMatch[]): string {
 // Extraction / write
 // ────────────────────────────────────────────────────────────────────────
 
-const EXTRACT_SYSTEM_PROMPT = `You extract durable user facts from ONE user message for a personal finance assistant.
+const EXTRACT_SYSTEM_PROMPT = `You extract useful memory from ONE user message for a personal finance assistant.
 
 STRICT RULES:
 - Only the user's own message is your source of truth. You are NOT given the assistant's reply.
-- Extract ONLY facts the user explicitly stated about THEMSELVES, with first-person framing ("I am…", "my…", "I prefer…", "I hold…", "I live in…", "I want…").
-- DO NOT extract: company names, stock tickers, prices, news, market data, third-party facts, opinions, questions, or anything transient ("tomorrow is my exam", "I'm bored", "I'm tired" — these are mood/chitchat, not durable facts → SKIP).
-- DO NOT extract anything about companies, stocks, or financial instruments unless the user explicitly stated they own / want to own / are watching it ("I own TCS", "I'm holding INFY", "I want to invest in dividend stocks").
+- If the user explicitly asks to remember/save/store something, save that requested content even if it is not about the user. Rephrase as a concise memory, e.g. "User asked to remember: ..."
+- Otherwise extract personal facts the user stated about themselves: identity, preferences, goals, constraints, location, work/study, important dates, learning needs, communication style, risk profile, holdings, watchlist, investment plans, and durable interests.
+- Personal near-term context may be saved when useful for future conversation ("Has an exam tomorrow", "Is preparing for an interview", "Is learning options trading"). Include relative timing exactly as stated if no date is given; do not invent dates.
+- DO NOT extract ordinary transient moods or one-off states unless explicitly asked to save them ("I'm bored", "I'm tired", "I'm eating" → SKIP unless the user says remember/save it).
+- DO NOT extract market/news facts, prices, or third-party facts unless the user explicitly asks to save/store/remember that information.
+- DO NOT extract questions unless the question contains an explicit memory instruction or a personal preference/goal ("Can you remember that I prefer short answers?" → ADD).
 - If unsure → SKIP. False memories are far worse than missing memories.
 - Compare each candidate to existing memories. If it contradicts an existing memory, UPDATE the existing memory by id. If it's already covered or redundant, SKIP.
-- Memories must be short, third-person, self-contained sentences (e.g. "Prefers dividend stocks", "Lives in Bangalore", "Has low risk tolerance").
-- Use one-word categories: preference, risk_profile, holding_intent, personal, goal, constraint.
-- If the user message is small-talk, a question, or anything other than a clear self-disclosure → return empty operations array.
+- Memories must be short, third-person, self-contained sentences (e.g. "Prefers dividend stocks", "Lives in Bangalore", "Has low risk tolerance", "Asked to remember: use concise answers").
+- Use one-word categories: preference, risk_profile, holding_intent, personal, goal, constraint, study, work, saved_note.
+- If the message has no useful memory content → return empty operations array.
 
 Output JSON only, no prose, no code fences. Schema:
 {"operations":[{"action":"ADD","memory":"...","category":"..."}, {"action":"UPDATE","id":"<existing-uuid>","memory":"...","category":"..."}, {"action":"SKIP"}]}`;
@@ -383,9 +385,10 @@ const BAD_MEMORY_PATTERNS: RegExp[] = [
   /https?:\/\//i,
 ];
 
-function looksLikeRealUserFact(memText: string): boolean {
+function looksLikeRealUserFact(memText: string, allowSavedNote = false): boolean {
   if (!memText) return false;
   if (memText.length < 6) return false;
+  if (allowSavedNote) return true;
   for (const re of BAD_MEMORY_PATTERNS) {
     if (re.test(memText)) return false;
   }
@@ -411,9 +414,17 @@ export async function addMemories(
   try {
     const userMsg = input.userMessage.trim();
     if (!userMsg || !userId) return;
-    if (isSmallTalkOrChitchat(userMsg)) return;
-    // Skip if message is a question (questions are never durable self-facts).
-    if (/\?\s*$/.test(userMsg) || /^(what|why|how|when|where|who|which|is|are|does|do|can|could|should|would|will)\b/i.test(userMsg)) {
+    const explicitMemoryIntent = hasExplicitMemoryIntent(userMsg);
+    if (!explicitMemoryIntent && isPureAckOrGreeting(userMsg)) return;
+    // Questions are usually not memories, but allow explicit save requests
+    // and personal preference/goal disclosures phrased as a question.
+    if (
+      !explicitMemoryIntent &&
+      (/\?\s*$/.test(userMsg) ||
+        /^(what|why|how|when|where|who|which|is|are|does|do|can|could|should|would|will)\b/i.test(
+          userMsg
+        ))
+    ) {
       return;
     }
 
@@ -453,7 +464,7 @@ export async function addMemories(
       if (op.action === "ADD") {
         if (!op.memory) continue;
         const memText = clampMemory(op.memory);
-        if (!looksLikeRealUserFact(memText)) {
+        if (!looksLikeRealUserFact(memText, explicitMemoryIntent)) {
           console.log("[memory] ADD rejected (looks like scraped/market content):", memText.slice(0, 80));
           continue;
         }
@@ -493,7 +504,7 @@ export async function addMemories(
         seenUpdateId.add(op.id);
 
         const memText = clampMemory(op.memory);
-        if (!looksLikeRealUserFact(memText)) {
+        if (!looksLikeRealUserFact(memText, explicitMemoryIntent)) {
           console.log("[memory] UPDATE rejected (looks like scraped/market content):", memText.slice(0, 80));
           continue;
         }

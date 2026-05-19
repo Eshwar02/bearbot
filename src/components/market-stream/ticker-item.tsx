@@ -55,16 +55,16 @@ export const TickerItem = memo(function TickerItem({ item }: Props) {
   }, [item.price]);
 
   const dotColor = isZero
-    ? "bg-zinc-400/60"
+    ? "bg-[color:var(--market-bar-muted)]/60"
     : positive
-    ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]"
-    : "bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.7)]";
+    ? "bg-[color:var(--market-positive)] shadow-[0_0_8px_var(--market-positive-glow)]"
+    : "bg-[color:var(--market-negative)] shadow-[0_0_8px_var(--market-negative-glow)]";
 
   const priceTone = isZero
-    ? "text-zinc-300"
+    ? "text-[color:var(--market-bar-muted)]"
     : positive
-    ? "text-emerald-300"
-    : "text-rose-300";
+    ? "text-[color:var(--market-positive)]"
+    : "text-[color:var(--market-negative)]";
 
   const arrow = isZero ? (
     <Minus className="h-3 w-3 text-zinc-400" />
@@ -85,7 +85,9 @@ export const TickerItem = memo(function TickerItem({ item }: Props) {
             animate={{ opacity: 0 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
             className={`pointer-events-none absolute inset-0 rounded-md ${
-              flash.tone === "up" ? "bg-emerald-500/20" : "bg-rose-500/20"
+              flash.tone === "up"
+                ? "bg-[color:var(--market-positive)]/10"
+                : "bg-[color:var(--market-negative)]/10"
             }`}
           />
         )}
@@ -97,14 +99,14 @@ export const TickerItem = memo(function TickerItem({ item }: Props) {
         {!isZero && (
           <span
             className={`absolute inset-0 animate-ping rounded-full ${
-              positive ? "bg-emerald-400/50" : "bg-rose-400/50"
+              positive ? "bg-[color:var(--market-positive)]/40" : "bg-[color:var(--market-negative)]/40"
             }`}
           />
         )}
       </span>
 
       {/* Label */}
-      <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-zinc-300 group-hover:text-white transition-colors">
+      <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-[color:var(--market-bar-text)]/80 group-hover:text-[color:var(--market-bar-text)] transition-colors">
         {item.label}
       </span>
 
@@ -117,10 +119,10 @@ export const TickerItem = memo(function TickerItem({ item }: Props) {
       <span
         className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] font-medium tabular-nums ${
           isZero
-            ? "bg-zinc-700/40 text-zinc-300"
+            ? "bg-[color:var(--market-bar-muted)]/10 text-[color:var(--market-bar-muted)]"
             : positive
-            ? "bg-emerald-500/10 text-emerald-300"
-            : "bg-rose-500/10 text-rose-300"
+            ? "bg-[color:var(--market-positive)]/10 text-[color:var(--market-positive)]"
+            : "bg-[color:var(--market-negative)]/10 text-[color:var(--market-negative)]"
         }`}
       >
         {arrow}
@@ -132,17 +134,28 @@ export const TickerItem = memo(function TickerItem({ item }: Props) {
 
       {/* Hover tooltip */}
       <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden -translate-x-1/2 group-hover:block">
-        <div className="rounded-lg border border-white/10 bg-zinc-950/95 px-3 py-2 text-xs text-zinc-200 shadow-2xl backdrop-blur-xl whitespace-nowrap">
-          <div className="mb-0.5 font-semibold text-white">{item.label}</div>
-          <div className="text-[11px] text-zinc-400">{sentimentLabel(item.sentiment, item.changePct)}</div>
+        <div
+          className="whitespace-nowrap rounded-lg border px-3 py-2 text-xs shadow-2xl backdrop-blur-xl"
+          style={{
+            background: 'var(--market-tooltip-bg)',
+            borderColor: 'var(--market-bar-border)',
+            color: 'var(--market-tooltip-text)',
+          }}
+        >
+          <div className="mb-0.5 font-semibold">{item.label}</div>
+          <div className="text-[11px]" style={{ color: 'var(--market-tooltip-muted)' }}>
+            {sentimentLabel(item.sentiment, item.changePct)}
+          </div>
           {item.previousClose != null && (
-            <div className="mt-1 text-[10px] text-zinc-500">Prev close · {formatPrice(item.previousClose, item.group)}</div>
+            <div className="mt-1 text-[10px]" style={{ color: 'var(--market-tooltip-muted)' }}>
+              Prev close · {formatPrice(item.previousClose, item.group)}
+            </div>
           )}
         </div>
       </div>
 
       {/* Separator dot */}
-      <span className="ml-2 h-1 w-1 rounded-full bg-white/10" />
+      <span className="ml-2 h-1 w-1 rounded-full" style={{ backgroundColor: 'var(--market-bar-border)' }} />
     </div>
   );
 });

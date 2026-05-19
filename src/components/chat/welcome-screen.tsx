@@ -103,7 +103,8 @@ export function WelcomeScreen({ onSendPrompt }: WelcomeScreenProps) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.05 }}
-        className="mb-8 text-center font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-normal tracking-tighter2 text-primary"
+        className="mb-8 text-center font-serif text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight text-primary"
+        style={{ fontOpticalSizing: 'auto', fontVariationSettings: '"opsz" 144, "SOFT" 50, "WONK" 0' }}
         suppressHydrationWarning
       >
         {greeting}

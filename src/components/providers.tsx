@@ -55,6 +55,22 @@ export function Providers({ children }: ProvidersProps) {
     if (pathname === '/') {
       setActiveConversation(null);
       setActiveView('chat');
+      return;
+    }
+    if (pathname.startsWith('/portfolio')) {
+      setActiveView('portfolio');
+      return;
+    }
+    if (pathname.startsWith('/daily-brief')) {
+      setActiveView('brief');
+      return;
+    }
+    if (pathname.startsWith('/watchlist')) {
+      setActiveView('watchlist');
+      return;
+    }
+    if (pathname.startsWith('/settings')) {
+      setActiveView('settings');
     }
   }, [pathname, setActiveConversation, setActiveView]);
 

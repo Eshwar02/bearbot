@@ -103,7 +103,12 @@ export function Header() {
         aria-label="Go to chat home"
       >
         <Image src="/logo.svg" alt="AlphaSight" width={14} height={14} />
-        <span className="font-serif text-[16px] tracking-tighter2">AlphaSight</span>
+        <span
+          className="font-serif text-[16px] font-medium tracking-tight"
+          style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50' }}
+        >
+          AlphaSight
+        </span>
         <span className="text-muted">/</span>
         <span className="text-secondary">Pro</span>
       </button>

@@ -96,7 +96,19 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv11', 'ss01', 'ss03', 'cv02', 'cv03', 'cv04';
+  letter-spacing: -0.01em;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+h1, h2, h3 {
+  letter-spacing: -0.02em;
+}
+
+.tabular-nums,
+.font-mono {
+  font-variant-numeric: tabular-nums;
 }
 
 ::selection {

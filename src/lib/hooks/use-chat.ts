@@ -30,6 +30,19 @@ function hasVisibleText(value: string): boolean {
     .trim().length > 0;
 }
 
+async function typewriterTitle(
+  conversationId: string,
+  finalTitle: string,
+  apply: (id: string, title: string) => void,
+  charDelayMs = 38,
+) {
+  apply(conversationId, '');
+  for (let i = 1; i <= finalTitle.length; i++) {
+    apply(conversationId, finalTitle.slice(0, i));
+    await new Promise((r) => setTimeout(r, charDelayMs));
+  }
+}
+
 export function useChat() {
   const {
     activeConversationId,
@@ -43,6 +56,7 @@ export function useChat() {
     setActiveConversation,
     setActiveView,
     addConversation,
+    updateConversationTitle,
     setMessages,
   } = useAppStore();
 
@@ -477,6 +491,37 @@ export function useChat() {
         if (shouldReplaceUrlAfterStream && effectiveConversationId) {
           window.history.replaceState(null, '', `/chat/${effectiveConversationId}`);
         }
+
+        // ChatGPT-style: on the FIRST exchange of a brand-new conversation,
+        // ask the AI for a short title and type it in char-by-char.
+        if (shouldReplaceUrlAfterStream && effectiveConversationId && hasVisibleText(fullAssistantText)) {
+          (async () => {
+            try {
+              const titleRes = await fetch(
+                `/api/conversations/${effectiveConversationId}/generate-title`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userMessage: content,
+                    assistantMessage: fullAssistantText.slice(0, 1500),
+                  }),
+                },
+              );
+              if (!titleRes.ok) return;
+              const data = (await titleRes.json()) as { title?: string };
+              const newTitle = (data.title || '').trim();
+              if (!newTitle) return;
+              await typewriterTitle(
+                effectiveConversationId,
+                newTitle,
+                updateConversationTitle,
+              );
+            } catch (titleErr) {
+              console.warn('[useChat] title-gen failed (non-fatal):', titleErr);
+            }
+          })();
+        }
       } catch (err: unknown) {
         console.error('CHAT ERROR:', err);
         if (err instanceof DOMException && err.name === 'AbortError') {
@@ -520,6 +565,7 @@ export function useChat() {
       setActiveConversation,
       setActiveView,
       addConversation,
+      updateConversationTitle,
       beginPrompt,
       startStep,
       finishAll,

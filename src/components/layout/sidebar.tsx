@@ -145,7 +145,7 @@ export function Sidebar() {
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <div className="flex items-center gap-2 px-1">
           <Image src="/logo.svg" alt="AlphaSight" width={20} height={20} />
-          <span className="text-[13px] font-semibold tracking-tight text-primary">
+          <span className="font-serif text-[18px] leading-none tracking-tighter2 text-primary">
             AlphaSight
           </span>
         </div>

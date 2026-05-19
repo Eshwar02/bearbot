@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@mistralai/mistralai": "^2.2.1",
+    "@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
     "@vercel/speed-insights": "^2.0.0",

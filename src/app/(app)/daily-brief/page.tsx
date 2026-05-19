@@ -29,6 +29,7 @@ import {
   SentimentGauge,
   SnapshotCards,
 } from '@/components/daily-brief/brief-insights';
+import { HoldingNews } from '@/components/daily-brief/holding-news';
 import { DailyBriefSettings } from '@/components/daily-brief/schedule-settings';
 import type { DailyBrief } from '@/types/stock';
 import type { ScheduledReport } from '@/types/database';
@@ -232,6 +233,9 @@ export function DailyBriefView() {
             <RiskAssessment content={latestBrief.content} />
             <SentimentGauge content={latestBrief.content} snapshot={latestBrief.portfolio_snapshot} />
             <ActionItems />
+            {latestBrief.portfolio_snapshot?.holdings && (
+              <HoldingNews holdings={latestBrief.portfolio_snapshot.holdings} />
+            )}
 
             <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
               <div className="flex items-center justify-between mb-4">
@@ -239,7 +243,29 @@ export function DailyBriefView() {
                   <BarChart3 className="h-5 w-5 text-accent-green" />
                   Comprehensive Analysis
                 </h2>
-                <Button variant="secondary" size="sm" onClick={() => window.print()} className="print:hidden">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/brief/${latestBrief.id}/pdf`);
+                      if (!res.ok) throw new Error('Failed to generate PDF');
+                      const blob = await res.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `alphasight-brief-${latestBrief.id}.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      a.remove();
+                      toast.success('PDF downloaded');
+                    } catch {
+                      toast.error('Failed to generate PDF');
+                    }
+                  }}
+                  className="print:hidden"
+                >
                   <Printer className="h-4 w-4 mr-2" />
                   Export PDF
                 </Button>

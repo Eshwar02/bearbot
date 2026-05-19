@@ -9,7 +9,7 @@ type SetAllCookies = (
 
 const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApiPath = pathname.startsWith("/api/");
 

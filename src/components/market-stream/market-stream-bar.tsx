@@ -42,7 +42,7 @@ export function MarketStreamBar() {
     <div
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className="group relative -z-10 w-full overflow-hidden border-y border-white/[0.06] bg-gradient-to-b from-zinc-950 via-zinc-950/95 to-zinc-950 backdrop-blur-xl"
+      className="group relative -z-10 w-full overflow-hidden border-y border-white/[0.06] bg-gradient-to-b from-zinc-950 via-zinc-950/95 to-zinc-950 backdrop-blur-xl print:hidden"
       style={{ height: 38 }}
     >
       {/* Edge fade masks */}

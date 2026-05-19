@@ -276,7 +276,7 @@ export function Sidebar() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -260, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="fixed left-0 top-0 z-40 h-full w-[260px] md:static md:z-auto"
+            className="fixed left-0 top-0 z-40 h-full w-[260px] md:static md:z-auto print:hidden"
           >
             {sidebarContent}
           </motion.aside>

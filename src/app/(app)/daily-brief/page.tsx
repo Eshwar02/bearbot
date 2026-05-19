@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Settings,
+  Printer,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -136,7 +137,7 @@ export function DailyBriefView() {
             height: showSettings ? 'auto' : 0
           }}
           transition={{ duration: 0.3 }}
-          className="overflow-hidden"
+          className="overflow-hidden print:hidden"
         >
           <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6 mb-6">
             <DailyBriefSettings
@@ -148,7 +149,7 @@ export function DailyBriefView() {
           </div>
         </motion.div>
 
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-6 print:hidden">
           <Button
             onClick={() => setShowSettings(!showSettings)}
             variant="secondary"
@@ -238,8 +239,8 @@ export function DailyBriefView() {
                   <BarChart3 className="h-5 w-5 text-accent-green" />
                   Comprehensive Analysis
                 </h2>
-                <Button variant="secondary" size="sm">
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                <Button variant="secondary" size="sm" onClick={() => window.print()} className="print:hidden">
+                  <Printer className="h-4 w-4 mr-2" />
                   Export PDF
                 </Button>
               </div>
@@ -263,7 +264,7 @@ export function DailyBriefView() {
             </div>
 
             {previousBriefs.length > 0 && (
-              <div>
+              <div className="print:hidden">
                 <h2 className="text-base font-semibold text-primary mb-3">
                   Previous Briefs
                 </h2>

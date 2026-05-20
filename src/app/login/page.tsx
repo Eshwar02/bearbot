@@ -1,45 +1,37 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getBrowserAppOrigin, getPostLoginUrl } from "@/lib/url/client-origin";
+import { getBrowserAppOrigin } from "@/lib/url/client-origin";
 import { SignInPage } from "@/components/ui/sign-in-flow-1";
 
 function LoginPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
 
   async function handleLogin(email: string, password: string) {
-    setError(null);
     setLoading(true);
-
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    setLoading(false);
 
     if (signInError) {
-      setError(signInError.message);
-      setLoading(false);
-      return;
+      return { ok: false, error: signInError.message };
     }
-
-    // Use window.location so we can cross subdomains (info → chat) — Next's
-    // router can't navigate between origins.
-    window.location.href = getPostLoginUrl(redirect);
+    return { ok: true };
   }
 
   async function handleGoogleLogin() {
-    setError(null);
     setGoogleLoading(true);
-
     try {
       const appOrigin = getBrowserAppOrigin();
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -53,23 +45,24 @@ function LoginPageContent() {
           },
         },
       });
-
       if (oauthError) {
-        setError(oauthError.message || "Failed to sign in with Google");
         setGoogleLoading(false);
       }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "An unexpected error occurred";
-      setError(msg);
+    } catch {
       setGoogleLoading(false);
     }
+  }
+
+  function handleSuccess() {
+    router.push(redirect);
+    router.refresh();
   }
 
   return (
     <SignInPage
       onLogin={handleLogin}
       onGoogleLogin={handleGoogleLogin}
-      error={error}
+      onSuccess={handleSuccess}
       loading={loading}
       googleLoading={googleLoading}
     />

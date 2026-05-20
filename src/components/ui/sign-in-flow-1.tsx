@@ -27,9 +27,9 @@ interface ShaderProps {
 
 interface SignInPageProps {
   className?: string;
-  onLogin?: (email: string, password: string) => Promise<void>;
+  onLogin?: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   onGoogleLogin?: () => void;
-  error?: string | null;
+  onSuccess?: () => void;
   loading?: boolean;
   googleLoading?: boolean;
 }
@@ -347,7 +347,7 @@ export const SignInPage = ({
   className,
   onLogin,
   onGoogleLogin,
-  error,
+  onSuccess,
   loading,
   googleLoading,
 }: SignInPageProps) => {
@@ -356,6 +356,7 @@ export const SignInPage = ({
   const [showPassword, setShowPassword] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [initialCanvasVisible, setInitialCanvasVisible] = useState(true);
   const [reverseCanvasVisible, setReverseCanvasVisible] = useState(false);
 
@@ -369,25 +370,24 @@ export const SignInPage = ({
     e.preventDefault();
     if (email && password && onLogin) {
       setHasError(false);
-      await onLogin(email, password);
-      setReverseCanvasVisible(true);
-      setTimeout(() => {
-        setInitialCanvasVisible(false);
-      }, 50);
-      setTimeout(() => {
-        setLoginSuccess(true);
-      }, 2000);
+      setErrorMsg(null);
+      const result = await onLogin(email, password);
+      
+      if (result.ok) {
+        setReverseCanvasVisible(true);
+        setTimeout(() => setInitialCanvasVisible(false), 50);
+        setTimeout(() => {
+          setLoginSuccess(true);
+          onSuccess?.();
+        }, 2000);
+      } else {
+        setHasError(true);
+        setErrorMsg(result.error || "Login failed");
+        setReverseCanvasVisible(true);
+        setTimeout(() => setInitialCanvasVisible(false), 50);
+      }
     }
   };
-
-  useEffect(() => {
-    if (error) {
-      setHasError(true);
-      setLoginSuccess(false);
-      setReverseCanvasVisible(false);
-      setInitialCanvasVisible(true);
-    }
-  }, [error]);
 
   return (
     <div className={cn("flex w-[100%] flex-col min-h-screen bg-black relative", className)}>
@@ -409,7 +409,7 @@ export const SignInPage = ({
             <CanvasRevealEffect
               animationSpeed={4}
               containerClassName="bg-black"
-              colors={loginSuccess ? [[60, 255, 120], [40, 220, 80]] : [[255, 60, 60], [255, 40, 40]]}
+              colors={hasError ? [[255, 60, 60], [255, 40, 40]] : [[60, 255, 120], [40, 220, 80]]}
               dotSize={6}
               reverse={true}
             />
@@ -424,13 +424,13 @@ export const SignInPage = ({
         <div className="flex flex-1 flex-col lg:flex-row">
           <div className="flex-1 flex flex-col justify-center items-center">
             <div className="w-full mt-[150px] max-w-sm">
-              {error && (
+              {(hasError && errorMsg) && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center"
                 >
-                  {error}
+                  {errorMsg}
                 </motion.div>
               )}
 

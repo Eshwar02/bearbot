@@ -7,7 +7,7 @@ type SetAllCookies = (
   cookies: Array<{ name: string; value: string; options?: CookieOptions }>
 ) => void;
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

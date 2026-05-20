@@ -53,12 +53,8 @@ export function WelcomeScreen({ onSendPrompt }: WelcomeScreenProps) {
   const [phrase, setPhrase] = useState(phrases[0]);
 
   useEffect(() => {
-    const lastPhrase = localStorage.getItem('lastPhrase');
-    let available = phrases.filter(p => p !== lastPhrase);
-    if (available.length === 0) available = phrases;
-    const randomPhrase = available[Math.floor(Math.random() * available.length)];
+    const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
     setPhrase(randomPhrase);
-    localStorage.setItem('lastPhrase', randomPhrase);
   }, []);
 
   return (

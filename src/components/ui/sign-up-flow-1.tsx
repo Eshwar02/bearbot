@@ -458,7 +458,12 @@ export const SignUpPage = ({
                     transition={{ duration: 0.4, ease: "easeOut" }}
                     className="space-y-6 text-center"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-3">
+                      <img
+                        src="/logo.svg"
+                        alt="AlphaSight AI"
+                        className="w-12 h-12 mx-auto rounded-xl"
+                      />
                       <h1 className="text-[2.5rem] font-bold leading-[1.1] tracking-tight text-white">Create Account</h1>
                       <p className="text-[1.25rem] text-white/70 font-light">Join AlphaSight AI</p>
                     </div>
@@ -496,7 +501,7 @@ export const SignUpPage = ({
                               placeholder="Full name"
                               value={fullName}
                               onChange={(e) => setFullName(e.target.value)}
-                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-400 bg-white/80 border border-white/20 rounded-full py-3 px-4 focus:outline-none focus:border-white/50 text-center"
+                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-600 bg-white/80 border border-white/20 rounded-full py-3 px-4 focus:outline-none focus:border-white/50 text-center"
                               required
                             />
                           </div>
@@ -506,7 +511,7 @@ export const SignUpPage = ({
                               placeholder="Email address"
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
-                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-400 bg-white/80 border border-white/20 rounded-full py-3 px-4 focus:outline-none focus:border-white/50 text-center"
+                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-600 bg-white/80 border border-white/20 rounded-full py-3 px-4 focus:outline-none focus:border-white/50 text-center"
                               required
                             />
                           </div>
@@ -542,7 +547,7 @@ export const SignUpPage = ({
                               placeholder="Confirm password"
                               value={confirmPassword}
                               onChange={(e) => setConfirmPassword(e.target.value)}
-                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-400 bg-white/80 border border-white/20 rounded-full py-3 px-4 focus:outline-none focus:border-white/50 text-center"
+                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-600 bg-white/80 border border-white/20 rounded-full py-3 px-4 focus:outline-none focus:border-white/50 text-center"
                               required
                             />
                           </div>

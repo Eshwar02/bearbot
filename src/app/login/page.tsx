@@ -1,13 +1,12 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getBrowserAppOrigin } from "@/lib/url/client-origin";
+import { getBrowserAppOrigin, getPostLoginUrl } from "@/lib/url/client-origin";
 import { SignInPage } from "@/components/ui/sign-in-flow-1";
 
 function LoginPageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") || "/";
 
@@ -32,8 +31,9 @@ function LoginPageContent() {
       return;
     }
 
-    router.push(redirect);
-    router.refresh();
+    // Use window.location so we can cross subdomains (info → chat) — Next's
+    // router can't navigate between origins.
+    window.location.href = getPostLoginUrl(redirect);
   }
 
   async function handleGoogleLogin() {

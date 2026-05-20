@@ -480,7 +480,7 @@ export const SignInPage = ({
                       </div>
 
                       <form onSubmit={handleSubmit}>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           <div className="relative">
                             <input
                               type="email"
@@ -497,7 +497,7 @@ export const SignInPage = ({
                               placeholder="Password"
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
-                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-400 bg-white/80 border border-white/20 rounded-full py-3 px-4 pr-12 focus:outline-none focus:border-white/50 text-center"
+                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-600 bg-white/80 border border-white/20 rounded-full py-3 px-4 pr-12 focus:outline-none focus:border-white/50 text-center"
                               required
                             />
                             <button
@@ -517,10 +517,15 @@ export const SignInPage = ({
                               )}
                             </button>
                           </div>
+                          <div className="flex justify-end -mt-2">
+                            <Link href="/forgot-password" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+                              Forgot password?
+                            </Link>
+                          </div>
                           <button
                             type="submit"
                             disabled={loading || !email || !password}
-                            className="w-full backdrop-blur-[1px] text-white border border-white/10 rounded-full py-3 px-4 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full backdrop-blur-[1px] text-white border border-white/10 rounded-full py-3.5 px-4 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
                           >
                             {loading ? (
                               <>
@@ -540,15 +545,9 @@ export const SignInPage = ({
                       </form>
                     </div>
 
-                    <div className="flex justify-center text-xs">
-                      <Link href="/forgot-password" className="text-gray-500 hover:text-gray-700 transition-colors">
-                        Forgot password?
-                      </Link>
-                    </div>
-
-                    <p className="text-xs text-gray-400 pt-4">
+                    <p className="text-sm text-gray-300 pt-2">
                       Don&apos;t have an account?{" "}
-                      <Link href="/signup" className="text-black font-medium hover:text-gray-700 transition-colors">
+                      <Link href="/signup" className="text-white font-semibold hover:text-gray-200 transition-colors underline underline-offset-4">
                         Create account
                       </Link>
                     </p>

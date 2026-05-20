@@ -494,7 +494,7 @@ export const SignUpPage = ({
                       </div>
 
                       <form onSubmit={handleSubmit}>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           <div className="relative">
                             <input
                               type="text"
@@ -521,7 +521,7 @@ export const SignUpPage = ({
                               placeholder="Password"
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
-                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-400 bg-white/80 border border-white/20 rounded-full py-3 px-4 pr-12 focus:outline-none focus:border-white/50 text-center"
+                              className="w-full backdrop-blur-[1px] text-black caret-black placeholder:text-gray-600 bg-white/80 border border-white/20 rounded-full py-3 px-4 pr-12 focus:outline-none focus:border-white/50 text-center"
                               required
                             />
                             <button
@@ -554,7 +554,7 @@ export const SignUpPage = ({
                           <button
                             type="submit"
                             disabled={loading || !fullName || !email || !password || !confirmPassword}
-                            className="w-full backdrop-blur-[1px] text-white border border-white/10 rounded-full py-3 px-4 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full backdrop-blur-[1px] text-white border border-white/10 rounded-full py-3.5 px-4 hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
                           >
                             {loading ? (
                               <>
@@ -574,9 +574,9 @@ export const SignUpPage = ({
                       </form>
                     </div>
 
-                    <p className="text-xs text-gray-400 pt-4">
+                    <p className="text-sm text-gray-300 pt-2">
                       Already have an account?{" "}
-                      <Link href="/login" className="text-black font-medium hover:text-gray-700 transition-colors">
+                      <Link href="/login" className="text-white font-semibold hover:text-gray-200 transition-colors underline underline-offset-4">
                         Sign in
                       </Link>
                     </p>

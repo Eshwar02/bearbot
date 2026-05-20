@@ -36,24 +36,10 @@ const nextConfig: NextConfig = {
     return config;
   },
   // Subdomain routing for alphasightai.online.
-  // Each marketing subdomain (info, about, …) is mapped to its own internal route
-  // so the codebase stays single-app while DNS looks SaaS-clean.
-  // chat.alphasightai.online serves the product (the existing app at /).
-  // See DEPLOYMENT.md for the add-a-new-subdomain recipe.
-  async rewrites() {
-    return [
-      {
-        source: '/',
-        has: [{ type: 'host', value: 'info.alphasightai.online' }],
-        destination: '/info',
-      },
-      {
-        source: '/',
-        has: [{ type: 'host', value: 'about.alphasightai.online' }],
-        destination: '/about',
-      },
-    ];
-  },
+  // Apex + www redirects live here (they need to fire before any auth check).
+  // The "info → /info" / "about → /about" rewrites are handled in src/proxy.ts
+  // instead, so the auth proxy sees the rewritten path and treats them as
+  // public routes. See DEPLOYMENT.md.
   async redirects() {
     return [
       // Bare apex → product subdomain. Permanent so search engines collapse them.

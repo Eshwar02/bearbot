@@ -285,24 +285,27 @@ vercel deploy
 
 ## 🌟 Recent Updates
 
-### Latest Features (v1.2.0)
-- ✅ **Memory Capture Improvements** - Enhanced semantic extraction & reliability
-- ✅ **Chat Intelligence Refinements** - Coreference resolution, multi-turn grounding, and AI-generated chat titles
-- ✅ **Typography Refresh** - Native OS body font stack with Fraunces serif headlines
-- ✅ **Transparency Monitor** - Phase tracking, source deduplication, and clearer progress UI
-- ✅ **Light Mode Support** - CSS variable tokens across settings, profile, portfolio, and brief screens
-- ✅ **Live Settings** - Instant theme, chart, and notification toggles
-- ✅ **Auth Redirects** - Canonical domain support
-- ✅ **Password Reset** - Supabase forgot-password flow
-- ✅ **Profile Management** - Email verification & password updates
+### Latest Features (recent)
+- ✅ **Brand & Assets** - Updated logo across public assets and touch icons
+- ✅ **Login & Signup Redesign** - Canvas reveal, animated UI, improved placeholders, colored pixels and black input text for better contrast
+- ✅ **Login Flow UX** - Synced success/failure pixel colors and delayed redirect to preserve login animation
+- ✅ **Subdomain Routing** - Send users to chat subdomain after login; subdomain routing for *.alphasightai.online
+- ✅ **Marketing Routes & Proxy Fixes** - Route marketing subdomain roots to /info and /about; allow /info and /about as public routes
+- ✅ **UI Polishing** - Limit dropdown items to 4, remove borders, add hover shadow
+- ✅ **Icon Updates** - New favicon and touch icons
 
 ### Recent Commits
 ```
-15750ed - feat(ui): use native OS font stack for body, drop Geist sans webfont
-340551f - fix: light mode tokens for settings, profile, error, portfolio-summary, add-holding-modal, schedule-settings
-e276001 - feat(ui): swap to Fraunces serif and fix sidebar quick-access active state
-0898afe - feat(chat): AI-generated chat titles with typewriter animation + new typography
-37c03ef - feat: full light mode support with CSS variable tokens
+48a989b - fix: sync login success/failure pixel colors and delay redirect until animation completes
+ece9a59 - feat: update logo across all public assets
+75f6528 - feat: send users to chat subdomain after login
+75bf5c5 - fix: route marketing subdomain roots to /info, /about in proxy
+cd1a4dd - fix: allow /info and /about as public routes
+28f2afd - feat: add logo and fix placeholder visibility on login/signup pages
+fcbd107 - feat: update login/signup pages with colored pixels, black input text, and matching design
+97f0391 - feat: redesign login page with canvas reveal effect and animated UI
+787a647 - feat: subdomain routing for *.alphasightai.online
+e37cff1 - fix: limit dropdown to 4 items, remove border, add hover shadow
 ```
 
 ---

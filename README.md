@@ -1,4 +1,4 @@
-# 🎯 AlphaSight AI
+# AlphaSight AI
 
 <div align="center">
   <img src="./logos/final_logo.svg" alt="AlphaSight Logo" width="100" />
@@ -20,22 +20,22 @@
 
 ---
 
-## ✨ Core Capabilities
+##  Core Capabilities
 
 | Feature | Description |
 |---------|-------------|
-| **⚡ Low-Latency Chat** | Streaming responses with real-time market context & source transparency |
-| **📊 Smart Portfolio** | Live P&L tracking, health scores, sentiment analysis & buy/hold/sell signals |
-| **📈 Market Intelligence** | Real-time quotes, technical analysis, fundamentals & synthesized news |
-| **👁️ AI Transparency** | Execution phases, source tracking, deduplication & live activity monitor |
-| **📋 Daily Briefs** | Automated portfolio summaries & market pulse reports (Vercel Cron) |
-| **🔒 Enterprise Security** | RLS-enforced Supabase auth, environment-isolated credentials |
-| **🎯 Multi-Turn Intelligence** | Coreference resolution for "that/it" queries, follow-up grounding |
-| **📱 Responsive UI** | Mobile-first design with Tailwind CSS, Framer Motion, native OS body fonts, and Fraunces headings |
+| **Low-Latency Chat** | Streaming responses with real-time market context & source transparency |
+| **Smart Portfolio** | Live P&L tracking, health scores, sentiment analysis & buy/hold/sell signals |
+| **Market Intelligence** | Real-time quotes, technical analysis, fundamentals & synthesized news |
+| **AI Transparency** | Execution phases, source tracking, deduplication & live activity monitor |
+| **Daily Briefs** | Automated portfolio summaries & market pulse reports (Vercel Cron) |
+| **Enterprise Security** | RLS-enforced Supabase auth, environment-isolated credentials |
+| **Multi-Turn Intelligence** | Coreference resolution for "that/it" queries, follow-up grounding |
+| **Responsive UI** | Mobile-first design with Tailwind CSS, Framer Motion, native OS body fonts, and Fraunces headings |
 
 ---
 
-## 🏗️ Architecture Overview
+##  Architecture Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -75,7 +75,7 @@
 
 ---
 
-## 🚀 Tech Stack
+##  Tech Stack
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
@@ -92,7 +92,7 @@
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```
 alphasight-ai/
@@ -138,7 +138,7 @@ alphasight-ai/
 
 ---
 
-## 🎯 Intelligence & UX Innovations
+##  Intelligence & UX Innovations
 
 ### 1. **Context-Linked Follow-Ups**
 Queries like *"tell me about ITC"* → *"tell me about that"* are resolved to standalone intent before routing, enabling natural multi-turn conversations.
@@ -165,7 +165,7 @@ Theme, chart/news visibility, and notification toggles apply **instantly** to UI
 
 ---
 
-## ⚙️ Getting Started
+##  Getting Started
 
 ### Prerequisites
 - **Node.js** 18+ or 20+
@@ -346,7 +346,7 @@ git push origin feature/your-feature-name
 
 ---
 
-## 🔐 Security & Privacy
+## Security & Privacy
 
 - **RLS Enforced**: All database queries use Row-Level Security
 - **Auth Tokens**: Supabase PKCE OAuth flow, no password stored
@@ -356,7 +356,7 @@ git push origin feature/your-feature-name
 
 ---
 
-## 📊 Performance & Scalability
+##  Performance & Scalability
 
 - **Streaming Chat**: Low-latency responses with text-first UI
 - **Edge Functions**: Vercel serverless scaling
@@ -366,7 +366,7 @@ git push origin feature/your-feature-name
 
 ---
 
-## 📞 Support & Feedback
+##  Support & Feedback
 
 - 🐛 **Report Bugs**: [GitHub Issues](https://github.com/Eshwar02/bearbot/issues)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/Eshwar02/bearbot/discussions)
@@ -380,7 +380,7 @@ This project is licensed under the **MIT License**. See [LICENSE](./LICENSE) for
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Mistral AI** - LLM & embedding provider
 - **Supabase** - Database & auth backend

@@ -20,7 +20,7 @@ const SUBDOMAIN_ROUTES: Record<string, string> = {
   "about.alphasightai.online": "/about",
 };
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApiPath = pathname.startsWith("/api/");
 

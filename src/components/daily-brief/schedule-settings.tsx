@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Mail, Pencil, Plus, Power, Trash2 } from 'lucide-react';
+import { Clock, Mail, Pencil, Plus, Power, Send, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -230,6 +230,8 @@ function CreateScheduleForm({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testStatus, setTestStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const searchStocks = useCallback(async (query: string) => {
@@ -278,6 +280,39 @@ function CreateScheduleForm({
 
   const handleRemoveStock = (symbol: string) => {
     setFormData((prev) => ({ ...prev, stocks: prev.stocks.filter((s) => s !== symbol) }));
+  };
+
+  const handleSendTest = async () => {
+    if (!formData.email) {
+      setTestStatus({ ok: false, message: 'Enter an email address first.' });
+      return;
+    }
+    setSendingTest(true);
+    setTestStatus(null);
+    try {
+      const res = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, test: true }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        message?: string;
+        error?: string;
+      };
+      if (res.ok && data.success) {
+        setTestStatus({ ok: true, message: `Test email sent to ${formData.email}.` });
+      } else {
+        setTestStatus({
+          ok: false,
+          message: data.message || data.error || 'Failed to send test email.',
+        });
+      }
+    } catch {
+      setTestStatus({ ok: false, message: 'Network error while sending test email.' });
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -359,8 +394,8 @@ function CreateScheduleForm({
         </div>
 
         {showSuggestions && searchResults.length > 0 && (
-          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md bg-elevated shadow-lg hover:shadow-xl transition-shadow duration-200">
-            {searchResults.slice(0, 4).map((result, index) => (
+          <div className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-md bg-elevated shadow-lg hover:shadow-xl transition-shadow duration-200">
+            {searchResults.slice(0, 10).map((result, index) => (
               <div
                 key={`${result.symbol}-${index}`}
                 className="cursor-pointer border-b border-borderSubtle/50 px-3 py-2 hover:bg-borderSubtle last:border-b-0"
@@ -405,18 +440,45 @@ function CreateScheduleForm({
         )}
       </div>
 
-      <div className="flex justify-end gap-3 border-t border-borderSubtle pt-4">
-        <Button onClick={onCancel} variant="ghost" size="sm">
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          loading={submitting}
-          disabled={!formData.email || formData.stocks.length === 0}
-          size="sm"
+      {testStatus && (
+        <div
+          className={cn(
+            'rounded-md border px-3 py-2 text-sm',
+            testStatus.ok
+              ? 'border-accent-green/40 bg-accent-green/10 text-accent-green'
+              : 'border-accent-red/40 bg-accent-red/10 text-accent-red'
+          )}
         >
-          {isEdit ? 'Save Changes' : 'Create Schedule'}
+          {testStatus.message}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-borderSubtle pt-4">
+        <Button
+          onClick={handleSendTest}
+          loading={sendingTest}
+          disabled={!formData.email || sendingTest}
+          variant="secondary"
+          size="sm"
+          className="flex items-center gap-2"
+          title="Send a sample brief with attachment to the email above"
+        >
+          <Send className="h-4 w-4" />
+          Send Test Email
         </Button>
+        <div className="flex gap-3">
+          <Button onClick={onCancel} variant="ghost" size="sm">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            loading={submitting}
+            disabled={!formData.email || formData.stocks.length === 0}
+            size="sm"
+          >
+            {isEdit ? 'Save Changes' : 'Create Schedule'}
+          </Button>
+        </div>
       </div>
     </div>
   );

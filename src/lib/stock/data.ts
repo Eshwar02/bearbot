@@ -19,6 +19,24 @@ type YahooChartMeta = {
   longName?: string;
 };
 
+/**
+ * Map a user-friendly range token to Yahoo chart API range + interval. Yahoo
+ * rejects mismatched combinations (e.g. range=1y interval=1m), so we keep
+ * this in one place.
+ */
+export type ChartRange = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "5Y" | "ALL";
+
+const RANGE_PARAMS: Record<ChartRange, { range: string; interval: string }> = {
+  "1D": { range: "1d", interval: "5m" },
+  "1W": { range: "5d", interval: "30m" },
+  "1M": { range: "1mo", interval: "1d" },
+  "3M": { range: "3mo", interval: "1d" },
+  "6M": { range: "6mo", interval: "1d" },
+  "1Y": { range: "1y", interval: "1d" },
+  "5Y": { range: "5y", interval: "1wk" },
+  ALL: { range: "max", interval: "1mo" },
+};
+
 type YahooChartResult = {
   meta?: YahooChartMeta;
   timestamp?: number[];
@@ -198,6 +216,99 @@ export async function fetchHistory(
     stockCache.set(cacheKey, history, CACHE_TTL.HISTORY);
   }
   return history;
+}
+
+/**
+ * Fetch a history series for a named range (1D/1W/1M/3M/6M/1Y/5Y/ALL).
+ * Uses Yahoo's chart endpoint with the correct interval for each range, so
+ * intraday ranges return fine-grained candles and long ranges return weekly
+ * or monthly candles. Returns an empty array on failure.
+ */
+export async function fetchHistoryRange(
+  symbol: string,
+  range: ChartRange = "1M"
+): Promise<StockHistory> {
+  const params = RANGE_PARAMS[range];
+  const cacheKey = `history-range:${symbol.toUpperCase()}:${range}`;
+  const cached = stockCache.get<StockHistory>(cacheKey);
+  if (cached) return cached;
+
+  const chart = await fetchChartResult(symbol, {
+    range: params.range,
+    interval: params.interval,
+  });
+  if (!chart) return [];
+  const history = mapHistoryFromChart(chart);
+  if (history.length > 0) {
+    // 1D / 1W are intraday and should refresh more often than long ranges.
+    const ttl = range === "1D" || range === "1W" ? CACHE_TTL.QUOTE : CACHE_TTL.HISTORY;
+    stockCache.set(cacheKey, history, ttl);
+  }
+  return history;
+}
+
+/**
+ * Fetch a richer quote that includes marketCap, sharesOutstanding, etc. via
+ * yahoo-finance2's summaryDetail module. Falls back to `fetchQuote` (chart
+ * meta) if the summary call fails (Yahoo's auth path is occasionally flaky).
+ */
+export async function fetchQuoteFull(symbol: string): Promise<
+  (StockQuote & {
+    marketCap: number;
+    sharesOutstanding: number | null;
+    dividendYield: number | null;
+    beta: number | null;
+    eps: number | null;
+    averageVolume: number | null;
+  }) | null
+> {
+  const base = await fetchQuote(symbol);
+  if (!base) return null;
+
+  type SummaryDetail = {
+    marketCap?: { raw?: number } | number;
+    sharesOutstanding?: { raw?: number } | number;
+    dividendYield?: { raw?: number } | number;
+    beta?: { raw?: number } | number;
+    trailingEps?: { raw?: number } | number;
+    averageVolume?: { raw?: number } | number;
+    trailingPE?: { raw?: number } | number;
+  };
+
+  const readNum = (v: unknown): number | null => {
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (v && typeof v === "object" && "raw" in v) {
+      const raw = (v as { raw?: unknown }).raw;
+      if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+    }
+    return null;
+  };
+
+  try {
+    const result = (await yahoo.quoteSummary(symbol, {
+      modules: ["summaryDetail", "defaultKeyStatistics", "price"],
+    })) as {
+      summaryDetail?: SummaryDetail;
+      defaultKeyStatistics?: SummaryDetail;
+      price?: SummaryDetail;
+    };
+    const summary = result.summaryDetail || {};
+    const stats = result.defaultKeyStatistics || {};
+    const price = result.price || {};
+
+    return {
+      ...base,
+      marketCap: readNum(price.marketCap) ?? readNum(summary.marketCap) ?? 0,
+      sharesOutstanding: readNum(stats.sharesOutstanding),
+      dividendYield: readNum(summary.dividendYield),
+      beta: readNum(summary.beta),
+      eps: readNum(stats.trailingEps),
+      averageVolume: readNum(summary.averageVolume),
+      pe: readNum(summary.trailingPE) ?? base.pe,
+    };
+  } catch {
+    return { ...base, marketCap: 0, sharesOutstanding: null, dividendYield: null, beta: null, eps: null, averageVolume: null };
+  }
 }
 
 /**

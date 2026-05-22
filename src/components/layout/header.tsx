@@ -80,7 +80,7 @@ export function Header() {
           aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
           title="Toggle sidebar (Cmd/Ctrl+B)"
         >
-          <Menu size={17} />
+          <Menu size={18} />
         </button>
         {pathname !== '/' && (
           <button
@@ -89,7 +89,7 @@ export function Header() {
             aria-label="Go back"
             title="Go back (Alt+←)"
           >
-            <ArrowLeft size={17} />
+            <ArrowLeft size={18} />
           </button>
         )}
       </div>
@@ -146,8 +146,10 @@ export function Header() {
                 role="menuitem"
                 aria-label="Open profile page"
               >
-                <User size={14} />
-                <span>Profile</span>
+                <div className="flex items-center justify-center rounded-lg bg-white/5 p-1.5 text-gray-400 group-hover:text-emerald-400 group-hover:bg-emerald-500/10 transition-colors">
+                  <User size={16} />
+                </div>
+                <span>Profile Settings</span>
               </button>
               <div className="my-1 border-t border-borderSubtle" />
               <button
@@ -156,7 +158,9 @@ export function Header() {
                 role="menuitem"
                 aria-label="Sign out from account"
               >
-                <LogOut size={14} />
+                <div className="flex items-center justify-center rounded-lg bg-white/5 p-1.5 text-gray-400 group-hover:text-red-400 group-hover:bg-red-500/20 transition-colors">
+                  <LogOut size={16} />
+                </div>
                 <span>Sign out</span>
               </button>
             </div>

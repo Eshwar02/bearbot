@@ -8,7 +8,6 @@ import { WelcomeScreen } from './welcome-screen';
 import { GradientAIChatInput, type ModelOption } from '@/components/ui/gradient-ai-chat-input';
 import { cn } from '@/lib/utils';
 
-
 const MODEL_OPTIONS: ModelOption[] = [
   {
     id: 'mistral',
@@ -18,9 +17,10 @@ const MODEL_OPTIONS: ModelOption[] = [
   },
 ];
 
+// Clean, standard productivity skeleton loader
 function LoadingSkeleton() {
   return (
-    <div className="mx-auto flex max-w-3xl animate-pulse flex-col gap-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 w-full animate-pulse">
       {[1, 2, 3].map((i) => (
         <div key={i} className="flex gap-4">
           <div className="h-6 w-6 shrink-0 rounded bg-skeleton" />
@@ -35,8 +35,7 @@ function LoadingSkeleton() {
 }
 
 export function ChatPanel() {
-  const { messages, isLoadingConversation, isStreaming, preferredModel, setPreferredModel } =
-    useAppStore();
+  const { messages, isLoadingConversation, isStreaming, preferredModel, setPreferredModel } = useAppStore();
   const { sendMessage, stopStreaming } = useChat();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -52,7 +51,6 @@ export function ChatPanel() {
     [preferredModel],
   );
 
-  // Auto-scroll on new messages
   useEffect(() => {
     if (bottomRef.current && scrollRef.current) {
       const scrollContainer = scrollRef.current;
@@ -62,7 +60,6 @@ export function ChatPanel() {
     }
   }, [messages.length]);
 
-  // Auto-scroll during streaming
   const lastMessage = messages[messages.length - 1];
   const streamingContent = lastMessage?.isStreaming ? lastMessage.content.length : 0;
   useEffect(() => {
@@ -94,11 +91,7 @@ export function ChatPanel() {
 
   const handleStop = useCallback(() => {
     stopStreaming();
-    // Add a message asking if issue
-    setTimeout(() => {
-      // Since sendMessage adds to messages, perhaps add a system message
-      // But for simplicity, perhaps alert or something, but since CLI, perhaps not.
-    }, 100);
+    setTimeout(() => {}, 100);
   }, [stopStreaming]);
 
   return (
@@ -115,7 +108,8 @@ export function ChatPanel() {
         {isLoadingConversation ? (
           <LoadingSkeleton />
         ) : hasMessages ? (
-          <div className="pb-6 pt-2">
+          // Constrained to max-w-3xl for optimal reading width
+          <div className="pb-36 pt-6 max-w-3xl mx-auto px-4 sm:px-6"> 
             {messages.map((msg) => (
               <ChatMessage key={msg.id} message={msg} />
             ))}

@@ -439,6 +439,8 @@ export default function PortfolioPage() {
         </div>
       )}
 
+      {enriched.length > 0 && <BacktestPanel />}
+
       {enriched.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="mb-4 rounded-full bg-elevated p-6">

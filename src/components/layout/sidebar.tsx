@@ -13,6 +13,7 @@ import {
   Settings,
   ChevronLeft,
   Trash2,
+  ShieldAlert,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore, type AppView } from '@/stores/app-store';
@@ -55,6 +56,7 @@ function groupConversations(conversations: Conversation[]) {
 const navLinks = [
   { view: 'portfolio', label: 'Portfolio', icon: Briefcase },
   { view: 'brief', label: 'Daily Brief', icon: Sun },
+  { view: 'risk', label: 'Risk Analysis', icon: ShieldAlert },
   { view: 'watchlist', label: 'Watchlist', icon: Star },
   { view: 'settings', label: 'Settings', icon: Settings },
 ] as const;
@@ -130,6 +132,7 @@ export function Sidebar() {
         chat: '/',
         portfolio: '/portfolio',
         brief: '/daily-brief',
+        risk: '/risk-analysis',
         watchlist: '/watchlist',
         settings: '/settings',
       };

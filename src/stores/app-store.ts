@@ -15,7 +15,7 @@ export interface ChatMessage extends Message {
   sources?: WebSource[];
 }
 
-export type AppView = 'chat' | 'portfolio' | 'brief' | 'watchlist' | 'settings';
+export type AppView = 'chat' | 'portfolio' | 'brief' | 'watchlist' | 'settings' | 'risk';
 
 // ── Store shape ────────────────────────────────────────────────────
 

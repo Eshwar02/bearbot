@@ -22,6 +22,7 @@ import { useLiveQuotes } from '@/lib/hooks/use-live-quotes';
 import type { PortfolioHolding } from '@/types/stock';
 import { AddHoldingModal } from '@/components/portfolio/add-holding-modal';
 import { BuyMoreModal } from '@/components/portfolio/buy-more-modal';
+import { PortfolioTable } from '@/components/portfolio/portfolio-table';
 import type {
   AssetIntelligenceCard,
   PortfolioIntelligence,
@@ -33,15 +34,20 @@ type EnrichedHolding = PortfolioHolding & {
   liveValue: number;
   livePnl: number;
   livePnlPct: number;
+  previousClose: number | null;
 };
 
-function enrich(h: PortfolioHolding, livePrice: number | null): EnrichedHolding {
+function enrich(
+  h: PortfolioHolding,
+  livePrice: number | null,
+  previousClose: number | null
+): EnrichedHolding {
   const price = livePrice ?? h.currentPrice ?? 0;
   const liveValue = price * h.quantity;
   const invested = h.avg_buy_price * h.quantity;
   const livePnl = liveValue - invested;
   const livePnlPct = invested > 0 ? (livePnl / invested) * 100 : 0;
-  return { ...h, livePrice, liveValue, livePnl, livePnlPct };
+  return { ...h, livePrice, liveValue, livePnl, livePnlPct, previousClose };
 }
 
 function sentimentStyle(sentiment: PortfolioIntelligence['sentiment']) {
@@ -60,74 +66,6 @@ function momentumBadge(momentum: 'strong' | 'moderate' | 'weak') {
   if (momentum === 'strong') return 'green' as const;
   if (momentum === 'weak') return 'red' as const;
   return 'amber' as const;
-}
-
-function PortfolioCard({
-  holding,
-  onBuyMore,
-}: {
-  holding: EnrichedHolding;
-  onBuyMore: (h: EnrichedHolding) => void;
-}) {
-  const isPositive = holding.livePnl >= 0;
-
-  return (
-    <div
-      className={cn(
-        'rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4',
-        'transition-colors hover:border-borderStrong'
-      )}
-    >
-      <div className="mb-3 flex items-start justify-between">
-        <div>
-          <h3 className="font-semibold text-primary">{holding.symbol}</h3>
-          <p className="text-xs text-muted">{holding.name || holding.symbol}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={isPositive ? 'green' : 'red'}>
-            {formatPercent(holding.livePnlPct)}
-          </Badge>
-          <button
-            type="button"
-            onClick={() => onBuyMore(holding)}
-            title={`Buy more ${holding.symbol}`}
-            aria-label={`Buy more ${holding.symbol}`}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent-green/15 text-accent-green transition-colors hover:bg-accent-green/25"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <p className="text-muted">Quantity</p>
-          <p className="font-medium text-primary">{holding.quantity}</p>
-        </div>
-        <div>
-          <p className="text-muted">Avg Buy</p>
-          <p className="font-medium text-primary">{formatCurrency(holding.avg_buy_price)}</p>
-        </div>
-        <div>
-          <p className="text-muted">Current</p>
-          <LivePrice
-            value={holding.livePrice}
-            className="font-medium text-primary"
-            format={(v) => formatCurrency(v)}
-          />
-        </div>
-        <div>
-          <p className="text-muted">P&L</p>
-          <LivePrice
-            value={holding.livePnl}
-            flash={false}
-            format={(v) => formatCurrency(Math.abs(v))}
-            className={cn('font-medium', isPositive ? 'text-accent-green' : 'text-accent-red')}
-          />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function PortfolioSummary({ holdings }: { holdings: EnrichedHolding[] }) {
@@ -332,6 +270,7 @@ export default function PortfolioPage() {
   const [intelLoading, setIntelLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [buyMoreTarget, setBuyMoreTarget] = useState<EnrichedHolding | null>(null);
+  const [sparklines, setSparklines] = useState<Record<string, Array<{ date: string; close: number }>>>({});
 
   const fetchHoldings = async () => {
     try {
@@ -344,6 +283,18 @@ export default function PortfolioPage() {
       console.error('Failed to fetch holdings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSparklines = async () => {
+    try {
+      const response = await fetch('/api/portfolio/sparklines', { cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        setSparklines(data.sparklines || {});
+      }
+    } catch (error) {
+      console.error('Failed to fetch sparklines:', error);
     }
   };
 
@@ -365,13 +316,27 @@ export default function PortfolioPage() {
   useEffect(() => {
     void fetchHoldings();
     void fetchIntelligence();
+    void fetchSparklines();
   }, []);
 
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const liveQuotes = useLiveQuotes(symbols, 2000);
 
+  // Refresh sparklines when the set of held symbols changes (added/removed).
+  const symbolsKey = symbols.slice().sort().join(',');
+  useEffect(() => {
+    if (symbolsKey) void fetchSparklines();
+  }, [symbolsKey]);
+
   const enriched = useMemo(
-    () => holdings.map((h) => enrich(h, liveQuotes[h.symbol]?.price ?? null)),
+    () =>
+      holdings.map((h) =>
+        enrich(
+          h,
+          liveQuotes[h.symbol]?.price ?? null,
+          liveQuotes[h.symbol]?.previousClose ?? null
+        )
+      ),
     [holdings, liveQuotes]
   );
 
@@ -389,19 +354,30 @@ export default function PortfolioPage() {
             <SkeletonCard key={i} />
           ))}
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-2xl border border-borderSubtle bg-elevated shadow-md">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
-              <Skeleton className="mb-2 h-6 w-24" />
-              <Skeleton className="mb-4 h-4 w-32" />
-              <div className="grid grid-cols-2 gap-4">
-                {Array.from({ length: 4 }).map((__, j) => (
-                  <div key={j}>
-                    <Skeleton className="mb-1 h-3 w-16" />
-                    <Skeleton className="h-4 w-12" />
-                  </div>
-                ))}
+            <div
+              key={i}
+              className="grid grid-cols-[2fr_1.2fr_1.2fr_1fr_1fr_56px] items-center gap-4 border-b border-borderSubtle px-5 py-4 last:border-b-0"
+            >
+              <div>
+                <Skeleton className="mb-2 h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
               </div>
+              <Skeleton className="h-8 w-full" />
+              <div className="text-right">
+                <Skeleton className="ml-auto mb-1 h-4 w-20" />
+                <Skeleton className="ml-auto h-3 w-16" />
+              </div>
+              <div className="text-right">
+                <Skeleton className="ml-auto mb-1 h-4 w-16" />
+                <Skeleton className="ml-auto h-3 w-12" />
+              </div>
+              <div className="text-right">
+                <Skeleton className="ml-auto mb-1 h-4 w-20" />
+                <Skeleton className="ml-auto h-3 w-16" />
+              </div>
+              <Skeleton className="h-8 w-8 rounded-full" />
             </div>
           ))}
         </div>
@@ -478,15 +454,11 @@ export default function PortfolioPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {enriched.map((holding) => (
-            <PortfolioCard
-              key={holding.id}
-              holding={holding}
-              onBuyMore={setBuyMoreTarget}
-            />
-          ))}
-        </div>
+        <PortfolioTable
+          holdings={enriched}
+          sparklines={sparklines}
+          onBuyMore={setBuyMoreTarget}
+        />
       )}
 
       <AddHoldingModal

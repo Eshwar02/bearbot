@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 import { generateExcelReport } from "@/lib/excel-generator";
 import { sendDailyBriefEmail } from "@/lib/email-sender";
 
 export async function POST(request: NextRequest) {
   try {
+    // Require an authenticated user so this endpoint can't be used as an
+    // open email relay.
+    const supabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { email, test } = body;
 
@@ -35,7 +48,18 @@ export async function POST(request: NextRequest) {
       ];
 
       const excelBuffer = generateExcelReport(testData, "Test Daily Stock Report");
-      const emailSent = await sendDailyBriefEmail(email, "This is a test email with Excel attachment.", excelBuffer);
+      const sampleSummary = [
+        "This is a SAMPLE daily brief from AlphaSight AI.",
+        "",
+        "Markets opened with mixed sentiment today. Tech names led early gains",
+        "while energy lagged on softer crude prices. Your real daily brief will",
+        "replace this section with AI-generated analysis based on the assets you",
+        "selected when scheduling.",
+        "",
+        "Attached is a sample Excel report (sample-daily-brief.xlsx) showing the",
+        "format you will receive each day at your chosen time.",
+      ].join("\n");
+      const emailSent = await sendDailyBriefEmail(email, sampleSummary, excelBuffer);
 
       return NextResponse.json({
         success: emailSent,

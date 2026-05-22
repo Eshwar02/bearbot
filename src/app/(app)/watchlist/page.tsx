@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LivePrice } from '@/components/ui/live-price';
 import { useLiveQuotes, type LiveQuote } from '@/lib/hooks/use-live-quotes';
+import { ChartWidget } from '@/components/chat/chart-widget';
 
 interface WatchlistItem {
   id: string;
@@ -20,17 +21,22 @@ function WatchlistCard({
   item,
   quote,
   onRemove,
+  onClick,
 }: {
   item: WatchlistItem;
   quote?: LiveQuote;
   onRemove: (id: string) => void;
+  onClick: () => void;
 }) {
   const change = quote?.change ?? null;
   const changePct = quote?.changePct ?? null;
   const positive = (change ?? 0) >= 0;
 
   return (
-    <div className="rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4 transition-all hover:-translate-y-0.5 hover:border-borderStrong">
+    <div 
+      className="rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4 transition-all hover:-translate-y-0.5 hover:border-borderStrong cursor-pointer"
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-accent-amber/10 text-accent-amber">
@@ -110,6 +116,7 @@ function InsightCard({
 
 export default function WatchlistPage() {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [addingStock, setAddingStock] = useState(false);
   const [stockInput, setStockInput] = useState('');
@@ -134,6 +141,14 @@ export default function WatchlistPage() {
   useEffect(() => {
     fetchWatchlist();
   }, []);
+
+  useEffect(() => {
+    if (watchlist.length > 0 && !selectedSymbol) {
+      setSelectedSymbol(watchlist[0].symbol);
+    } else if (watchlist.length === 0) {
+      setSelectedSymbol(null);
+    }
+  }, [watchlist, selectedSymbol]);
 
   const symbols = useMemo(() => watchlist.map((w) => w.symbol), [watchlist]);
   const liveQuotes = useLiveQuotes(symbols, 2000);
@@ -354,6 +369,16 @@ export default function WatchlistPage() {
         />
       </div>
 
+      {selectedSymbol && (
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-accent-blue" />
+            {selectedSymbol} Interactive Chart
+          </h2>
+          <ChartWidget symbol={selectedSymbol} height={500} />
+        </div>
+      )}
+
       {watchlist.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="rounded-full bg-elevated p-6 mb-4">
@@ -374,6 +399,7 @@ export default function WatchlistPage() {
               item={item}
               quote={liveQuotes[item.symbol]}
               onRemove={handleRemoveFromWatchlist}
+              onClick={() => setSelectedSymbol(item.symbol)}
             />
           ))}
         </div>

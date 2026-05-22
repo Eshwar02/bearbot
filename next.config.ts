@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import path from 'node:path';
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -7,6 +8,7 @@ const nextConfig: NextConfig = {
     },
   },
   turbopack: {
+    root: path.resolve(__dirname),
     resolveAlias: {
       '@std/testing/mock': './src/lib/shims/empty-module.ts',
       '@std/testing/bdd': './src/lib/shims/empty-module.ts',

@@ -21,6 +21,8 @@ import { LivePrice } from '@/components/ui/live-price';
 import { useLiveQuotes } from '@/lib/hooks/use-live-quotes';
 import type { PortfolioHolding } from '@/types/stock';
 import { AddHoldingModal } from '@/components/portfolio/add-holding-modal';
+import { ChartWidget } from '@/components/chat/chart-widget';
+import { PortfolioAllocationChart } from '@/components/portfolio/portfolio-allocation-chart';
 import type {
   AssetIntelligenceCard,
   PortfolioIntelligence,
@@ -61,15 +63,16 @@ function momentumBadge(momentum: 'strong' | 'moderate' | 'weak') {
   return 'amber' as const;
 }
 
-function PortfolioCard({ holding }: { holding: EnrichedHolding }) {
+function PortfolioCard({ holding, onClick }: { holding: EnrichedHolding; onClick?: () => void }) {
   const isPositive = holding.livePnl >= 0;
 
   return (
     <div
       className={cn(
         'rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4',
-        'transition-colors hover:border-borderStrong'
+        'transition-all hover:-translate-y-0.5 hover:border-borderStrong cursor-pointer'
       )}
+      onClick={onClick}
     >
       <div className="mb-3 flex items-start justify-between">
         <div>
@@ -309,6 +312,7 @@ function TechnicalAnalyticsPanel({ technicals }: { technicals: TechnicalSnapshot
 
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [intelligence, setIntelligence] = useState<PortfolioIntelligence | null>(null);
   const [loading, setLoading] = useState(true);
   const [intelLoading, setIntelLoading] = useState(true);
@@ -347,6 +351,14 @@ export default function PortfolioPage() {
     void fetchHoldings();
     void fetchIntelligence();
   }, []);
+
+  useEffect(() => {
+    if (holdings.length > 0 && !selectedSymbol) {
+      setSelectedSymbol(holdings[0].symbol);
+    } else if (holdings.length === 0) {
+      setSelectedSymbol(null);
+    }
+  }, [holdings, selectedSymbol]);
 
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const liveQuotes = useLiveQuotes(symbols, 2000);
@@ -428,6 +440,12 @@ export default function PortfolioPage() {
 
       {enriched.length > 0 && <PortfolioSummary holdings={enriched} />}
 
+      {enriched.length > 0 && (
+        <PortfolioAllocationChart 
+          data={enriched.map(h => ({ symbol: h.symbol, value: h.liveValue }))} 
+        />
+      )}
+
       {!intelLoading && intelligence && <AIIntelligencePanel intelligence={intelligence} />}
       {!intelLoading && intelligence && intelligence.technicals.length > 0 && (
         <TechnicalAnalyticsPanel technicals={intelligence.technicals} />
@@ -441,6 +459,16 @@ export default function PortfolioPage() {
           </div>
           <Skeleton className="mb-2 h-3 w-5/6" />
           <Skeleton className="h-3 w-3/4" />
+        </div>
+      )}
+
+      {selectedSymbol && (
+        <div className="mb-8 mt-4">
+          <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-accent-blue" />
+            {selectedSymbol} Interactive Chart
+          </h2>
+          <ChartWidget symbol={selectedSymbol} height={500} />
         </div>
       )}
 
@@ -461,7 +489,11 @@ export default function PortfolioPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {enriched.map((holding) => (
-            <PortfolioCard key={holding.id} holding={holding} />
+            <PortfolioCard 
+              key={holding.id} 
+              holding={holding} 
+              onClick={() => setSelectedSymbol(holding.symbol)} 
+            />
           ))}
         </div>
       )}

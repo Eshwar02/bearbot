@@ -52,6 +52,42 @@ function toTradingViewSymbol(yahooSymbol: string, exchange?: string): string {
     return `BINANCE:${yahooSymbol.replace('-USD', 'USDT')}`;
   }
 
+  // Forex pairs (e.g. EURUSD=X)
+  if (/^[A-Z]{6}=X$/.test(yahooSymbol)) {
+    return `FX:${yahooSymbol.replace('=X', '')}`;
+  }
+
+  // Major Indices
+  const indicesMap: Record<string, string> = {
+    '^GSPC': 'SP:SPX',
+    '^DJI': 'DJ:DJI',
+    '^IXIC': 'NASDAQ:IXIC',
+    '^RUT': 'RUSSELL:RUT',
+    '^VIX': 'CBOE:VIX',
+    '^FTSE': 'TVC:UKX',
+    '^N225': 'TVC:NI225',
+    '^NSEI': 'NSE:NIFTY',
+    '^BSESN': 'BSE:SENSEX',
+  };
+  if (indicesMap[yahooSymbol]) {
+    return indicesMap[yahooSymbol];
+  }
+
+  // Futures/Commodities
+  const futuresMap: Record<string, string> = {
+    'GC=F': 'COMEX:GC1!', // Gold
+    'SI=F': 'COMEX:SI1!', // Silver
+    'CL=F': 'NYMEX:CL1!', // Crude Oil
+    'NG=F': 'NYMEX:NG1!', // Natural Gas
+    'ZC=F': 'CBOT:ZC1!',  // Corn
+    'ZW=F': 'CBOT:ZW1!',  // Wheat
+    'SB=F': 'ICEUS:SB1!', // Sugar
+    'CT=F': 'ICEUS:CT1!', // Cotton
+  };
+  if (futuresMap[yahooSymbol]) {
+    return futuresMap[yahooSymbol];
+  }
+
   // ── Exchange-based routing for US tickers ──
   if (exchange) {
     const ex = exchange.toUpperCase();

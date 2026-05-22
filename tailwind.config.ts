@@ -9,7 +9,48 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          'ui-sans-serif',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          '"Noto Sans"',
+          'sans-serif',
+          '"Apple Color Emoji"',
+          '"Segoe UI Emoji"',
+          '"Segoe UI Symbol"',
+          '"Noto Color Emoji"',
+        ],
+        serif: ['var(--font-serif)', 'ui-serif', 'Georgia', 'serif'],
+        mono: ['var(--font-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+      },
+      letterSpacing: {
+        tightish: '-0.01em',
+        tighter2: '-0.02em',
+      },
       colors: {
+        canvas: 'var(--bg-canvas)',
+        sidebar: 'var(--bg-sidebar)',
+        input: 'var(--bg-input)',
+        elevated: 'var(--bg-elevated)',
+        'elevated-hover': 'var(--bg-elevated-hover)',
+        code: 'var(--bg-code)',
+        skeleton: 'var(--bg-skeleton)',
+        primary: 'var(--text-primary)',
+        secondary: 'var(--text-secondary)',
+        muted: 'var(--text-muted)',
+        inverse: 'var(--text-inverse)',
+        borderSubtle: 'var(--border-subtle)',
+        borderStrong: 'var(--border-strong)',
+        borderFocus: 'var(--border-focus)',
+        progressBg: 'var(--progress-bg)',
+        progressBorder: 'var(--progress-border)',
+        progressShadow: 'var(--progress-shadow)',
         dark: {
           50: '#f7f7f8',
           100: '#ececf1',
@@ -25,19 +66,21 @@ const config: Config = {
           950: '#171719',
         },
         accent: {
-          // Brand accent — cool teal/cyan, used for UI chrome (send button,
-          // active sidebar item, focus rings, brand mark). Softer on the eyes
-          // than the old emerald and more in line with the Claude aesthetic.
-          brand: '#2dd4bf',
-          'brand-hover': '#5eead4',
-          'brand-muted': 'rgba(45, 212, 191, 0.12)',
-          'brand-ring': 'rgba(45, 212, 191, 0.35)',
-          // Green is reserved for price-up / positive stock movement.
-          green: '#10b981',
-          red: '#ef4444',
-          blue: '#3b82f6',
-          amber: '#f59e0b',
+          brand: 'var(--accent-brand)',
+          'brand-hover': 'var(--accent-brand-hover)',
+          'brand-muted': 'var(--accent-brand-muted)',
+          'brand-ring': 'var(--accent-brand-ring)',
+          green: 'var(--accent-green)',
+          red: 'var(--accent-red)',
+          blue: 'var(--accent-blue)',
+          amber: 'var(--accent-amber)',
         },
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+        inset: 'var(--shadow-inset)',
       },
       animation: {
         'in': 'fadeIn 0.3s ease-out',
@@ -51,32 +94,17 @@ const config: Config = {
       typography: {
         DEFAULT: {
           css: {
-            '--tw-prose-body': 'theme(colors.slate.700)',
-            '--tw-prose-headings': 'theme(colors.slate.900)',
-            '--tw-prose-links': 'theme(colors.blue.600)',
-            '--tw-prose-bold': 'theme(colors.slate.900)',
-            '--tw-prose-code': 'theme(colors.blue.600)',
-            '--tw-prose-pre-bg': 'theme(colors.slate.100)',
-            '--tw-prose-pre-code': 'theme(colors.slate.900)',
-            '--tw-prose-quotes': 'theme(colors.slate.500)',
-            '--tw-prose-quote-borders': 'theme(colors.slate.300)',
-            '--tw-prose-th-borders': 'theme(colors.slate.300)',
-            '--tw-prose-td-borders': 'theme(colors.slate.200)',
-          },
-        },
-        invert: {
-          css: {
-            '--tw-prose-body': '#d1d5db',
-            '--tw-prose-headings': '#f3f4f6',
-            '--tw-prose-links': '#2dd4bf',
-            '--tw-prose-bold': '#f3f4f6',
-            '--tw-prose-code': '#5eead4',
-            '--tw-prose-pre-bg': '#171719',
-            '--tw-prose-pre-code': '#d1d5db',
-            '--tw-prose-quotes': '#9ca3af',
-            '--tw-prose-quote-borders': '#374151',
-            '--tw-prose-th-borders': '#374151',
-            '--tw-prose-td-borders': '#1f2937',
+            '--tw-prose-body': 'var(--text-primary)',
+            '--tw-prose-headings': 'var(--text-primary)',
+            '--tw-prose-links': 'var(--accent-green)',
+            '--tw-prose-bold': 'var(--text-primary)',
+            '--tw-prose-code': 'var(--accent-green)',
+            '--tw-prose-pre-bg': 'var(--bg-code)',
+            '--tw-prose-pre-code': 'var(--text-primary)',
+            '--tw-prose-quotes': 'var(--text-secondary)',
+            '--tw-prose-quote-borders': 'var(--border-strong)',
+            '--tw-prose-th-borders': 'var(--border-subtle)',
+            '--tw-prose-td-borders': 'var(--border-subtle)',
           },
         },
       },
@@ -86,4 +114,3 @@ const config: Config = {
 };
 
 export default config;
-

@@ -11,6 +11,8 @@ const PHASE_PROGRESS: Record<AIPhase, number> = {
 
 export function useAIProgress() {
   const {
+    beginPromptSession,
+    hydrateFromChatSources,
     addTask,
     startTask,
     completeTask,
@@ -32,6 +34,11 @@ export function useAIProgress() {
     startTask(taskId);
     return taskId;
   }, [addTask, cancelHideTimer, startTask]);
+
+  const beginPrompt = useCallback(() => {
+    beginPromptSession();
+    taskIdRef.current = null;
+  }, [beginPromptSession]);
 
   const updateProgress = useCallback((pct: number) => {
     setProgress(pct);
@@ -69,13 +76,26 @@ export function useAIProgress() {
     }
   }, [setPhase, setProgress, startStep]);
 
-  const trackSearchSource = useCallback((source: { domain: string; title: string; timestamp?: number }) => {
+  const trackSearchSource = useCallback((source: { domain: string; title: string; url: string; timestamp?: number }) => {
     addSearchSource({
       domain: source.domain,
       title: source.title,
+      url: source.url,
       timestamp: source.timestamp ?? Date.now(),
     });
   }, [addSearchSource]);
+
+  const hydrateSources = useCallback((sources: Array<{ domain: string; title: string; url: string; timestamp?: number }>) => {
+    hydrateFromChatSources(
+      sources.map((s) => ({
+        domain: s.domain,
+        title: s.title,
+        url: s.url,
+        timestamp: s.timestamp ?? Date.now(),
+      }))
+    );
+    taskIdRef.current = null;
+  }, [hydrateFromChatSources]);
 
   const completeCurrentTask = useCallback(() => {
     completeActiveTask();
@@ -98,12 +118,14 @@ export function useAIProgress() {
   }, [clearAll]);
 
   return {
+    beginPrompt,
     beginTask,
     updateProgress,
     endTask,
     startStep,
     updatePhase,
     trackSearchSource,
+    hydrateSources,
     completeCurrentTask,
     finishAll,
     reset,

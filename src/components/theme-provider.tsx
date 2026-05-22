@@ -12,27 +12,40 @@ interface ThemeContextValue {
 
 const ThemeContext = React.createContext<ThemeContextValue | null>(null);
 
-function readInitialTheme(): Theme {
-  if (typeof document === 'undefined') return 'dark';
-  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+function readStoredTheme(): Theme {
+  try {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch {
+    // ignore
+  }
+  if (typeof document !== 'undefined') {
+    return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  }
+  return 'dark';
 }
 
 function applyTheme(theme: Theme) {
   const html = document.documentElement;
-  html.classList.toggle('dark', theme === 'dark');
+  if (theme === 'dark') {
+    html.classList.add('dark');
+  } else {
+    html.classList.remove('dark');
+  }
   try {
     localStorage.setItem('theme', theme);
   } catch {
-    // ignore storage failures (e.g. private mode)
+    // ignore
   }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = React.useState<Theme>('dark');
 
-  // Sync state with whatever the pre-hydration script already applied.
   React.useEffect(() => {
-    setThemeState(readInitialTheme());
+    const initial = readStoredTheme();
+    applyTheme(initial);
+    setThemeState(initial);
   }, []);
 
   const setTheme = React.useCallback((next: Theme) => {
@@ -41,8 +54,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleTheme = React.useCallback(() => {
-    setTheme(readInitialTheme() === 'dark' ? 'light' : 'dark');
-  }, [setTheme]);
+    setThemeState((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      return next;
+    });
+  }, []);
 
   const value = React.useMemo(
     () => ({ theme, toggleTheme, setTheme }),
@@ -55,7 +72,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 export function useTheme(): ThemeContextValue {
   const ctx = React.useContext(ThemeContext);
   if (!ctx) {
-    // Safe fallback for components rendered outside the provider during SSR.
     return {
       theme: 'dark',
       toggleTheme: () => {},

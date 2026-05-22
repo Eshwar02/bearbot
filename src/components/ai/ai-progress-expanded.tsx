@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { AISearchSource, AITask } from '@/stores/ai-progress-store';
 
 interface ExpandedProps {
@@ -13,14 +14,11 @@ interface ExpandedProps {
 export function AIProgressExpanded({ tasks, activeTask, sources, lastSourceDomain }: ExpandedProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
 
-  // Update elapsed time for active task
   useEffect(() => {
     if (!activeTask) return;
-
     const interval = setInterval(() => {
       setElapsedTime((Date.now() - activeTask.startTime) / 1000);
     }, 120);
-
     return () => clearInterval(interval);
   }, [activeTask]);
 
@@ -36,69 +34,75 @@ export function AIProgressExpanded({ tasks, activeTask, sources, lastSourceDomai
   const hiddenSourcesCount = Math.max(0, sources.length - visibleSources.length);
 
   return (
-    <div className="space-y-2 px-4 py-3">
-      {tasks.length > 0 && (
-        <div className="space-y-1.5">
-          {tasks.map((task, idx) => (
-            <div
-              key={task.id}
-              className="group flex items-center justify-between gap-2 transition-opacity duration-200"
-              style={{ opacity: 0.78 - Math.min(idx * 0.05, 0.2) }}
-            >
-              <div className="min-w-0 flex items-center gap-2.5">
-                <span className="text-teal-400 text-xs font-semibold flex-shrink-0">✓</span>
-                <span className="truncate text-xs font-medium text-white/72 transition-colors duration-200 group-hover:text-white/86">
-                  {task.name}
-                </span>
-              </div>
-              <span className="flex-shrink-0 tabular-nums text-xs text-white/42">
-                {task.duration ? formatTime(task.duration) : '—'}
-              </span>
+    <div className="flex h-full flex-col px-3 py-2.5 font-mono">
+      {/* Tasks section — scrollable */}
+      <div className="min-h-0 flex-1 space-y-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
+        {tasks.map((task, idx) => (
+          <div
+            key={task.id}
+            className="flex items-center justify-between gap-2 transition-opacity duration-200"
+            style={{ opacity: 0.78 - Math.min(idx * 0.05, 0.2) }}
+          >
+            <div className="min-w-0 flex items-center gap-2">
+              <span className="text-teal-400 text-[11px] font-semibold flex-shrink-0">✓</span>
+              <span className="truncate text-[11px] font-medium text-white/72">{task.name}</span>
             </div>
-          ))}
-        </div>
-      )}
-
-      {tasks.length > 0 && activeTask && (
-        <div className="my-1 h-px bg-gradient-to-r from-white/5 via-white/12 to-transparent" />
-      )}
-
-      {activeTask && (
-        <div className="flex items-center justify-between gap-2 transition-opacity duration-300">
-          <div className="min-w-0 flex items-center gap-2.5">
-            <div className="relative flex-shrink-0">
-              <div className="h-1.5 w-1.5 rounded-full bg-teal-400" />
-              <div className="absolute inset-0 h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-            </div>
-            <span className="truncate text-xs font-medium text-white/86">{activeTask.name}</span>
+            <span className="flex-shrink-0 tabular-nums text-[10px] text-white/40">
+              {task.duration ? formatTime(task.duration) : '—'}
+            </span>
           </div>
-          <span className="flex-shrink-0 tabular-nums text-xs text-white/42">
-            {formatTime(elapsedTime)}
-          </span>
-        </div>
-      )}
+        ))}
 
+        {activeTask && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex items-center gap-2">
+              <div className="relative flex-shrink-0">
+                <div className="h-1.5 w-1.5 rounded-full bg-teal-400" />
+                <div className="absolute inset-0 h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
+              </div>
+              <span className="truncate text-[11px] font-medium text-white/86">{activeTask.name}</span>
+            </div>
+            <span className="flex-shrink-0 tabular-nums text-[10px] text-white/40">
+              {formatTime(elapsedTime)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Sources section — fixed bottom area */}
       {visibleSources.length > 0 && (
         <>
-          <div className="my-1 h-px bg-gradient-to-r from-white/5 via-white/10 to-transparent" />
-          <div className="space-y-1">
-            <div className="text-[11px] font-medium tracking-wide text-white/48">Sources searched</div>
-            <div className="space-y-0.5">
+          <div className="my-1.5 h-px bg-gradient-to-r from-white/5 via-white/12 to-transparent" />
+          <div className="flex-shrink-0">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-1.5">
+              Live Sources
+            </div>
+            <div className="space-y-1 max-h-24 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10">
               {visibleSources.map((source) => (
-                <div
+                <a
                   key={source.domain}
-                  className="animate-in fade-in text-xs duration-300 transition-opacity ease-out"
-                  style={{ opacity: source.domain === lastSourceDomain ? 0.9 : 0.6 }}
+                  href={source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors hover:bg-white/5"
+                  style={{ opacity: source.domain === lastSourceDomain ? 1 : 0.7 }}
                 >
-                  {source.domain}
-                </div>
+                  <span className="truncate text-[11px] font-medium text-teal-400/80 group-hover:text-teal-300">
+                    {source.domain}
+                  </span>
+                  <ExternalLink className="h-2.5 w-2.5 flex-shrink-0 text-white/20 group-hover:text-white/50" />
+                </a>
               ))}
               {hiddenSourcesCount > 0 && (
-                <div className="text-xs text-white/48">+{hiddenSourcesCount} more</div>
+                <div className="text-[11px] text-white/40 px-1.5">+{hiddenSourcesCount} more</div>
               )}
             </div>
           </div>
         </>
+      )}
+
+      {!activeTask && tasks.length === 0 && visibleSources.length === 0 && (
+        <div className="text-[11px] text-white/50">No search activity yet.</div>
       )}
     </div>
   );

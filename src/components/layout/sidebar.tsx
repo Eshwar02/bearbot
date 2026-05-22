@@ -18,8 +18,6 @@ import { cn } from '@/lib/utils';
 import { useAppStore, type AppView } from '@/stores/app-store';
 import type { Conversation } from '@/types/database';
 
-/* ── Date grouping helpers ───────────────────────────────────────── */
-
 function startOfDay(date: Date): number {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -54,16 +52,12 @@ function groupConversations(conversations: Conversation[]) {
   return groups.filter((g) => g.items.length > 0);
 }
 
-/* ── Nav links ───────────────────────────────────────────────────── */
-
 const navLinks = [
   { view: 'portfolio', label: 'Portfolio', icon: Briefcase },
   { view: 'brief', label: 'Daily Brief', icon: Sun },
   { view: 'watchlist', label: 'Watchlist', icon: Star },
   { view: 'settings', label: 'Settings', icon: Settings },
 ] as const;
-
-/* ── Sidebar overlay (mobile) ────────────────────────────────────── */
 
 function MobileBackdrop({ onClick }: { onClick: () => void }) {
   return (
@@ -77,8 +71,6 @@ function MobileBackdrop({ onClick }: { onClick: () => void }) {
     />
   );
 }
-
-/* ── Main Sidebar ────────────────────────────────────────────────── */
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -125,7 +117,7 @@ export function Sidebar() {
         if (!res.ok) return;
         deleteConversation(id);
       } catch {
-        // ignore delete failures in UI
+        // ignore
       }
     },
     [deleteConversation]
@@ -134,7 +126,6 @@ export function Sidebar() {
   const handleViewSelect = useCallback(
     (view: AppView) => {
       setActiveView(view);
-      // Route to appropriate page based on view
       const routes: Record<AppView, string> = {
         chat: '/',
         portfolio: '/portfolio',
@@ -150,33 +141,34 @@ export function Sidebar() {
   );
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-gray-50 text-sm dark:bg-dark-950">
-      {/* ── Brand row ────────────────────────── */}
+    <div className="flex h-full flex-col bg-sidebar text-sm">
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <div className="flex items-center gap-2 px-1">
           <Image src="/logo.svg" alt="AlphaSight" width={20} height={20} />
-          <span className="text-[13px] font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+          <span
+            className="font-serif text-[19px] font-medium leading-none tracking-tight text-primary"
+            style={{ fontVariationSettings: '"opsz" 36, "SOFT" 50' }}
+          >
             AlphaSight
           </span>
         </div>
         <button
           onClick={toggleSidebar}
-          className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-900 dark:hover:text-gray-200"
+          className="rounded-lg p-1.5 text-secondary transition-colors hover:bg-elevated hover:text-primary"
           aria-label="Close sidebar"
         >
           <ChevronLeft size={16} />
         </button>
       </div>
 
-      {/* ── New Chat button ──────────────────── */}
       <div className="px-3 pb-3">
         <button
           onClick={handleNewChat}
           className={cn(
             'flex w-full items-center gap-2 rounded-lg px-3 py-2',
-            'border border-gray-200 bg-white text-[13px] font-medium text-gray-900 dark:border-dark-800 dark:bg-dark-900/60 dark:text-gray-200',
+            'border border-borderSubtle bg-canvas text-[13px] font-medium text-primary',
             'transition-all duration-150',
-            'hover:border-accent-brand/40 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-900 dark:hover:text-gray-50',
+            'hover:border-accent-brand/40 hover:bg-elevated',
           )}
         >
           <Plus size={15} strokeWidth={2} />
@@ -184,16 +176,15 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* ── Chat history ─────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-300 dark:scrollbar-thumb-dark-800">
+      <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-borderStrong">
         {grouped.length === 0 && (
-          <p className="px-3 py-8 text-center text-xs text-dark-500">
+          <p className="px-3 py-8 text-center text-xs text-muted">
             No conversations yet
           </p>
         )}
         {grouped.map((group) => (
           <div key={group.label} className="mb-4">
-            <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-dark-500">
+            <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
               {group.label}
             </h3>
             {group.items.map((conv) => {
@@ -205,8 +196,8 @@ export function Sidebar() {
                     'group relative flex cursor-pointer items-center rounded-lg px-3 py-1.5',
                     'transition-colors duration-100',
                     isActive
-                      ? 'bg-gray-100 text-gray-900 dark:bg-dark-850 dark:text-gray-50'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-900 dark:hover:text-gray-200',
+                      ? 'bg-elevated text-primary'
+                      : 'text-secondary hover:bg-elevated hover:text-primary',
                   )}
                   onClick={() => handleSelectChat(conv.id)}
                 >
@@ -217,7 +208,7 @@ export function Sidebar() {
                     size={13}
                     className={cn(
                       'mr-2.5 shrink-0',
-                      isActive ? 'text-accent-brand' : 'text-gray-400 dark:text-dark-500',
+                      isActive ? 'text-accent-brand' : 'text-muted',
                     )}
                   />
                   <span className="flex-1 truncate text-[13px]">{conv.title}</span>
@@ -226,7 +217,7 @@ export function Sidebar() {
                       e.stopPropagation();
                       void handleDeleteConversation(conv.id);
                     }}
-                    className="ml-1 hidden shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-red-500 group-hover:block dark:text-dark-500 dark:hover:bg-dark-800 dark:hover:text-red-400"
+                    className="ml-1 hidden shrink-0 rounded p-1 text-muted transition-colors hover:bg-elevated-hover hover:text-red-500 group-hover:block"
                     aria-label="Delete conversation"
                   >
                     <Trash2 size={13} />
@@ -238,22 +229,25 @@ export function Sidebar() {
         ))}
       </div>
 
-      {/* ── Bottom nav ───────────────────────── */}
-      <div className="border-t border-dark-800/80 p-2">
+      <div className="border-t border-borderSubtle p-2">
         {navLinks.map((link) => {
           const isActive = activeView === link.view;
           return (
             <button
               key={link.view}
               onClick={() => handleViewSelect(link.view)}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px]',
+                'relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px]',
                 'transition-colors duration-100',
                 isActive
-                  ? 'bg-dark-850 text-gray-50'
-                  : 'text-gray-400 hover:bg-dark-900 hover:text-gray-200',
+                  ? 'bg-elevated font-medium text-primary'
+                  : 'text-secondary hover:bg-elevated hover:text-primary',
               )}
             >
+              {isActive && (
+                <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-accent-brand" />
+              )}
               <link.icon
                 size={15}
                 className={isActive ? 'text-accent-brand' : undefined}
@@ -268,14 +262,12 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile backdrop */}
       <AnimatePresence>
         {sidebarOpen && (
           <MobileBackdrop onClick={toggleSidebar} />
         )}
       </AnimatePresence>
 
-      {/* Sidebar - unified for desktop and mobile */}
       <AnimatePresence initial={false}>
         {sidebarOpen && (
           <motion.aside
@@ -284,7 +276,7 @@ export function Sidebar() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: -260, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
-            className="fixed left-0 top-0 z-40 h-full w-[260px] md:static md:z-auto"
+            className="fixed left-0 top-0 z-40 h-full w-[260px] md:static md:z-auto print:hidden"
           >
             {sidebarContent}
           </motion.aside>

@@ -5,10 +5,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(value: number, currency = 'INR'): string {
+export function formatCurrency(
+  value: number,
+  currency = 'INR',
+  options: { compact?: boolean } = {}
+): string {
+  // Compact: 1.23M, 4.5K — for chart axes and KPI tiles where full digits
+  // would overflow.
+  if (options.compact && Math.abs(value) >= 1000) {
+    const symbol = currency === 'USD' ? '$' : '₹';
+    return `${symbol}${formatNumber(value)}`;
+  }
+
   // For Indian users, use INR with rupee symbol
   if (currency === 'INR' || currency === 'USD') {
-    return `₹${value.toLocaleString('en-IN', {
+    const symbol = currency === 'USD' ? '$' : '₹';
+    return `${symbol}${value.toLocaleString('en-IN', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;

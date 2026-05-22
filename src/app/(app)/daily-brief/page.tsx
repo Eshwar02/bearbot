@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Settings,
+  Printer,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -28,6 +29,7 @@ import {
   SentimentGauge,
   SnapshotCards,
 } from '@/components/daily-brief/brief-insights';
+import { HoldingNews } from '@/components/daily-brief/holding-news';
 import { DailyBriefSettings } from '@/components/daily-brief/schedule-settings';
 import type { DailyBrief } from '@/types/stock';
 import type { ScheduledReport } from '@/types/database';
@@ -106,16 +108,15 @@ export function DailyBriefView() {
   });
 
   return (
-    <div className="bg-gray-50 dark:bg-dark-900">
+    <div className="bg-canvas">
       <div className="max-w-3xl mx-auto px-4 py-8">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-100 flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
               <Sun className="h-6 w-6 text-accent-amber" />
               Daily Portfolio Brief
             </h1>
-            <p className="text-sm text-dark-400 mt-1 flex items-center gap-1.5">
+            <p className="text-sm text-muted mt-1 flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
               {today}
             </p>
@@ -130,7 +131,6 @@ export function DailyBriefView() {
           </Button>
         </div>
 
-        {/* Settings Panel */}
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{
@@ -138,9 +138,9 @@ export function DailyBriefView() {
             height: showSettings ? 'auto' : 0
           }}
           transition={{ duration: 0.3 }}
-          className="overflow-hidden"
+          className="overflow-hidden print:hidden"
         >
-          <div className="rounded-xl border border-dark-700 bg-dark-800 p-6 mb-6">
+          <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6 mb-6">
             <DailyBriefSettings
               reports={scheduledReports}
               onReportsChange={setScheduledReports}
@@ -150,8 +150,7 @@ export function DailyBriefView() {
           </div>
         </motion.div>
 
-        {/* Toggle Settings Button */}
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center mb-6 print:hidden">
           <Button
             onClick={() => setShowSettings(!showSettings)}
             variant="secondary"
@@ -164,7 +163,6 @@ export function DailyBriefView() {
           </Button>
         </div>
 
-        {/* Loading state */}
         {loading && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -172,7 +170,7 @@ export function DailyBriefView() {
                 <SkeletonCard key={i} />
               ))}
             </div>
-            <div className="rounded-xl border border-dark-700 bg-dark-800 p-6 space-y-4">
+            <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6 space-y-4">
               <SkeletonLine className="w-1/3 h-6" />
               <SkeletonLine className="w-full" />
               <SkeletonLine className="w-full" />
@@ -184,7 +182,6 @@ export function DailyBriefView() {
           </div>
         )}
 
-        {/* Generating state */}
         {generating && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -192,29 +189,28 @@ export function DailyBriefView() {
             className="rounded-xl border border-accent-green/30 bg-accent-green/5 p-8 text-center mb-6"
           >
             <RefreshCw className="h-8 w-8 text-accent-green animate-spin mx-auto mb-3" />
-            <p className="text-gray-100 font-medium">
+            <p className="text-primary font-medium">
               Generating your daily brief...
             </p>
-            <p className="text-sm text-dark-400 mt-1">
+            <p className="text-sm text-muted mt-1">
               Analyzing portfolio, market data, and macro risks.
             </p>
           </motion.div>
         )}
 
-        {/* Empty state */}
         {!loading && !generating && briefs.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center justify-center py-20 text-center"
           >
-            <div className="rounded-full bg-dark-800 p-6 mb-4">
-              <Sun className="h-10 w-10 text-dark-500" />
+            <div className="rounded-full bg-elevated p-6 mb-4">
+              <Sun className="h-10 w-10 text-muted" />
             </div>
-            <h2 className="text-lg font-semibold text-gray-100 mb-1">
+            <h2 className="text-lg font-semibold text-primary mb-1">
               No briefs yet
             </h2>
-            <p className="text-sm text-dark-400 mb-6">
+            <p className="text-sm text-muted mb-6">
               Generate your first daily brief to get portfolio insights.
             </p>
             <Button onClick={handleGenerate} loading={generating}>
@@ -224,53 +220,63 @@ export function DailyBriefView() {
           </motion.div>
         )}
 
-        {/* Latest brief */}
         {!loading && latestBrief && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            {/* Executive Summary */}
             <ExecutiveSummary snapshot={latestBrief.portfolio_snapshot} />
-
-            {/* Market Overview */}
             <MarketOverview snapshot={latestBrief.portfolio_snapshot} />
-
-            {/* Snapshot cards */}
             <SnapshotCards snapshot={latestBrief.portfolio_snapshot} />
-
-            {/* Top gainers and losers */}
             <GainersLosers snapshot={latestBrief.portfolio_snapshot} />
-
-            {/* Risk Assessment */}
             <RiskAssessment content={latestBrief.content} />
-
-            {/* Sentiment gauge */}
             <SentimentGauge content={latestBrief.content} snapshot={latestBrief.portfolio_snapshot} />
-
-            {/* Action Items */}
             <ActionItems />
+            {latestBrief.portfolio_snapshot?.holdings && (
+              <HoldingNews holdings={latestBrief.portfolio_snapshot.holdings} />
+            )}
 
-            {/* Brief content */}
-            <div className="rounded-xl border border-dark-700 bg-dark-800 p-6">
+            <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-100 flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-primary flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-accent-green" />
                   Comprehensive Analysis
                 </h2>
-                <Button variant="secondary" size="sm">
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/brief/${latestBrief.id}/pdf`);
+                      if (!res.ok) throw new Error('Failed to generate PDF');
+                      const blob = await res.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `alphasight-brief-${latestBrief.id}.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      a.remove();
+                      toast.success('PDF downloaded');
+                    } catch {
+                      toast.error('Failed to generate PDF');
+                    }
+                  }}
+                  className="print:hidden"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
                   Export PDF
                 </Button>
               </div>
-              <div className="prose prose-sm prose-invert max-w-none">
+              <div className="prose prose-sm max-w-none">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {latestBrief.content}
                 </ReactMarkdown>
               </div>
-              <div className="mt-4 pt-4 border-t border-dark-700/50 flex items-center justify-between">
-                <p className="text-xs text-dark-500">
+              <div className="mt-4 pt-4 border-t border-borderSubtle flex items-center justify-between">
+                <p className="text-xs text-muted">
                   Generated{' '}
                   {new Date(latestBrief.created_at).toLocaleString('en-US', {
                     month: 'short',
@@ -283,10 +289,9 @@ export function DailyBriefView() {
               </div>
             </div>
 
-            {/* Previous briefs */}
             {previousBriefs.length > 0 && (
-              <div>
-                <h2 className="text-base font-semibold text-gray-100 mb-3">
+              <div className="print:hidden">
+                <h2 className="text-base font-semibold text-primary mb-3">
                   Previous Briefs
                 </h2>
                 <div className="space-y-2">

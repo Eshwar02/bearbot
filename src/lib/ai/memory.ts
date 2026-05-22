@@ -24,6 +24,10 @@ export interface SearchMemoriesOptions {
   threshold?: number;
 }
 
+export interface ListMemoriesOptions {
+  limit?: number;
+}
+
 export interface AddMemoriesInput {
   userMessage: string;
   assistantResponse: string;
@@ -50,12 +54,25 @@ interface ExtractOperation {
 // Mistral embed call — they won't match anything meaningful and they burn
 // quota + p50 latency on every "hi" / "ok" / "thanks".
 const TRIVIAL_PATTERN =
-  /^(hi|hey|hello|yo|sup|howdy|ok|okay|kk|k|thanks|thank\s*you|ty|bye|good\s+(morning|afternoon|evening|night))[!.?\s]*$/i;
+  /^(hi+|hey+|hello+|yo+|sup|howdy|ok+|okay+|kk|k|thanks|thank\s*you|ty|bye|good\s+(morning|afternoon|evening|night)|cool|nice|great|lol|haha|hmm+|alright|sure|yes|yeah|yep|no|nope|np|done|cancel|stop|pls|please|sorry)[!.?\s]*$/i;
 
 function isTrivialMessage(text: string): boolean {
   const t = text.trim();
   if (t.length < 8) return true;
   return TRIVIAL_PATTERN.test(t);
+}
+
+function hasExplicitMemoryIntent(text: string): boolean {
+  return /\b(remember|save|store|memorize|keep\s+in\s+memory|add\s+to\s+memory|note\s+that)\b/i.test(
+    text
+  );
+}
+
+function isPureAckOrGreeting(text: string): boolean {
+  const t = text.trim();
+  if (t.length < 6) return true;
+  if (TRIVIAL_PATTERN.test(t)) return true;
+  return false;
 }
 
 export async function searchMemories(
@@ -94,6 +111,45 @@ export async function searchMemories(
 }
 
 /**
+ * Return recent durable memories for explicit memory-management questions
+ * like "what do you remember about me?". Semantic search is not enough for
+ * those prompts because the query often has no topical overlap with saved facts.
+ */
+export async function listRecentMemories(
+  supabase: SupabaseClient,
+  userId: string,
+  opts: ListMemoriesOptions = {}
+): Promise<AiMemoryMatch[]> {
+  if (!userId) return [];
+  const limit = opts.limit ?? AGENT_CONFIG.memory.searchLimit;
+
+  try {
+    const { data, error } = await supabase
+      .from("ai_memories")
+      .select("id, memory, category, metadata, created_at, updated_at")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.warn("[memory] listRecentMemories failed:", error.message);
+      return [];
+    }
+
+    return (data ?? []).map((row) => ({
+      ...row,
+      similarity: 1,
+    })) as AiMemoryMatch[];
+  } catch (err) {
+    console.warn(
+      "[memory] listRecentMemories failed:",
+      err instanceof Error ? err.message : err
+    );
+    return [];
+  }
+}
+
+/**
  * Format retrieved memories into a human-readable block for the system prompt.
  * Returns "" when there are no rows. Truncated to the configured char budget
  * so we stay inside the existing 1200-char userMemory cap alongside structured
@@ -120,15 +176,21 @@ export function formatMemoriesForPrompt(rows: AiMemoryMatch[]): string {
 // Extraction / write
 // ────────────────────────────────────────────────────────────────────────
 
-const EXTRACT_SYSTEM_PROMPT = `You extract durable user facts from a single chat turn for a personal finance assistant.
+const EXTRACT_SYSTEM_PROMPT = `You extract useful memory from ONE user message for a personal finance assistant.
 
-Rules:
-- Only extract facts the user explicitly stated about THEMSELVES: preferences, holdings intent, risk tolerance, personal details, goals, constraints.
-- NEVER extract market data, stock prices, news, transient context, or things the assistant said unless the user confirmed them.
-- Compare each candidate fact to existing memories. If it contradicts an existing memory, UPDATE the existing memory by id. If it's already covered or redundant, SKIP.
-- If the turn contains nothing memory-worthy, return an empty operations array.
-- Memories should be short, third-person, self-contained sentences (e.g. "Prefers dividend stocks", "Lives in Bangalore", "Has low risk tolerance").
-- Use one-word categories: preference, risk_profile, holding_intent, personal, goal, constraint.
+STRICT RULES:
+- Only the user's own message is your source of truth. You are NOT given the assistant's reply.
+- If the user explicitly asks to remember/save/store something, save that requested content even if it is not about the user. Rephrase as a concise memory, e.g. "User asked to remember: ..."
+- Otherwise extract personal facts the user stated about themselves: identity, preferences, goals, constraints, location, work/study, important dates, learning needs, communication style, risk profile, holdings, watchlist, investment plans, and durable interests.
+- Personal near-term context may be saved when useful for future conversation ("Has an exam tomorrow", "Is preparing for an interview", "Is learning options trading"). Include relative timing exactly as stated if no date is given; do not invent dates.
+- DO NOT extract ordinary transient moods or one-off states unless explicitly asked to save them ("I'm bored", "I'm tired", "I'm eating" → SKIP unless the user says remember/save it).
+- DO NOT extract market/news facts, prices, or third-party facts unless the user explicitly asks to save/store/remember that information.
+- DO NOT extract questions unless the question contains an explicit memory instruction or a personal preference/goal ("Can you remember that I prefer short answers?" → ADD).
+- If unsure → SKIP. False memories are far worse than missing memories.
+- Compare each candidate to existing memories. If it contradicts an existing memory, UPDATE the existing memory by id. If it's already covered or redundant, SKIP.
+- Memories must be short, third-person, self-contained sentences (e.g. "Prefers dividend stocks", "Lives in Bangalore", "Has low risk tolerance", "Asked to remember: use concise answers").
+- Use one-word categories: preference, risk_profile, holding_intent, personal, goal, constraint, study, work, saved_note.
+- If the message has no useful memory content → return empty operations array.
 
 Output JSON only, no prose, no code fences. Schema:
 {"operations":[{"action":"ADD","memory":"...","category":"..."}, {"action":"UPDATE","id":"<existing-uuid>","memory":"...","category":"..."}, {"action":"SKIP"}]}`;
@@ -141,17 +203,16 @@ function buildExtractUserPrompt(
     ? existing.map((m) => `- [${m.id}] (${m.category ?? "n/a"}) ${m.memory}`).join("\n")
     : "(none)";
 
-  const assistantTrimmed =
-    input.assistantResponse.length > 500
-      ? input.assistantResponse.slice(0, 500) + "…"
-      : input.assistantResponse;
-
+  // Intentionally DO NOT pass the assistant response. The extractor was
+  // hallucinating durable user facts out of assistant-generated content
+  // (random company names, news fragments), poisoning future turns. The
+  // user's own message is the only authoritative source for what they said
+  // about themselves.
   return `Existing memories:
 ${existingBlock}
 
-New turn:
-User: ${input.userMessage}
-Assistant: ${assistantTrimmed}`;
+User message (the only source of facts you may extract from):
+${input.userMessage}`;
 }
 
 function readApiKey(): string {
@@ -313,6 +374,27 @@ function clampMemory(raw: string): string {
   return t.length > MEMORY_MAX_CHARS ? t.slice(0, MEMORY_MAX_CHARS) : t;
 }
 
+// Final sanity check before persisting. Rejects memories that look like
+// market/news content the extractor scraped from an assistant response or
+// from a search snippet rather than a real user self-statement.
+const BAD_MEMORY_PATTERNS: RegExp[] = [
+  /\b(reported|announced|launched|acquired|raised|priced at|trading at|surged|plunged|rallied|fell|jumped|dropped)\b/i,
+  /\b\$\d|\b(usd|inr|eur|gbp)\s+\d/i,                       // currency + number
+  /\b\d{4}-\d{2}-\d{2}\b/,                                   // ISO date
+  /\b(q[1-4]|fy\s*\d{2,4}|earnings|guidance|ipo|merger)\b/i, // financial reporting jargon
+  /https?:\/\//i,
+];
+
+function looksLikeRealUserFact(memText: string, allowSavedNote = false): boolean {
+  if (!memText) return false;
+  if (memText.length < 6) return false;
+  if (allowSavedNote) return true;
+  for (const re of BAD_MEMORY_PATTERNS) {
+    if (re.test(memText)) return false;
+  }
+  return true;
+}
+
 function clampCategory(raw: string | undefined): string | null {
   if (!raw) return null;
   const t = raw.trim().toLowerCase().replace(/\s+/g, "_");
@@ -332,7 +414,19 @@ export async function addMemories(
   try {
     const userMsg = input.userMessage.trim();
     if (!userMsg || !userId) return;
-    if (isTrivialMessage(userMsg)) return;
+    const explicitMemoryIntent = hasExplicitMemoryIntent(userMsg);
+    if (!explicitMemoryIntent && isPureAckOrGreeting(userMsg)) return;
+    // Questions are usually not memories, but allow explicit save requests
+    // and personal preference/goal disclosures phrased as a question.
+    if (
+      !explicitMemoryIntent &&
+      (/\?\s*$/.test(userMsg) ||
+        /^(what|why|how|when|where|who|which|is|are|does|do|can|could|should|would|will)\b/i.test(
+          userMsg
+        ))
+    ) {
+      return;
+    }
 
     // Find similar existing memories for dedupe context.
     const existing = await searchMemories(supabase, userId, userMsg, {
@@ -370,6 +464,10 @@ export async function addMemories(
       if (op.action === "ADD") {
         if (!op.memory) continue;
         const memText = clampMemory(op.memory);
+        if (!looksLikeRealUserFact(memText, explicitMemoryIntent)) {
+          console.log("[memory] ADD rejected (looks like scraped/market content):", memText.slice(0, 80));
+          continue;
+        }
         const cat = clampCategory(op.category);
         const key = memText.toLowerCase();
         if (seenAddText.has(key)) continue;
@@ -406,6 +504,10 @@ export async function addMemories(
         seenUpdateId.add(op.id);
 
         const memText = clampMemory(op.memory);
+        if (!looksLikeRealUserFact(memText, explicitMemoryIntent)) {
+          console.log("[memory] UPDATE rejected (looks like scraped/market content):", memText.slice(0, 80));
+          continue;
+        }
         const cat = clampCategory(op.category);
 
         try {

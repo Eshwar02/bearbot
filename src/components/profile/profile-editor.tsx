@@ -73,19 +73,16 @@ export default function ProfileEditor({
 
     setIsEditingName(false);
 
-    // Refresh page to show updated data
     window.location.reload();
     };
     const handleSaveEmail = async () => {
           const trimmedEmail = emailValue.trim();
 
-          // Empty email check
           if (!trimmedEmail) {
             toast.error("Email address cannot be empty.");
             return;
           }
 
-          // Validate email format
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
           if (!emailRegex.test(trimmedEmail)) {
@@ -93,7 +90,6 @@ export default function ProfileEditor({
             return;
           }
 
-          // Same email check (case-insensitive)
           if (trimmedEmail.toLowerCase() === email.toLowerCase()) {
             toast.info("This is already your current email address.");
             setIsEditingEmail(false);
@@ -127,21 +123,13 @@ export default function ProfileEditor({
             return;
           }
 
-          // Success
           toast.success(
             "Verification request submitted. Please check your inbox and spam folder."
           );
 
-          // Keep showing the new email locally until it is verified
           setEmailValue(trimmedEmail);
-
-          // Mark status as unverified
           setIsEmailVerified(false);
-
-          // Exit edit mode
           setIsEditingEmail(false);
-
-          // IMPORTANT: Do NOT call window.location.reload() here.
         };
       
         const handleResendVerification = async () => {
@@ -198,51 +186,43 @@ export default function ProfileEditor({
             );
           };
   return (
-    <div className="px-6 py-6 text-white">
+    <div className="px-6 py-6">
       <div className="mx-auto max-w-6xl">
-        {/* Page Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3">
-            <User className="h-7 w-7 text-emerald-400" />
-            <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
+            <User className="h-7 w-7 text-accent-green" />
+            <h1 className="text-3xl font-bold tracking-tight text-primary">Profile</h1>
           </div>
 
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-muted">
             Manage your AlphaSight account information
           </p>
         </div>
 
-        {/* Main Profile Card */}
-        <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-xl shadow-xl shadow-black/10">
-          {/* Hero Section */}
-          <div className="flex flex-col gap-4 border-b border-white/10 p-5 md:flex-row md:items-center">
-            {/* Avatar */}
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 text-2xl font-bold text-white shadow-lg shadow-cyan-500/10">
+        <div className="overflow-hidden rounded-3xl border border-borderSubtle bg-elevated shadow-lg">
+          <div className="flex flex-col gap-4 border-b border-borderSubtle p-5 md:flex-row md:items-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 text-2xl font-bold text-white shadow-lg">
               {initials}
             </div>
 
-            {/* Name and Email */}
             <div className="flex-1">
-              <h2 className="text-xl font-bold tracking-tight">
+              <h2 className="text-xl font-bold tracking-tight text-primary">
                 {fullName}
               </h2>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-muted">
                 {email}
               </p>
             </div>
 
-            {/* Plan Badge */}
-            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-accent-green/20 bg-accent-green/10 px-3 py-1.5 text-xs font-semibold text-accent-green">
               <Crown className="h-3.5 w-3.5" />
               AlphaSight Pro
             </div>
           </div>
 
-          {/* Information Grid */}
           <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-            {/* Full Name */}
             <InfoCard
-            icon={<User className="h-4 w-4 text-emerald-400" />}
+            icon={<User className="h-4 w-4 text-accent-green" />}
             label="Full Name"
             value={
                 isEditingName ? (
@@ -250,7 +230,7 @@ export default function ProfileEditor({
                     type="text"
                     value={nameValue}
                     onChange={(e) => setNameValue(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-base text-white outline-none focus:border-emerald-400"
+                    className="w-full rounded-lg border border-borderStrong bg-input px-3 py-2 text-base text-primary outline-none focus:border-accent-green"
                 />
                 ) : (
                 nameValue
@@ -262,7 +242,7 @@ export default function ProfileEditor({
                     <button
                     onClick={handleSaveName}
                     disabled={isSaving}
-                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-lg border border-accent-green/20 bg-accent-green/10 px-2 py-1 text-[11px] font-medium text-accent-green hover:bg-accent-green/20 disabled:opacity-50"
                     >
                     <Check className="h-3 w-3" />
                     {isSaving ? "Saving..." : "Save"}
@@ -273,7 +253,7 @@ export default function ProfileEditor({
                         setNameValue(fullName);
                         setIsEditingName(false);
                     }}
-                    className="inline-flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20"
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-500 hover:bg-red-500/20"
                     >
                     <X className="h-3 w-3" />
                     Cancel
@@ -282,7 +262,7 @@ export default function ProfileEditor({
                 ) : (
                 <button
                     onClick={() => setIsEditingName(true)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-medium text-slate-300 transition-colors hover:bg-white/10"
+                    className="inline-flex items-center gap-1 rounded-lg border border-borderSubtle bg-input px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-borderSubtle"
                 >
                     <Pencil className="h-3 w-3" />
                     Edit
@@ -291,9 +271,8 @@ export default function ProfileEditor({
             }
             />
 
-            {/* Email Address */}
             <InfoCard
-            icon={<Mail className="h-4 w-4 text-cyan-400" />}
+            icon={<Mail className="h-4 w-4 text-accent-cyan" />}
             label="Email Address"
             value={
                 isEditingEmail ? (
@@ -301,7 +280,7 @@ export default function ProfileEditor({
                     type="email"
                     value={emailValue}
                     onChange={(e) => setEmailValue(e.target.value)}
-                    className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-base text-white outline-none focus:border-cyan-400"
+                    className="w-full rounded-lg border border-borderStrong bg-input px-3 py-2 text-base text-primary outline-none focus:border-accent-cyan"
                 />
                 ) : (
                 emailValue
@@ -313,7 +292,7 @@ export default function ProfileEditor({
                     <button
                     onClick={handleSaveEmail}
                     disabled={isSaving}
-                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-lg border border-accent-green/20 bg-accent-green/10 px-2 py-1 text-[11px] font-medium text-accent-green hover:bg-accent-green/20 disabled:opacity-50"
                     >
                     <Check className="h-3 w-3" />
                     {isSaving ? "Saving..." : "Save"}
@@ -324,7 +303,7 @@ export default function ProfileEditor({
                         setEmailValue(email);
                         setIsEditingEmail(false);
                     }}
-                    className="inline-flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-300 hover:bg-red-500/20"
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-500 hover:bg-red-500/20"
                     >
                     <X className="h-3 w-3" />
                     Cancel
@@ -333,7 +312,7 @@ export default function ProfileEditor({
                 ) : (
                 <button
                     onClick={() => setIsEditingEmail(true)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-medium text-slate-300 transition-colors hover:bg-white/10"
+                    className="inline-flex items-center gap-1 rounded-lg border border-borderSubtle bg-input px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-borderSubtle"
                 >
                     <Pencil className="h-3 w-3" />
                     Edit
@@ -342,7 +321,6 @@ export default function ProfileEditor({
             }
             />
 
-            {/* User ID */}
             <InfoCard
               icon={<Fingerprint className="h-4 w-4 text-violet-400" />}
               label="User ID"
@@ -350,27 +328,25 @@ export default function ProfileEditor({
               mono
             />
 
-            {/* Member Since */}
             <InfoCard
               icon={<Calendar className="h-4 w-4 text-amber-400" />}
               label="Member Since"
               value={memberSince}
             />
 
-            {/* Email Status */}
             <InfoCard
-              icon={<ShieldCheck className="h-4 w-4 text-emerald-400" />}
+              icon={<ShieldCheck className="h-4 w-4 text-accent-green" />}
               label="Email Status"
               value={isEmailVerified ? "Verified" : "Pending Verification"}
               valueClassName={
-                isEmailVerified ? "text-emerald-400" : "text-amber-400"
+                isEmailVerified ? "text-accent-green" : "text-amber-400"
               }
               action={
                 !isEmailVerified ? (
                   <button
                     onClick={handleResendVerification}
                     disabled={isSaving}
-                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-300 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-500 transition-colors hover:bg-amber-500/20 disabled:opacity-50"
                   >
                     <BadgeCheck className="h-3 w-3" />
                     {isSaving ? "Sending..." : "Verify"}
@@ -379,23 +355,22 @@ export default function ProfileEditor({
               }
             />
 
-            {/* Current Plan */}
             <InfoCard
-              icon={<Crown className="h-4 w-4 text-yellow-400" />}
+              icon={<Crown className="h-4 w-4 text-yellow-500" />}
               label="Current Plan"
               value="AlphaSight Pro"
-              valueClassName="text-emerald-300"
+              valueClassName="text-accent-green"
             />
             <InfoCard
-              icon={<KeyRound className="h-4 w-4 text-red-400" />}
+              icon={<KeyRound className="h-4 w-4 text-red-500" />}
               label="Security"
               value="Change Password"
-              valueClassName="text-slate-300"
+              valueClassName="text-muted"
               action={
                 <button
                   onClick={handleChangePassword}
                   disabled={isSaving}
-                  className="inline-flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+                  className="inline-flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-500 transition-colors hover:bg-red-500/20 disabled:opacity-50"
                 >
                   <KeyRound className="h-3 w-3" />
                   {isSaving ? "Sending..." : "Change Password"}
@@ -425,12 +400,11 @@ function InfoCard({
   valueClassName?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl">
-      {/* Header */}
+    <div className="rounded-2xl border border-borderSubtle bg-elevated p-4">
       <div className="mb-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           {icon}
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">
             {label}
           </span>
         </div>
@@ -438,9 +412,8 @@ function InfoCard({
         {action}
       </div>
 
-      {/* Value */}
       <p
-        className={`font-semibold text-white ${valueClassName} ${
+        className={`font-semibold text-primary ${valueClassName} ${
           mono
             ? "break-all font-mono text-xs md:text-sm"
             : "text-base md:text-lg"

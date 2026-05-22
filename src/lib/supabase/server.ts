@@ -1,5 +1,6 @@
 import { createServerClient, type SetAllCookies } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { supabaseCookieOptions } from "./cookie-options";
 
 export async function createClient() {
   const cookieStore = await cookies();
@@ -10,6 +11,7 @@ export async function createClient() {
     url,
     key,
     {
+      cookieOptions: supabaseCookieOptions(),
       cookies: {
         getAll() {
           return cookieStore.getAll();

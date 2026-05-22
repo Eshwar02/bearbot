@@ -21,7 +21,6 @@ export function Header() {
   const [initial, setInitial] = useState('A');
   const menuRef = useRef<HTMLDivElement>(null);
 
-  /* Close dropdown on outside click */
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -34,7 +33,6 @@ export function Header() {
     }
   }, [menuOpen]);
 
-  /* Fetch user initial once */
   useEffect(() => {
     let isMounted = true;
     const supabase = createClient();
@@ -74,12 +72,11 @@ export function Header() {
   }, [router, setActiveView]);
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between overflow-visible border-b border-gray-200 bg-white/80 px-3 backdrop-blur dark:border-dark-800/80 dark:bg-dark-900/80">
-      {/* ── Left: sidebar toggle + back ──────── */}
+    <header className="flex h-12 shrink-0 items-center justify-between overflow-visible border-b border-borderSubtle bg-canvas/80 px-3 backdrop-blur print:hidden">
       <div className="flex items-center gap-1">
         <button
           onClick={toggleSidebar}
-          className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-850 dark:hover:text-gray-100"
+          className="rounded-lg p-1.5 text-secondary transition-colors hover:bg-elevated hover:text-primary"
           aria-label={sidebarOpen ? 'Close sidebar' : 'Open sidebar'}
           title="Toggle sidebar (Cmd/Ctrl+B)"
         >
@@ -88,7 +85,7 @@ export function Header() {
         {pathname !== '/' && (
           <button
             onClick={handleBack}
-            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-dark-850 dark:hover:text-gray-100"
+            className="rounded-lg p-1.5 text-secondary transition-colors hover:bg-elevated hover:text-primary"
             aria-label="Go back"
             title="Go back (Alt+←)"
           >
@@ -97,22 +94,25 @@ export function Header() {
         )}
       </div>
 
-      {/* ── Center: compact brand (clickable) ── */}
       <button
         onClick={() => {
           setActiveView('chat');
           router.push('/');
         }}
-        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-dark-850 dark:hover:text-gray-100"
+        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-primary transition-colors hover:bg-elevated"
         aria-label="Go to chat home"
       >
         <Image src="/logo.svg" alt="AlphaSight" width={14} height={14} />
-        <span>AlphaSight</span>
-        <span className="text-dark-500">/</span>
-        <span className="text-dark-400">Pro</span>
+        <span
+          className="font-serif text-[16px] font-medium tracking-tight"
+          style={{ fontVariationSettings: '"opsz" 24, "SOFT" 50' }}
+        >
+          AlphaSight
+        </span>
+        <span className="text-muted">/</span>
+        <span className="text-secondary">Pro</span>
       </button>
 
-      {/* ── Right: PWA install + theme toggle + user avatar + menu ────────── */}
       <div className="flex items-center gap-2">
         <PWAInstallButton />
         <ThemeSwitch />
@@ -122,7 +122,7 @@ export function Header() {
             className={cn(
               'flex h-8 w-8 items-center justify-center rounded-full',
               'bg-accent-brand text-sm font-semibold text-dark-950',
-              'ring-1 ring-accent-brand/50 ring-offset-2 ring-offset-dark-900',
+              'ring-1 ring-accent-brand/50 ring-offset-2 dark:ring-offset-dark-900',
               'transition-transform hover:scale-105',
             )}
             aria-label="Open user menu"
@@ -135,11 +135,11 @@ export function Header() {
 
           {menuOpen && (
             <div
-            className="fixed right-4 top-16 z-[99999] w-56 overflow-visible rounded-xl border border-dark-700 bg-dark-900 shadow-2xl"
-            role="menu"
+              className="fixed right-4 top-16 z-[99999] w-56 overflow-visible rounded-xl border border-borderSubtle bg-canvas shadow-lg"
+              role="menu"
             >
               <button
-                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-850"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-primary transition-colors hover:bg-elevated"
                 onClick={() => {
                   window.location.href = "/profile";
                 }}
@@ -149,9 +149,9 @@ export function Header() {
                 <User size={14} />
                 <span>Profile</span>
               </button>
-              <div className="my-1 border-t border-gray-200 dark:border-dark-800" />
+              <div className="my-1 border-t border-borderSubtle" />
               <button
-                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 transition-colors hover:bg-gray-100 dark:text-red-400 dark:hover:bg-dark-850"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 transition-colors hover:bg-elevated"
                 onClick={() => void handleSignOut()}
                 role="menuitem"
                 aria-label="Sign out from account"

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { classifyIntent, streamChat, validateAiSetup } from "@/lib/ai";
+import {
+  classifyMessage,
+  streamChat,
+  validateAiSetup,
+  type MessageClassification,
+} from "@/lib/ai";
 import {
   searchWeb,
   validateSerpApiSetup,
@@ -10,6 +15,7 @@ import {
 import { buildUserContext } from "@/lib/ai/user-context";
 import {
   searchMemories,
+  listRecentMemories,
   formatMemoriesForPrompt,
   addMemories,
 } from "@/lib/ai/memory";
@@ -31,6 +37,8 @@ import { fetchStockNews } from "@/lib/stock/news";
 import { analyzeTechnicals } from "@/lib/stock/technicals";
 import { assessMacroRisks, assessRawMaterialRisks } from "@/lib/stock/macro";
 import type { StockAnalysis } from "@/types/stock";
+import Groq from "groq-sdk";
+import * as XLSX from "xlsx";
 
 const EMPTY_RESPONSE_FALLBACK =
   "Unable to generate analysis right now. Showing available data below.";
@@ -46,12 +54,14 @@ type AIProgressFrame = {
   phase?: "planning" | "searching" | "analyzing" | "synthesizing" | "finalizing";
   domain?: string;
   title?: string;
+  url?: string;
   timestamp?: number;
 };
 
 const TICKER_PATTERN = /\$([A-Z]{1,10}(?:\.[A-Z]{1,2})?)\b/;
 const NOUN_PHRASE_PATTERN =
   /(?:analyze|analysis\s+of|price\s+of|quote\s+for|stock\s+of)\s+([a-zA-Z0-9.&\-\s]{2,40})/i;
+const IMAGE_ANALYSIS_TIMEOUT_MS = 12_000;
 
 // Regex-only stock detection. Returns a high-confidence match (dollar ticker,
 // bare all-caps ticker, or explicit "analyze X" noun phrase) or null.
@@ -72,12 +82,10 @@ function detectStockQuery(message: string): string | null {
   return null;
 }
 
-function isGreeting(message: string): boolean {
-  const t = message.trim().toLowerCase().replace(/[!.?]+$/g, "");
-  if (t.length <= 20 && /^(hi|hey|hello|yo|sup|howdy|good\s+(morning|afternoon|evening|night)|thanks|thank\s+you|ok|okay|bye)$/.test(t)) {
-    return true;
-  }
-  return false;
+function isMemoryQuery(message: string): boolean {
+  return /\b(remember|memory|memories|know about me|saved facts|what do you know about me|do you know me)\b/i.test(
+    message
+  );
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -202,6 +210,149 @@ function encodeProgressFrame(frame: AIProgressFrame): Uint8Array {
   );
 }
 
+type AttachmentSummary = {
+  name: string;
+  type: string;
+  size: number;
+  kind: "text" | "spreadsheet" | "image";
+  text: string;
+  truncated: boolean;
+};
+
+function parseFormBoolean(value: FormDataEntryValue | null): boolean {
+  return value === "true" || value === "1" || value === "on";
+}
+
+function isTextLikeFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  return (
+    type.startsWith("text/") ||
+    type.includes("json") ||
+    type.includes("xml") ||
+    type.includes("html") ||
+    type.includes("csv") ||
+    type.includes("yaml") ||
+    type.includes("markdown")
+  );
+}
+
+function isImageFile(file: File): boolean {
+  return file.type.toLowerCase().startsWith("image/");
+}
+
+function imageDataUrl(file: File, buffer: Buffer): string {
+  const mime = file.type || "image/png";
+  return `data:${mime};base64,${buffer.toString("base64")}`;
+}
+
+async function analyzeImageWithGroq(file: File): Promise<string> {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) throw new Error("GROQ_API_KEY environment variable is not set");
+
+  const groq = new Groq({ apiKey });
+  const model = process.env.GROQ_VISION_MODEL || "llama-3.2-11b-vision-preview";
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const dataUrl = imageDataUrl(file, buffer);
+  const response = await groq.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text:
+              "Describe this uploaded image for a chat assistant. If there is readable text, transcribe the important text. If it is a chart, screenshot, document, or photo, summarize the visible details concisely. Return plain text only.",
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: dataUrl,
+            },
+          },
+        ],
+      },
+    ],
+    temperature: 0.2,
+    max_tokens: 220,
+  });
+
+  const text = response.choices[0]?.message?.content;
+  return typeof text === "string" ? text.trim() : "";
+}
+
+async function analyzeImageAttachment(file: File): Promise<string> {
+  try {
+    const groqText = await withTimeout(
+      analyzeImageWithGroq(file),
+      IMAGE_ANALYSIS_TIMEOUT_MS,
+      "analyzeImageWithGroq"
+    );
+    if (groqText) return groqText;
+  } catch (error) {
+    console.warn("[chat-api] image analysis timed out or failed:", error);
+  }
+
+  return `[Image uploaded: ${file.name || "attachment"}]`;
+}
+
+async function extractAttachmentText(file: File): Promise<AttachmentSummary> {
+  const maxCharsPerFile = 4000;
+  const normalizedName = file.name || "attachment";
+  const normalizedType = file.type || "application/octet-stream";
+  let text = "";
+  let kind: AttachmentSummary["kind"] = "text";
+
+  if (isTextLikeFile(file)) {
+    text = await file.text();
+    kind = "text";
+  } else if (
+    normalizedName.toLowerCase().endsWith(".xlsx") ||
+    normalizedName.toLowerCase().endsWith(".xls") ||
+    normalizedType.includes("spreadsheet")
+  ) {
+    kind = "spreadsheet";
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    text = workbook.SheetNames.slice(0, 3)
+      .map((sheetName) => {
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        return `Sheet: ${sheetName}\n${csv}`;
+      })
+      .join("\n\n");
+  } else if (isImageFile(file)) {
+    kind = "image";
+    text = await analyzeImageAttachment(file);
+    if (!text) {
+      text = `[Image uploaded: ${normalizedName}]`;
+    }
+  } else {
+    throw new Error(`Unsupported attachment type: ${normalizedType || normalizedName}`);
+  }
+
+  const truncated = text.length > maxCharsPerFile;
+  return {
+    name: normalizedName,
+    type: normalizedType,
+    size: file.size,
+    kind,
+    text: truncated ? `${text.slice(0, maxCharsPerFile)}\n[truncated]` : text,
+    truncated,
+  };
+}
+
+function formatAttachmentContext(attachments: AttachmentSummary[]): string {
+  return attachments
+    .map((attachment, index) => {
+      const header = `[Attachment ${index + 1}: ${attachment.name} | ${attachment.type} | ${Math.max(
+        1,
+        Math.round(attachment.size / 1024)
+      )} KB${attachment.truncated ? " | truncated" : ""}${attachment.kind === "image" ? " | image" : ""}]`;
+      return `${header}\n${attachment.text}`.trim();
+    })
+    .join("\n\n");
+}
+
 function chatJsonResponse(
   text: string,
   status: number,
@@ -258,18 +409,46 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const body = (await request.json()) as {
-      message?: string;
-      conversationId?: string;
-      model?: "mistral";
-      forceWebSearch?: boolean;
-    };
-    const incomingMessage = body.message?.trim() ?? "";
-    const requestedConversationId = body.conversationId ?? null;
-    const requestedModel: "mistral" = body.model ?? "mistral";
-    const forceWebSearch = body.forceWebSearch === true;
+    const contentType = request.headers.get("content-type") || "";
+    let incomingMessage = "";
+    let requestedConversationId: string | null = null;
+    let requestedModel = "mistral" as const;
+    let forceWebSearch = false;
+    let attachmentSummaries: AttachmentSummary[] = [];
 
-    if (!incomingMessage) {
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      incomingMessage = String(formData.get("message") ?? "").trim();
+      requestedConversationId = String(formData.get("conversationId") ?? "").trim() || null;
+      requestedModel = (String(formData.get("model") ?? "mistral") as "mistral") || "mistral";
+      forceWebSearch = parseFormBoolean(formData.get("forceWebSearch"));
+      const uploadedFiles = formData
+        .getAll("attachments")
+        .filter((value): value is File => value instanceof File);
+      try {
+        attachmentSummaries = await Promise.all(uploadedFiles.map((file) => extractAttachmentText(file)));
+      } catch (error) {
+        return chatJsonResponse("One or more uploaded files are not supported.", 400, {
+          error: error instanceof Error ? error.message : "Unsupported attachment",
+        });
+      }
+    } else {
+      const body = (await request.json()) as {
+        message?: string;
+        conversationId?: string;
+        model?: "mistral";
+        forceWebSearch?: boolean;
+      };
+      incomingMessage = body.message?.trim() ?? "";
+      requestedConversationId = body.conversationId ?? null;
+      requestedModel = body.model ?? "mistral";
+      forceWebSearch = body.forceWebSearch === true;
+    }
+
+    const attachmentContext = formatAttachmentContext(attachmentSummaries);
+    const composedMessage = [incomingMessage, attachmentContext].filter(Boolean).join("\n\n").trim();
+
+    if (!composedMessage) {
       return chatJsonResponse("Please enter a message.", 400, {
         error: "Message is required",
       });
@@ -280,9 +459,15 @@ export async function POST(request: NextRequest) {
         error: "Message too long (max 4000 characters)",
       });
     }
+    if (attachmentSummaries.length > 0 && attachmentContext.length > 14000) {
+      return chatJsonResponse("Uploaded files are too large to process. Please shorten and retry.", 400, {
+        error: "Attachment context too large",
+      });
+    }
     console.debug("[chat-api] validated request", {
       userId: user.id,
       messageLength: incomingMessage.length,
+      attachments: attachmentSummaries.length,
       hasConversationId: Boolean(requestedConversationId),
     });
 
@@ -298,10 +483,9 @@ export async function POST(request: NextRequest) {
     let activeConversationId = requestedConversationId;
     if (!activeConversationId) {
       recordProgress("Creating a new conversation", 12);
+      const titleSeed = incomingMessage || attachmentSummaries[0]?.name || "New chat";
       const title =
-        incomingMessage.length > 60
-          ? `${incomingMessage.substring(0, 60)}...`
-          : incomingMessage;
+        titleSeed.length > 60 ? `${titleSeed.substring(0, 60)}...` : titleSeed;
       const { data: conversation, error } = await supabase
         .from("conversations")
         .insert({ user_id: user.id, title })
@@ -330,11 +514,13 @@ export async function POST(request: NextRequest) {
     }
 
     recordProgress("Loading conversation history and preferences", 18);
+    const wantsMemoryAnswer = isMemoryQuery(composedMessage);
+
     const [historyResponse, userMemoryBase, prefsResponse, semanticMemoryRows] =
       await Promise.all([
         supabase
           .from("messages")
-          .select("role, content")
+          .select("role, content, metadata")
           .eq("conversation_id", activeConversationId)
           .order("created_at", { ascending: false })
           .limit(12),
@@ -347,7 +533,9 @@ export async function POST(request: NextRequest) {
           .select("language_mode")
           .eq("user_id", user.id)
           .maybeSingle(),
-        searchMemories(supabase, user.id, incomingMessage),
+        wantsMemoryAnswer
+          ? listRecentMemories(supabase, user.id, { limit: 10 })
+          : searchMemories(supabase, user.id, composedMessage),
       ]);
 
     recordProgress("Saving your message", 22);
@@ -355,7 +543,21 @@ export async function POST(request: NextRequest) {
     const { error: userMessageError } = await supabase.from("messages").insert({
       conversation_id: activeConversationId,
       role: "user",
-      content: incomingMessage,
+      content: incomingMessage || composedMessage,
+      metadata:
+        attachmentSummaries.length > 0
+          ? {
+              attachments: attachmentSummaries.map((attachment) => ({
+                name: attachment.name,
+                type: attachment.type,
+                size: attachment.size,
+                kind: attachment.kind,
+                truncated: attachment.truncated,
+                text: attachment.kind === "image" ? attachment.text : undefined,
+              })),
+              attachmentContext,
+            }
+          : null,
     });
     if (userMessageError) {
       return chatJsonResponse(EMPTY_RESPONSE_FALLBACK, 500, {
@@ -364,8 +566,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Detect and save user memory (e.g., name)
-    const nameMatch = incomingMessage.match(/(?:my name is|I am|I'm|call me)\s+([a-zA-Z\s]+)/i);
+    // Detect and save explicit name memory. Avoid broad "I am ..." capture:
+    // "I am tired" is not a name and should not poison structured memory.
+    const nameMatch = incomingMessage.match(
+      /(?:my name is|call me)\s+([a-zA-Z][a-zA-Z\s]{0,40})(?:[.!?]|$)/i
+    );
     if (nameMatch) {
       recordProgress("Updating user memory", 24);
       const name = nameMatch[1].trim();
@@ -382,7 +587,7 @@ export async function POST(request: NextRequest) {
     let useTanglish = false;
     if (languageMode === "tanglish") useTanglish = true;
     else if (languageMode === "english") useTanglish = false;
-    else useTanglish = detectTanglish(incomingMessage);
+    else useTanglish = detectTanglish(composedMessage);
 
     const languageInstruction = useTanglish
       ? LANG_INSTRUCTION_TANGLISH
@@ -394,22 +599,29 @@ export async function POST(request: NextRequest) {
       chars: semanticMemoryBlock.length,
     });
 
-    let userMemory = [semanticMemoryBlock, userMemoryBase, languageInstruction]
-      .filter((s) => s && s.length > 0)
-      .join("\n\n");
+    // Defer building the full userMemory until after we know the intent.
+    // Small-talk turns must NOT receive portfolio / watchlist / deep research
+    // context — that's what causes the "answer hi with a portfolio dump" bug.
+    let userMemory = "";
 
     const historyRows = historyResponse.data;
     const conversationHistory: Array<{ role: "user" | "assistant"; content: string }> = (
       historyRows || []
     )
-      .filter((m): m is { role: "user" | "assistant"; content: string } =>
-        m.role === "user" || m.role === "assistant"
-      )
+      .filter((m) => m.role === "user" || m.role === "assistant")
       .reverse()
-      .map((m) => ({ role: m.role, content: m.content ?? "" }));
+      .map((m) => {
+        const metadata = m as { role: "user" | "assistant"; content: string; metadata?: unknown };
+        const attachmentMetadata = metadata.metadata as { attachmentContext?: string } | null | undefined;
+        const fileContext =
+          metadata.role === "user" && typeof attachmentMetadata?.attachmentContext === "string"
+            ? `\n\n${attachmentMetadata.attachmentContext}`
+            : "";
+        return { role: metadata.role, content: `${metadata.content ?? ""}${fileContext}` };
+      });
 
     let stockAnalysis: StockAnalysis | null = null;
-    let llmMessage = incomingMessage;
+    let llmMessage = composedMessage;
     let chatMode: "stock" | "general" = "general";
     let generalKind: "brief" | "normal" = "normal";
 
@@ -417,12 +629,42 @@ export async function POST(request: NextRequest) {
     // about its dividend?", rewrite into a standalone query naming the entity
     // from prior turns. Routing (detect/classify/web-search) uses the rewritten
     // form; the user's original text is still persisted as-is.
-    let routingMessage = incomingMessage;
-    if (needsRewrite(incomingMessage, conversationHistory.length > 0)) {
+    // SKIP rewriting when the user is just chitchatting — rewriting "i'm
+    // tired" into "the user is tired about TCS shares" was the bug behind
+    // the random-company hallucinations.
+    // LLM-based intent classifier — single source of truth for small-talk
+    // vs stock vs finance vs other, depth, and whether to web-search.
+    // Cheap (mistral-small, json mode, ~200 tokens) and runs in parallel
+    // with the rewrite step. Falls back to a safe default on timeout.
+    recordProgress("Understanding what you mean", 25);
+    let llmIntent: MessageClassification;
+    try {
+      llmIntent = await withTimeout(
+        classifyMessage(composedMessage, conversationHistory),
+        4000,
+        "classifyMessage"
+      );
+    } catch (err) {
+      console.warn(
+        "[chat-api] classifyMessage timed out; using safe fallback:",
+        err instanceof Error ? err.message : err
+      );
+      llmIntent = {
+        kind: "general_other",
+        needs_web_search: false,
+        company_or_topic: null,
+        depth: "short",
+      };
+    }
+    const earlySmallTalk = !wantsMemoryAnswer && llmIntent.kind === "small_talk";
+    console.debug("[chat-api] llm classifier", llmIntent);
+
+    let routingMessage = composedMessage;
+    if (!earlySmallTalk && needsRewrite(composedMessage, conversationHistory.length > 0)) {
       recordProgress("Resolving references from previous turns", 26);
       try {
         routingMessage = await withTimeout(
-          rewriteFollowupQuery(incomingMessage, conversationHistory),
+          rewriteFollowupQuery(composedMessage, conversationHistory),
           4500,
           "rewriteFollowupQuery"
         );
@@ -431,60 +673,38 @@ export async function POST(request: NextRequest) {
           "[chat-api] rewrite failed, using original:",
           err instanceof Error ? err.message : err
         );
-        routingMessage = incomingMessage;
+        routingMessage = composedMessage;
       }
-      if (routingMessage !== incomingMessage) {
+      if (routingMessage !== composedMessage) {
         // Give the LLM both: the explicit standalone query (for accuracy) and
         // the user's original phrasing (for natural reply tone).
-        llmMessage = `${incomingMessage}\n\n(Resolved standalone form for your reasoning, do not echo verbatim: "${routingMessage}")`;
+        llmMessage = `${composedMessage}\n\n(Resolved standalone form for your reasoning, do not echo verbatim: "${routingMessage}")`;
       }
     }
 
     recordProgress("Detecting whether this is a stock or general query", 28);
-    // Intent pipeline:
-    // 1. Regex (high-confidence stock signals) → stock mode candidate
-    // 2. Classifier LLM fallback → stock / greeting / general
-    let stockQuery: string | null = detectStockQuery(routingMessage);
-    console.debug("[chat-api] regex detection", { stockQuery: stockQuery ?? null });
-
-    // Skip classifier for short lowercase general questions — saves quota.
-    const looksLikeGeneral =
-      routingMessage.length < 60 &&
-      !/[A-Z]{2,}/.test(routingMessage) &&
-      !/\b(stock|share|ticker|price|quote|analyze|analysis|chart|buy|sell)\b/i.test(
-        routingMessage
-      );
-
-    if (!stockQuery) {
-      if (isGreeting(routingMessage)) {
-        generalKind = "normal";
-        console.debug("[chat-api] greeting shortcut");
-      } else if (looksLikeGeneral) {
-        console.debug("[chat-api] general shortcut (skip classifier)");
+    // Stock detection driven primarily by the LLM classifier:
+    // - small_talk → never a stock query
+    // - stock → trust the classifier's company_or_topic
+    // - other → fall back to regex tickers / explicit symbols only
+    let stockQuery: string | null = null;
+    if (!earlySmallTalk) {
+      if (llmIntent.kind === "stock") {
+        stockQuery = llmIntent.company_or_topic ?? detectStockQuery(routingMessage);
       } else {
-        try {
-          recordProgress("Classifying request intent", 31);
-          const intent = await withTimeout(
-            classifyIntent(routingMessage),
-            3000,
-            "classifyIntent"
-          );
-          console.debug("[chat-api] classifier result", intent ?? null);
-          if (intent) {
-            if (intent.intent === "stock_query" || intent.intent === "comparison") {
-              stockQuery =
-                intent.company_name ||
-                (intent.symbols && intent.symbols[0]) ||
-                routingMessage;
-            } else if (intent.intent === "greeting") {
-              generalKind = "brief";
-            }
-          }
-        } catch (error) {
-          console.warn("[chat-api] classifier failed", error instanceof Error ? error.message : error);
-        }
+        // Even when the classifier said "general", honor an explicit ticker
+        // like "$TCS" in the message — that's an unambiguous stock signal.
+        stockQuery = detectStockQuery(routingMessage);
       }
     }
+    if (earlySmallTalk) {
+      generalKind = "brief";
+    }
+    console.debug("[chat-api] stock detection", {
+      stockQuery: stockQuery ?? null,
+      classifierKind: llmIntent.kind,
+      smallTalk: earlySmallTalk,
+    });
 
     if (stockQuery) {
       recordProgress(`Resolving ticker for "${stockQuery}"`, 35);
@@ -497,7 +717,7 @@ export async function POST(request: NextRequest) {
         // Classifier or regex thought this was a stock, but we couldn't
         // resolve a ticker. Answer in general mode with a short note instead
         // of forcing the 8-section stock prompt.
-        llmMessage = `${incomingMessage}\n\n(Context note for the assistant: I tried to look up live market data for "${stockQuery}" but no matching ticker was found. Answer the user's question helpfully — use the web-search block below if present, never refuse with a "no training data" or "not in my dataset" excuse.)`;
+        llmMessage = `${composedMessage}\n\n(Context note for the assistant: I tried to look up live market data for "${stockQuery}" but no matching ticker was found. Answer the user's question helpfully — use the web-search block below if present, never refuse with a "no training data" or "not in my dataset" excuse.)`;
       }
       if (resolvedSymbol) {
         try {
@@ -586,33 +806,43 @@ export async function POST(request: NextRequest) {
           }
         } catch (stockError) {
           console.error("[chat-api] stock enrichment failed", stockError);
-          llmMessage = `${incomingMessage}\n\nNote: Live stock lookup for "${resolvedSymbol}" failed (${stockError instanceof Error ? stockError.message : String(stockError)}). Explain this briefly, then continue with a useful text-only analysis.`;
+          llmMessage = `${composedMessage}\n\nNote: Live stock lookup for "${resolvedSymbol}" failed (${stockError instanceof Error ? stockError.message : String(stockError)}). Explain this briefly, then continue with a useful text-only analysis.`;
         }
       }
     }
 
-    // Web search trigger: broadened auto-keywords + manual force flag + stock-mode news intent
-    const autoKeywords =
-      /\b(current|latest|news|update|recent|today|now|yesterday|this\s+week|this\s+month|this\s+year|earnings|results|launch|launched|announce|announced|release|released|merger|acquisition|ipo|funding|valuation|ceo|founder|what\s+is|who\s+is|where\s+is|when\s+did|when\s+is|why\s+did|why\s+is|how\s+to|how\s+much|how\s+many|explain|tell\s+me\s+about|describe|overview\s+of|compare|vs|versus|alternatives\s+to|review\s+of|opinion\s+on|status\s+of|details\s+on|info\s+on)\b/i;
-    const stockNewsIntent =
-      chatMode === "stock" && /\b(news|recent|today|latest|update|earnings|results|guidance)\b/i.test(routingMessage);
-    // If the regex/classifier guessed a stock but ticker resolution failed,
-    // the user is probably asking about a real-world entity we don't know.
-    // Force web search — that's exactly what the user told us to do instead
-    // of refusing with "data not in training set".
+    // Build the userMemory context block, gated by intent.
+    //   - small_talk: semantic memories + language only. No portfolio /
+    //     watchlist. This lets personal chat remember context without causing
+    //     the old "hi" -> portfolio dump bug.
+    //   - everything else: full context, as before.
+    if (earlySmallTalk && !wantsMemoryAnswer) {
+      userMemory = [semanticMemoryBlock, languageInstruction]
+        .filter((s) => s && s.length > 0)
+        .join("\n\n");
+    } else {
+      userMemory = [semanticMemoryBlock, userMemoryBase, languageInstruction]
+        .filter((s) => s && s.length > 0)
+        .join("\n\n");
+    }
+
+    if (wantsMemoryAnswer) {
+      userMemory = [
+        userMemory,
+        "Memory-answer instruction: The user is asking about saved memory. Answer directly from the memory/context blocks above. Do not say you lack memory. If there are no saved facts or holdings/watchlist above, say you do not see any saved memories yet.",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+    }
+
+    // Web search trigger driven by the LLM classifier instead of brittle
+    // keyword regex. The classifier already told us whether fresh / external
+    // info is needed; small_talk is hard-blocked from searching.
     const unresolvedEntityNeedsSearch = stockQuery !== null && !stockAnalysis;
-    // Proper-noun heuristic: capitalized multi-word token suggests a real
-    // entity we should look up rather than answer from priors.
-    const properNounLike =
-      /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3}\b/.test(routingMessage) &&
-      !isGreeting(routingMessage);
     const shouldSearch =
       validateSerpApiSetup().valid &&
-      (forceWebSearch ||
-        autoKeywords.test(routingMessage) ||
-        stockNewsIntent ||
-        unresolvedEntityNeedsSearch ||
-        (chatMode === "general" && properNounLike));
+      !earlySmallTalk &&
+      (forceWebSearch || llmIntent.needs_web_search || unresolvedEntityNeedsSearch);
 
     let webSearch: WebSearchResult | null = null;
     if (shouldSearch) {
@@ -628,6 +858,7 @@ export async function POST(request: NextRequest) {
             type: "search_source",
             domain,
             title: source.title,
+            url: source.url,
             timestamp: source.publishedAt ? Date.parse(source.publishedAt) || Date.now() : Date.now(),
           });
         }
@@ -665,6 +896,18 @@ export async function POST(request: NextRequest) {
 
     const conversationId = activeConversationId as string;
 
+    // Whether the user explicitly asked about a stock in THIS message. Used
+    // to gate the stock-chart UI: a coreference rewrite could otherwise
+    // attach a chart to a casual follow-up like "ok bro".
+    const userExplicitlyAskedAboutStock =
+      stockAnalysis !== null &&
+      !earlySmallTalk &&
+      (detectStockQuery(composedMessage) !== null ||
+        /\b(stock|share|ticker|price|quote|analyze|analysis|chart|buy|sell|portfolio|invest)\b/i.test(
+          composedMessage
+        ) ||
+        /\$[A-Z]{1,10}\b/.test(composedMessage));
+
     // Adaptive response shape: tell the LLM how deep to go and how to
     // structure the answer based on the user's intent. Without this, the
     // model under-delivers after web-search results land — it treats the
@@ -674,13 +917,15 @@ export async function POST(request: NextRequest) {
       stockAnalysis !== null &&
       stockAnalysis.history.length > 0;
     const responseShape = classifyResponseShape({
-      message: incomingMessage,
+      message: composedMessage,
       routingMessage,
       chatMode,
       isStockAnalysis: isFullStockAnalysis,
       hasWebSearch: Boolean(webSearch && webSearch.sources.length > 0),
       historyDepth: conversationHistory.length,
       generalKind,
+      llmKind: wantsMemoryAnswer ? "general_other" : llmIntent.kind,
+      llmDepth: wantsMemoryAnswer ? "short" : llmIntent.depth,
     });
     const shapeDirective = getResponseShapeDirective(responseShape);
     userMemory = userMemory
@@ -743,7 +988,12 @@ export async function POST(request: NextRequest) {
         visible: hasVisibleText(fullResponse),
       });
 
-      const metadata = buildStockMetadata(stockAnalysis);
+      // Only persist stock metadata if the user explicitly asked. Otherwise
+      // a turn that incidentally resolved a ticker (via coreference) would
+      // leave a stale chart on a casual reply.
+      const metadata = userExplicitlyAskedAboutStock
+        ? buildStockMetadata(stockAnalysis)
+        : ({} as Record<string, unknown>);
       metadata.provider = usedProvider;
       if (webSearch && webSearch.sources.length > 0) {
         metadata.sources = webSearch.sources;
@@ -767,7 +1017,7 @@ export async function POST(request: NextRequest) {
       // Failures are logged inside addMemories() — never throws.
       after(
         addMemories(supabase, user.id, {
-          userMessage: incomingMessage,
+          userMessage: composedMessage,
           assistantResponse: fullResponse,
           conversationId,
         })
@@ -869,12 +1119,12 @@ export async function POST(request: NextRequest) {
       "Content-Type": "text/plain; charset=utf-8",
       "Transfer-Encoding": "chunked",
       "X-Conversation-Id": conversationId,
-      "X-Has-Stock-Data": stockAnalysis ? "true" : "false",
+      "X-Has-Stock-Data": userExplicitlyAskedAboutStock ? "true" : "false",
       "X-Has-Web-Sources": hasWebSources ? "true" : "false",
       "Access-Control-Expose-Headers":
         "X-Conversation-Id, X-Has-Stock-Data, X-Stock-Symbol, X-Stock-Exchange, X-Has-Web-Sources",
     };
-    if (stockAnalysis) {
+    if (stockAnalysis && userExplicitlyAskedAboutStock) {
       responseHeaders["X-Stock-Symbol"] = stockAnalysis.quote.symbol;
       responseHeaders["X-Stock-Exchange"] = stockAnalysis.quote.exchange || "";
     }

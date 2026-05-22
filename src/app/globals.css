@@ -77,8 +77,11 @@ html.dark {
   --text-muted: #6e6e80;
   --text-inverse: #0d0d0d;
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.1);
+  /* Borders are intentionally near-invisible in dark mode; cards get their
+     definition from --shadow-* tokens below (ChatGPT-style soft elevation
+     instead of a stark white outline). */
+  --border-subtle: rgba(255, 255, 255, 0.03);
+  --border-strong: rgba(255, 255, 255, 0.05);
   --border-focus: rgba(45, 212, 191, 0.35);
 
   --accent-brand: #2dd4bf;
@@ -104,10 +107,10 @@ html.dark {
   --market-tooltip-text: #f4f4f5;
   --market-tooltip-muted: #a1a1aa;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 
   --scrollbar-thumb: #4a4a5a;
   --scrollbar-thumb-hover: #6e6e80;

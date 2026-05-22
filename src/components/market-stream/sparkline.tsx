@@ -34,7 +34,7 @@ export function Sparkline({ data, positive, width = 64, height = 22 }: Sparkline
 
   if (!path) return <div style={{ width, height }} />;
 
-  const stroke = positive ? "rgb(16 185 129)" : "rgb(239 68 68)";
+  const stroke = positive ? "var(--market-positive)" : "var(--market-negative)";
   const fillId = `spark-fill-${positive ? "up" : "dn"}`;
 
   return (

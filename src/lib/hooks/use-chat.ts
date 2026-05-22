@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useAppStore, type ChatMessage } from '@/stores/app-store';
 import { generateId } from '@/lib/utils';
 import { useAIProgress } from '@/lib/hooks/use-ai-progress';
@@ -12,9 +12,15 @@ const AI_PROGRESS_FRAME_PREFIX = '\u001eALPHASIGHT_PROGRESS:';
 const AI_PROGRESS_FRAME_SUFFIX = '\u001e';
 
 type AIProgressFrame = {
+  type?: 'progress' | 'search_source' | 'phase_update' | 'task_complete';
   label?: string;
   progress?: number;
   status?: 'active' | 'complete';
+  phase?: 'planning' | 'searching' | 'analyzing' | 'synthesizing' | 'finalizing';
+  domain?: string;
+  title?: string;
+  url?: string;
+  timestamp?: number;
 };
 
 function hasVisibleText(value: string): boolean {
@@ -22,6 +28,19 @@ function hasVisibleText(value: string): boolean {
     .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/[\u0000-\u001F\u007F]/g, '')
     .trim().length > 0;
+}
+
+async function typewriterTitle(
+  conversationId: string,
+  finalTitle: string,
+  apply: (id: string, title: string) => void,
+  charDelayMs = 38,
+) {
+  apply(conversationId, '');
+  for (let i = 1; i <= finalTitle.length; i++) {
+    apply(conversationId, finalTitle.slice(0, i));
+    await new Promise((r) => setTimeout(r, charDelayMs));
+  }
 }
 
 export function useChat() {
@@ -37,22 +56,146 @@ export function useChat() {
     setActiveConversation,
     setActiveView,
     addConversation,
+    updateConversationTitle,
     setMessages,
   } = useAppStore();
 
-  const { startStep, updateProgress, finishAll } = useAIProgress();
+  const { beginPrompt, startStep, updateProgress, finishAll, updatePhase, trackSearchSource, completeCurrentTask } =
+    useAIProgress();
   const abortRef = useRef<AbortController | null>(null);
+  const frameBatchRef = useRef<AIProgressFrame[]>([]);
+  const frameFlushTimerRef = useRef<number | null>(null);
+  const sourceQueueRef = useRef<Array<{ domain: string; title: string; url: string; timestamp?: number }>>([]);
+  const sourcePumpTimerRef = useRef<number | null>(null);
+  const pendingFinishRef = useRef(false);
+  const seenSourceDomainsRef = useRef<Set<string>>(new Set());
+
+  const stopSourcePump = useCallback(() => {
+    if (sourcePumpTimerRef.current !== null) {
+      window.clearInterval(sourcePumpTimerRef.current);
+      sourcePumpTimerRef.current = null;
+    }
+  }, []);
+
+  const pumpSourceQueue = useCallback(() => {
+    if (sourcePumpTimerRef.current !== null) return;
+    sourcePumpTimerRef.current = window.setInterval(() => {
+      const next = sourceQueueRef.current.shift();
+      if (next) {
+        trackSearchSource(next);
+      }
+      if (sourceQueueRef.current.length === 0) {
+        stopSourcePump();
+        if (pendingFinishRef.current) {
+          pendingFinishRef.current = false;
+          finishAll();
+        }
+      }
+    }, 450);
+  }, [finishAll, stopSourcePump, trackSearchSource]);
+
+  const flushProgressFrames = useCallback(() => {
+    if (frameFlushTimerRef.current !== null) {
+      window.clearTimeout(frameFlushTimerRef.current);
+      frameFlushTimerRef.current = null;
+    }
+    const batch = frameBatchRef.current.splice(0, frameBatchRef.current.length);
+    if (batch.length === 0) return;
+
+    const latestProgress = [...batch].reverse().find((f) => !f.type || f.type === 'progress');
+    const latestPhase = [...batch].reverse().find((f) => f.type === 'phase_update' && f.phase);
+    const hasTaskComplete = batch.some((f) => f.type === 'task_complete');
+
+    batch.forEach((frame) => {
+      if (frame.type === 'search_source' && frame.domain && frame.title) {
+        if (seenSourceDomainsRef.current.has(frame.domain)) return;
+        seenSourceDomainsRef.current.add(frame.domain);
+        sourceQueueRef.current.push({
+          domain: frame.domain,
+          title: frame.title,
+          url: frame.url || `https://${frame.domain}`,
+          timestamp: frame.timestamp,
+        });
+      }
+    });
+    if (sourceQueueRef.current.length > 0) {
+      pumpSourceQueue();
+    }
+
+    if (latestPhase?.phase) {
+      updatePhase(latestPhase.phase, latestPhase.label);
+    } else if (latestProgress?.label) {
+      startStep(latestProgress.label, latestProgress.progress);
+    } else if (typeof latestProgress?.progress === 'number') {
+      updateProgress(latestProgress.progress);
+    }
+
+    if (latestProgress?.status === 'complete') {
+      if (sourceQueueRef.current.length > 0) {
+        pendingFinishRef.current = true;
+      } else {
+        finishAll();
+      }
+      return;
+    }
+
+    if (hasTaskComplete) {
+      completeCurrentTask();
+    }
+  }, [completeCurrentTask, finishAll, pumpSourceQueue, startStep, updatePhase, updateProgress]);
+
+  const enqueueProgressFrame = useCallback((frame: AIProgressFrame) => {
+    frameBatchRef.current.push(frame);
+    if (frameFlushTimerRef.current !== null) return;
+    frameFlushTimerRef.current = window.setTimeout(() => {
+      flushProgressFrames();
+    }, 90);
+  }, [flushProgressFrames]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      stopSourcePump();
+      if (frameFlushTimerRef.current !== null) {
+        window.clearTimeout(frameFlushTimerRef.current);
+        frameFlushTimerRef.current = null;
+      }
+      frameBatchRef.current = [];
+      sourceQueueRef.current = [];
+      pendingFinishRef.current = false;
+      seenSourceDomainsRef.current = new Set();
+    };
+  }, [stopSourcePump]);
 
   const sendMessage = useCallback(
-    async (content: string, opts?: { forceWebSearch?: boolean }) => {
-      if (!content.trim() || isStreaming) return;
+    async (
+      content: string,
+      opts?: { forceWebSearch?: boolean; attachments?: File[] },
+    ): Promise<boolean> => {
+      if (isStreaming) return false;
+
+      const attachments = opts?.attachments ?? [];
+      const trimmedContent = content.trim();
+      const outgoingText = trimmedContent || (attachments.length > 0 ? 'Please analyze the attached file(s).' : '');
+      if (!outgoingText) return false;
 
       const userMsg: ChatMessage = {
         id: generateId(),
         conversation_id: activeConversationId || '',
         role: 'user',
-        content: content.trim(),
-        metadata: null,
+        content: trimmedContent || outgoingText,
+        metadata:
+          attachments.length > 0
+            ? {
+                attachments: attachments.map((file) => ({
+                  name: file.name,
+                  type: file.type || 'application/octet-stream',
+                  size: file.size,
+                  lastModified: file.lastModified,
+                  kind: file.type.startsWith('image/') ? 'image' : 'file',
+                })),
+              }
+            : null,
         created_at: new Date().toISOString(),
       };
 
@@ -69,7 +212,9 @@ export function useChat() {
       addMessage(userMsg);
       addMessage(assistantMsg);
       setIsStreaming(true);
-      startStep('Sending request to AlphaSight...', 3);
+      beginPrompt();
+      updatePhase('planning', 'Planning request');
+      startStep('Sending request to AlphaSight...', 6);
        
       console.debug('[useChat] sendMessage:start', {
         activeConversationId,
@@ -91,15 +236,37 @@ export function useChat() {
       }, 120000);
 
       try {
+        sourceQueueRef.current = [];
+        pendingFinishRef.current = false;
+        seenSourceDomainsRef.current = new Set();
+        stopSourcePump();
+
+        const hasAttachments = attachments.length > 0;
+        const requestBody = hasAttachments
+          ? (() => {
+              const formData = new FormData();
+              formData.append('message', outgoingText);
+              if (activeConversationId) {
+                formData.append('conversationId', activeConversationId);
+              }
+              formData.append('model', preferredModel);
+              formData.append('forceWebSearch', String(opts?.forceWebSearch === true));
+              attachments.forEach((file) => {
+                formData.append('attachments', file, file.name);
+              });
+              return formData;
+            })()
+          : JSON.stringify({
+              message: outgoingText,
+              conversationId: activeConversationId,
+              model: preferredModel,
+              forceWebSearch: opts?.forceWebSearch === true,
+            });
+
         const res = await fetch('/api/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: userMsg.content,
-            conversationId: activeConversationId,
-            model: preferredModel,
-            forceWebSearch: opts?.forceWebSearch === true,
-          }),
+          headers: hasAttachments ? undefined : { 'Content-Type': 'application/json' },
+          body: requestBody,
           signal: abortController.signal,
         });
 
@@ -132,7 +299,7 @@ export function useChat() {
           console.debug('[useChat] sendMessage:json-response-applied', {
             hasText: hasVisibleText(text),
           });
-          return;
+          return true;
         }
 
         if (!res.ok) {
@@ -155,7 +322,7 @@ export function useChat() {
             status: res.status,
             errorMsg,
           });
-          return;
+          return false;
         }
 
         // The server sends a short placeholder so the chart can render
@@ -183,7 +350,7 @@ export function useChat() {
           addConversation({
             id: newConvId,
             user_id: '',
-            title: content.trim().slice(0, 60),
+            title: outgoingText.slice(0, 60),
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
@@ -199,7 +366,7 @@ export function useChat() {
             content: EMPTY_RESPONSE_FALLBACK,
           });
           console.error('[useChat] sendMessage:no-reader');
-          return;
+          return false;
         }
 
         const decoder = new TextDecoder();
@@ -211,15 +378,7 @@ export function useChat() {
         let firstChunkLogged = false;
 
         const handleProgressFrame = (frame: AIProgressFrame) => {
-          if (frame.status === 'complete') {
-            finishAll();
-            return;
-          }
-          if (frame.label) {
-            startStep(frame.label, frame.progress);
-          } else if (typeof frame.progress === 'number') {
-            updateProgress(frame.progress);
-          }
+          enqueueProgressFrame(frame);
         };
 
         const consumeProgressFrames = (input: string, flush = false) => {
@@ -293,6 +452,7 @@ export function useChat() {
           }
         }
         const tailText = consumeProgressFrames('', true);
+        flushProgressFrames();
         if (tailText.length > 0) {
           fullAssistantText += tailText;
           if (hasVisibleText(tailText)) collectedAny = true;
@@ -321,17 +481,41 @@ export function useChat() {
           console.debug('[useChat] sendMessage:metadata-hydrate', {
             conversationId: effectiveConversationId,
           });
-          const hydrateRes = await fetch(
-            `/api/conversations/${effectiveConversationId}/messages?limit=200`
-          );
-          if (hydrateRes.ok) {
+          let hydrateRes: Response | null = null;
+          try {
+            hydrateRes = await fetch(
+              `/api/conversations/${effectiveConversationId}/messages?limit=200`
+            );
+          } catch (hydrateErr) {
+            console.warn('[useChat] hydrate fetch failed (non-fatal):', hydrateErr);
+          }
+          if (hydrateRes && hydrateRes.ok) {
             const hydrateData = await hydrateRes.json();
+            const latestUser = [...(hydrateData.messages || [])]
+              .reverse()
+              .find(
+                (m: { role?: string; metadata?: unknown; content?: string }) =>
+                  m.role === 'user' && typeof m.content === 'string'
+              );
             const latestAssistant = [...(hydrateData.messages || [])]
               .reverse()
               .find(
                 (m: { role?: string; metadata?: unknown; content?: string }) =>
                   m.role === 'assistant' && typeof m.content === 'string'
               );
+            if (latestUser?.metadata && typeof latestUser.metadata === 'object') {
+              const md = latestUser.metadata as {
+                attachments?: unknown;
+                attachmentContext?: string;
+              };
+              const attachments = Array.isArray(md.attachments) ? md.attachments : undefined;
+              updateMessage(userMsg.id, {
+                ...(attachments ? { metadata: { attachments } } : {}),
+              });
+              console.debug('[useChat] sendMessage:user-metadata-applied', {
+                hasAttachments: Boolean(attachments),
+              });
+            }
             if (latestAssistant?.metadata && typeof latestAssistant.metadata === 'object') {
               const md = latestAssistant.metadata as {
                 stockData?: unknown;
@@ -362,6 +546,38 @@ export function useChat() {
         if (shouldReplaceUrlAfterStream && effectiveConversationId) {
           window.history.replaceState(null, '', `/chat/${effectiveConversationId}`);
         }
+
+        // ChatGPT-style: on the FIRST exchange of a brand-new conversation,
+        // ask the AI for a short title and type it in char-by-char.
+        if (shouldReplaceUrlAfterStream && effectiveConversationId && hasVisibleText(fullAssistantText)) {
+          (async () => {
+            try {
+          const titleRes = await fetch(
+                `/api/conversations/${effectiveConversationId}/generate-title`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    userMessage: outgoingText,
+                    assistantMessage: fullAssistantText.slice(0, 1500),
+                  }),
+                },
+              );
+              if (!titleRes.ok) return;
+              const data = (await titleRes.json()) as { title?: string };
+              const newTitle = (data.title || '').trim();
+              if (!newTitle) return;
+              await typewriterTitle(
+                effectiveConversationId,
+                newTitle,
+                updateConversationTitle,
+              );
+            } catch (titleErr) {
+              console.warn('[useChat] title-gen failed (non-fatal):', titleErr);
+            }
+          })();
+        }
+        return true;
       } catch (err: unknown) {
         console.error('CHAT ERROR:', err);
         if (err instanceof DOMException && err.name === 'AbortError') {
@@ -381,10 +597,17 @@ export function useChat() {
             content: message,
           });
         }
+        return false;
       } finally {
         clearTimeout(timeoutId);
         setIsStreaming(false);
-        finishAll();
+        flushProgressFrames();
+        if (sourceQueueRef.current.length > 0) {
+          pendingFinishRef.current = true;
+          pumpSourceQueue();
+        } else if (!pendingFinishRef.current) {
+          finishAll();
+        }
         abortRef.current = null;
       }
     },
@@ -399,9 +622,15 @@ export function useChat() {
       setActiveConversation,
       setActiveView,
       addConversation,
+      updateConversationTitle,
+      beginPrompt,
       startStep,
-      updateProgress,
       finishAll,
+      updatePhase,
+      enqueueProgressFrame,
+      flushProgressFrames,
+      pumpSourceQueue,
+      stopSourcePump,
     ],
   );
 

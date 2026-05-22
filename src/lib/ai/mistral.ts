@@ -3,7 +3,7 @@ import { AGENT_CONFIG } from "./config";
 import type { StockAnalysis } from "@/types/stock";
 
 const STOCK_ANALYSIS_MODEL = "mistral-large-latest";
-const GENERAL_CHAT_MODEL = "mistral-small-latest";
+const GENERAL_CHAT_MODEL = process.env.MISTRAL_GENERAL_MODEL || "mistral-large-latest";
 const DAILY_BRIEF_MODEL = "mistral-large-latest";
 const MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
 

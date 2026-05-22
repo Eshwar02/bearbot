@@ -29,7 +29,7 @@ function AddHoldingModal({
   const [symbol, setSymbol] = useState('');
   const [quantity, setQuantity] = useState('');
   const [avgBuyPrice, setAvgBuyPrice] = useState('');
-  const [currency, setCurrency] = useState<'USD' | 'INR' | 'EUR' | 'GBP'>('USD');
+  const [currency, setCurrency] = useState<'USD' | 'INR' | 'EUR' | 'GBP'>('INR');
   const [currencyTouched, setCurrencyTouched] = useState(false);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -67,7 +67,6 @@ function AddHoldingModal({
     setShowSuggestions(false);
   }, [editingHolding, open]);
 
-  // Auto-detect currency from symbol suffix unless the user has overridden it.
   useEffect(() => {
     if (currencyTouched) return;
     const upper = symbol.toUpperCase();
@@ -80,7 +79,7 @@ function AddHoldingModal({
       upper.endsWith('.MI')
     )
       setCurrency('EUR');
-    else setCurrency('USD');
+    else setCurrency('INR');
   }, [symbol, currencyTouched]);
 
   const searchSymbols = useCallback(async (query: string) => {
@@ -195,13 +194,13 @@ function AddHoldingModal({
             autoComplete="off"
           />
           {!isEditing && (
-            <Search className="absolute right-3 top-[34px] h-4 w-4 text-dark-500 pointer-events-none" />
+            <Search className="absolute right-3 top-[34px] h-4 w-4 text-muted pointer-events-none" />
           )}
           <AnimatePresence>
             {showSuggestions && suggestions.length > 0 && (
               <motion.div
                 ref={suggestionsRef}
-                className="absolute z-10 mt-1 w-full rounded-lg border border-dark-700 bg-dark-850 shadow-xl overflow-hidden"
+                className="absolute z-10 mt-1 w-full rounded-lg border border-borderSubtle bg-elevated shadow-xl overflow-hidden"
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
@@ -212,12 +211,12 @@ function AddHoldingModal({
                     key={s.symbol}
                     type="button"
                     onClick={() => selectSuggestion(s)}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-dark-700 transition-colors flex items-center justify-between"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-borderSubtle transition-colors flex items-center justify-between"
                   >
-                    <span className="font-medium text-gray-100">
+                    <span className="font-medium text-primary">
                       {s.symbol}
                     </span>
-                    <span className="text-xs text-dark-400 truncate ml-2 max-w-[200px]">
+                    <span className="text-xs text-muted truncate ml-2 max-w-[200px]">
                       {s.name}
                     </span>
                   </button>
@@ -238,7 +237,7 @@ function AddHoldingModal({
         />
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-300">
+          <label className="text-sm font-medium text-secondary">
             Average Buy Price
           </label>
           <div className="flex gap-2">
@@ -249,7 +248,7 @@ function AddHoldingModal({
               onChange={(e) => setAvgBuyPrice(e.target.value)}
               min="0"
               step="any"
-              className="flex-1 rounded-lg border border-dark-700 bg-dark-850 px-3 py-2 text-sm text-gray-100 placeholder:text-dark-500 focus:outline-none focus:ring-2 focus:ring-accent-green/50 focus:border-accent-green transition-colors"
+              className="flex-1 rounded-lg border border-borderStrong bg-input px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent-green/50 focus:border-accent-green transition-colors"
             />
             <select
               aria-label="Currency"
@@ -258,7 +257,7 @@ function AddHoldingModal({
                 setCurrency(e.target.value as 'USD' | 'INR' | 'EUR' | 'GBP');
                 setCurrencyTouched(true);
               }}
-              className="w-24 rounded-lg border border-dark-700 bg-dark-850 px-2 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-accent-green/50 focus:border-accent-green transition-colors"
+              className="w-24 rounded-lg border border-borderStrong bg-input px-2 py-2 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent-green/50 focus:border-accent-green transition-colors"
             >
               <option value="USD">$ USD</option>
               <option value="INR">₹ INR</option>
@@ -269,11 +268,11 @@ function AddHoldingModal({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-gray-300">
+          <label className="text-sm font-medium text-secondary">
             Notes (optional)
           </label>
           <textarea
-            className="w-full rounded-lg border border-dark-700 bg-dark-850 px-3 py-2 text-sm text-gray-100 placeholder:text-dark-500 focus:outline-none focus:ring-2 focus:ring-accent-green/50 focus:border-accent-green resize-none transition-colors"
+            className="w-full rounded-lg border border-borderStrong bg-input px-3 py-2 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent-green/50 focus:border-accent-green resize-none transition-colors"
             rows={3}
             placeholder="Any notes about this position..."
             value={notes}

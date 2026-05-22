@@ -23,12 +23,10 @@ function LoadingSkeleton() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 w-full animate-pulse">
       {[1, 2, 3].map((i) => (
         <div key={i} className="flex gap-4">
-          {/* Simple Circular Avatar Skeleton */}
-          <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200 dark:bg-dark-800" />
-          <div className="flex-1 space-y-3 pt-1">
-            {/* Simple text bars */}
-            <div className="h-4 w-full max-w-[80%] rounded bg-gray-200 dark:bg-dark-800" />
-            <div className="h-4 w-3/4 max-w-[60%] rounded bg-gray-200 dark:bg-dark-800" />
+          <div className="h-6 w-6 shrink-0 rounded bg-skeleton" />
+          <div className="flex-1 space-y-2.5">
+            <div className="h-3 w-full rounded bg-skeleton/70" />
+            <div className="h-3 w-3/4 rounded bg-skeleton/50" />
           </div>
         </div>
       ))}
@@ -44,6 +42,7 @@ export function ChatPanel() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState('');
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const hasMessages = messages.length > 0;
 
@@ -72,13 +71,23 @@ export function ChatPanel() {
     }
   }, [streamingContent]);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const content = draft.trim();
-    if (!content || isStreaming) return;
-    sendMessage(content, { forceWebSearch: webSearchEnabled });
-    setDraft('');
-    setWebSearchEnabled(false);
-  }, [draft, isStreaming, sendMessage, webSearchEnabled]);
+    if (isStreaming || (!content && attachments.length === 0)) return;
+    const sent = await sendMessage(content, {
+      forceWebSearch: webSearchEnabled,
+      attachments,
+    });
+    if (sent) {
+      setDraft('');
+      setWebSearchEnabled(false);
+      setAttachments([]);
+    }
+  }, [attachments, draft, isStreaming, sendMessage, webSearchEnabled]);
+
+  const handleAttachmentRemove = useCallback((index: number) => {
+    setAttachments((current) => current.filter((_, i) => i !== index));
+  }, []);
 
   const handleStop = useCallback(() => {
     stopStreaming();
@@ -86,15 +95,14 @@ export function ChatPanel() {
   }, [stopStreaming]);
 
   return (
-    // Clean, flat background respecting light/dark mode
-    <div className="relative flex h-full min-h-0 flex-col bg-white dark:bg-dark-900 overflow-hidden">
-      
-      {/* Main Scrollable Area */}
+    <div className="flex h-full min-h-0 flex-col bg-canvas">
+
+
       <div
         ref={scrollRef}
         className={cn(
-          'min-h-0 flex-1 overflow-y-auto relative z-10 scroll-smooth',
-          'scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-200 dark:scrollbar-thumb-dark-700',
+          'min-h-0 flex-1 overflow-y-auto',
+          'scrollbar-thin scrollbar-track-transparent scrollbar-thumb-borderStrong',
         )}
       >
         {isLoadingConversation ? (
@@ -112,10 +120,9 @@ export function ChatPanel() {
         )}
       </div>
 
-      {/* Composer Area - Anchored flat gradient fade (ChatGPT style) */}
-      <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-white via-white to-transparent dark:from-dark-900 dark:via-dark-900 pt-12 pb-6 px-4 sm:px-6 z-20">
-        <div className="mx-auto max-w-3xl relative">
-          
+      {/* Composer */}
+      <div className="bg-canvas px-4 pb-5 pt-2 sm:px-6">
+        <div className="mx-auto max-w-3xl">
           <GradientAIChatInput
             value={draft}
             onChange={setDraft}
@@ -126,9 +133,11 @@ export function ChatPanel() {
             modelOptions={[]}
             webSearchEnabled={webSearchEnabled}
             onWebSearchToggle={setWebSearchEnabled}
+            attachments={attachments}
+            onAttachmentsChange={setAttachments}
+            onAttachmentRemove={handleAttachmentRemove}
           />
-
-          <p className="mt-3 text-center text-xs text-gray-500 dark:text-dark-400">
+          <p className="mt-2 text-center text-[11px] text-muted">
             AlphaSight can make mistakes. Verify critical financial decisions.
           </p>
         </div>

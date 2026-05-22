@@ -1,11 +1,11 @@
 import { AppShell } from '@/components/layout/app-shell';
-import { Toaster } from 'sonner';
+import { AppToaster } from '@/components/layout/app-toaster';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AppShell>{children}</AppShell>
-      <Toaster position="top-right" theme="dark" richColors closeButton />
+      <AppToaster />
     </>
   );
 }

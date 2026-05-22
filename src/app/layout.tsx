@@ -1,15 +1,23 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Geist_Mono, Fraunces } from 'next/font/google';
 import { Providers } from '@/components/providers';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { PWAInstallPrompt } from '@/components/ui/pwa-install-prompt';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
 
-const inter = Inter({
+const geistMono = Geist_Mono({
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-inter',
+  variable: '--font-mono',
+});
+
+const fraunces = Fraunces({
+  style: ['normal', 'italic'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-serif',
+  axes: ['SOFT', 'WONK'],
 });
 
 export const metadata: Metadata = {
@@ -104,7 +112,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${inter.variable} font-sans bg-white text-gray-900 dark:bg-dark-900 dark:text-gray-300 transition-colors duration-300`}
+        className={`${geistMono.variable} ${fraunces.variable} font-sans antialiased transition-colors duration-200`}
       >
         <ErrorBoundary>
           <Providers>{children}</Providers>

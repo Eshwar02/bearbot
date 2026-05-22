@@ -1,16 +1,39 @@
 import { updateSession } from "@/lib/supabase/middleware";
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { getRequestOrigin } from "@/lib/url/server-origin";
 
 type SetAllCookies = (
   cookies: Array<{ name: string; value: string; options?: CookieOptions }>
 ) => void;
 
-const PUBLIC_PATHS = ["/login", "/signup", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about"];
+
+// Marketing subdomains: when a request lands on info./about./… and asks for
+// the bare root, rewrite to the matching internal route before the auth
+// gate runs. Doing this in the proxy (not next.config.ts rewrites) avoids two
+// problems: (1) Turbopack's spottier rewrite support, and (2) the proxy
+// otherwise sees the un-rewritten "/" path and bounces unauthenticated users
+// to /login.
+const SUBDOMAIN_ROUTES: Record<string, string> = {
+  "info.alphasightai.online": "/info",
+  "about.alphasightai.online": "/about",
+};
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApiPath = pathname.startsWith("/api/");
+
+  // Host-based root rewrite for marketing subdomains. Only the literal "/" is
+  // remapped so that /login, /api/*, and asset paths on those subdomains keep
+  // working normally.
+  const host = request.headers.get("host") || "";
+  const subdomainTarget = SUBDOMAIN_ROUTES[host];
+  if (subdomainTarget && pathname === "/") {
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = subdomainTarget;
+    return NextResponse.rewrite(rewriteUrl);
+  }
 
   let response: NextResponse;
   try {
@@ -72,14 +95,15 @@ export async function middleware(request: NextRequest) {
 
   // Unauthenticated user trying to access protected route
   if (!user && !isPublicPath) {
-    const loginUrl = new URL("/login", request.url);
+    const origin = getRequestOrigin(request);
+    const loginUrl = new URL("/login", origin);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // Authenticated user visiting login or signup — send them home
   if (user && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/", getRequestOrigin(request)));
   }
 
   return response;

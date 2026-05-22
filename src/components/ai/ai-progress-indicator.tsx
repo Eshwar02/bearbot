@@ -1,87 +1,119 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAIProgressStore } from '@/stores/ai-progress-store';
 import { AIProgressLine } from './ai-progress-line';
 import { AIProgressCollapsed } from './ai-progress-collapsed';
 import { AIProgressExpanded } from './ai-progress-expanded';
 
+const FIXED_HEIGHT = 280;
+const COLLAPSED_HEIGHT = 44;
+const FIXED_WIDTH = 270;
+
 export function AIProgressIndicator() {
-  const { activeTask, completedTasks, isExpanded, setExpanded, scheduleAutoCollapse, cancelAutoCollapse } =
-    useAIProgressStore();
-  const [ellipsis, setEllipsis] = useState(0);
+  const {
+    activeTask,
+    completedTasks,
+    searchSources,
+    lastSourceDomain,
+    isExpanded,
+    setExpanded,
+    scheduleAutoCollapse,
+    cancelAutoCollapse,
+  } = useAIProgressStore();
   const [mounted, setMounted] = useState(false);
+  const [rotationIndex, setRotationIndex] = useState(0);
+  const [collapsedFade, setCollapsedFade] = useState(true);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const hasActivity = completedTasks.length > 0 || searchSources.length > 0 || Boolean(activeTask);
+
+  const collapsedMessages = useMemo(() => {
+    const items: string[] = [];
+    if (activeTask) {
+      items.push(activeTask.name.endsWith('...') ? activeTask.name : `${activeTask.name}...`);
+    }
+    if (searchSources.length > 0) {
+      for (const source of searchSources.slice(-4)) {
+        items.push(`Checking ${source.domain}...`);
+      }
+    } else if (lastSourceDomain) {
+      items.push(`Checking ${lastSourceDomain}...`);
+    }
+    if (items.length === 0 && completedTasks.length > 0) {
+      items.push('Finalizing response...');
+    }
+    if (items.length === 0) {
+      items.push('AI context ready for this chat...');
+    }
+    return [...new Set(items)];
+  }, [activeTask, completedTasks.length, lastSourceDomain, searchSources]);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    setRotationIndex(0);
+  }, [collapsedMessages]);
 
-  // Smooth ellipsis animation (1, 2, or 3 dots)
   useEffect(() => {
-    if (!activeTask) return;
-    const timer = setInterval(() => setEllipsis((e) => (e + 1) % 3), 600);
+    if (collapsedMessages.length < 2) return;
+    const timer = setInterval(() => {
+      setCollapsedFade(false);
+      setTimeout(() => {
+        setRotationIndex((idx) => (idx + 1) % collapsedMessages.length);
+        setCollapsedFade(true);
+      }, 180);
+    }, 2400);
     return () => clearInterval(timer);
-  }, [activeTask]);
+  }, [collapsedMessages]);
 
-  if (!activeTask || !mounted) return null;
+  if (!mounted) return null;
+  if (!hasActivity && !activeTask) return null;
 
-  const show = completedTasks.length > 0 && isExpanded;
-  const expandedHeight = Math.min(56 + completedTasks.length * 28, 280);
+  const showExpanded = isExpanded;
+  const collapsedText = collapsedMessages[rotationIndex % collapsedMessages.length];
 
   return (
     <div
-      className="fixed bottom-5 right-5 z-50 md:bottom-6 md:right-6"
-      onMouseEnter={() => {
-        cancelAutoCollapse();
-        setExpanded(true);
-      }}
-      onMouseLeave={() => {
-        setExpanded(false);
-        scheduleAutoCollapse();
-      }}
-      onClick={() => {
-        setExpanded(!isExpanded);
-      }}
+      className="fixed bottom-20 right-4 z-40 md:bottom-24 md:right-6 print:hidden"
+      onMouseEnter={() => { cancelAutoCollapse(); setExpanded(true); }}
+      onMouseLeave={() => { setExpanded(false); if (activeTask) scheduleAutoCollapse(); }}
+      onClick={() => setExpanded(!isExpanded)}
       role="region"
       aria-live="polite"
       aria-label="AI processing status"
     >
-      {/* Glassmorphic container */}
       <div
-        className="relative rounded-2xl overflow-hidden backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer"
+        className="relative cursor-pointer overflow-hidden rounded-xl backdrop-blur-xl transition-all duration-300 ease-out font-mono"
         style={{
-          background: 'rgba(18, 18, 18, 0.72)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-          height: show ? `${expandedHeight}px` : '48px',
-          minWidth: show ? '280px' : 'auto',
-          maxHeight: show ? '320px' : '48px',
+          background: 'var(--progress-bg)',
+          border: '1px solid var(--progress-border)',
+          boxShadow: 'var(--progress-shadow)',
+          height: showExpanded ? FIXED_HEIGHT : COLLAPSED_HEIGHT,
+          width: FIXED_WIDTH,
+          transform: showExpanded ? 'scale(1)' : 'scale(0.98)',
         }}
       >
-        {/* Progress line at top */}
         <AIProgressLine />
-
-        {/* Content with fade transition */}
-        <div className="relative overflow-hidden h-full">
-          {show ? (
+        <div className="relative h-full overflow-hidden">
+          {showExpanded ? (
             <div className="animate-in fade-in duration-200">
-              <AIProgressExpanded tasks={completedTasks} activeTask={activeTask} />
+              <AIProgressExpanded
+                tasks={completedTasks}
+                activeTask={activeTask}
+                sources={searchSources}
+                lastSourceDomain={lastSourceDomain}
+              />
             </div>
           ) : (
-            <div className="animate-in fade-in duration-200">
-              <AIProgressCollapsed taskName={activeTask.name} ellipsis={ellipsis} />
+            <div
+              className="animate-in fade-in duration-200 transition-opacity duration-200 ease-out"
+              style={{ opacity: collapsedFade ? 1 : 0.2 }}
+            >
+              <AIProgressCollapsed text={collapsedText} />
             </div>
           )}
         </div>
       </div>
-
-      {/* Subtle ambient glow (very subtle, no flashiness) */}
-      <div
-        className="absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500 pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle at top right, rgba(45, 212, 191, 0.1), transparent)',
-        }}
-      />
     </div>
   );
 }

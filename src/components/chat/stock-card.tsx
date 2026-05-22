@@ -19,12 +19,12 @@ export function StockCard({ stock }: StockCardProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="my-3 overflow-hidden rounded-xl border border-dark-700 bg-dark-900 transition-colors hover:border-dark-600"
+      className="my-3 overflow-hidden rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated transition-colors hover:border-borderStrong"
     >
       {/* Compact header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-dark-850"
+        className="flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-elevated-hover"
       >
         {/* Icon */}
         <div
@@ -43,19 +43,19 @@ export function StockCard({ stock }: StockCardProps) {
         {/* Symbol + name */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-100">
+            <span className="text-sm font-semibold text-primary">
               {stock.symbol}
             </span>
-            <span className="truncate text-xs text-dark-400">
+            <span className="truncate text-xs text-secondary">
               {stock.name}
             </span>
           </div>
-          <div className="mt-0.5 text-xs text-dark-500">{stock.exchange}</div>
+          <div className="mt-0.5 text-xs text-muted">{stock.exchange}</div>
         </div>
 
         {/* Price + change */}
         <div className="shrink-0 text-right">
-          <div className="text-sm font-semibold text-gray-100">
+          <div className="text-sm font-semibold text-primary">
             {formatCurrency(stock.price, stock.currency)}
           </div>
           <div
@@ -69,7 +69,7 @@ export function StockCard({ stock }: StockCardProps) {
         </div>
 
         {/* Expand toggle */}
-        <div className="shrink-0 text-dark-500">
+        <div className="shrink-0 text-muted">
           {expanded ? (
             <ChevronUp className="h-4 w-4" />
           ) : (
@@ -88,7 +88,7 @@ export function StockCard({ stock }: StockCardProps) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 border-t border-dark-700 px-4 py-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 border-t border-borderSubtle dark:border-borderStrong px-4 py-3 sm:grid-cols-4">
               <Detail label="Open" value={formatCurrency(stock.open, stock.currency)} />
               <Detail label="Previous Close" value={formatCurrency(stock.previousClose, stock.currency)} />
               <Detail label="Day High" value={formatCurrency(stock.dayHigh, stock.currency)} />
@@ -114,8 +114,8 @@ export function StockCard({ stock }: StockCardProps) {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] text-dark-500">{label}</div>
-      <div className="text-sm font-medium text-dark-200">{value}</div>
+      <div className="text-[11px] text-muted">{label}</div>
+      <div className="text-sm font-medium text-primary">{value}</div>
     </div>
   );
 }

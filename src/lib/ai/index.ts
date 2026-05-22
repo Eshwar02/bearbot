@@ -40,7 +40,7 @@ export function validateAiSetup(): {
   const groq = validateGroqSetup();
 
   const stockPrimary = mistral.valid ? "mistral" : groq.valid ? "groq" : "none";
-  const generalPrimary = groq.valid ? "groq" : mistral.valid ? "mistral" : "none";
+  const generalPrimary = mistral.valid ? "mistral" : groq.valid ? "groq" : "none";
   const fallback = groq.valid ? "groq" : mistral.valid ? "mistral" : "none";
 
   const valid = stockPrimary !== "none" && generalPrimary !== "none";
@@ -153,6 +153,9 @@ export async function generateDailyBrief(prompt: string): Promise<string> {
   return "Unable to generate brief right now.";
 }
 
+// Legacy regex classifier — kept as a synchronous, no-cost fallback when the
+// LLM classifier (classifyMessage) times out or the API key is missing. The
+// route should prefer classifyMessage; this is the safety net only.
 export async function classifyIntent(message: string): Promise<{
   intent: string;
   company_name: string | null;
@@ -196,4 +199,171 @@ export async function classifyIntent(message: string): Promise<{
     symbols: [],
     query_type: "general",
   };
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// LLM-based message classifier
+// ────────────────────────────────────────────────────────────────────────
+//
+// Replaces the brittle regex stack that decided: small_talk vs stock vs
+// general, whether to web-search, and how long the response should be.
+// One small, fast Mistral call returns a structured judgement that the
+// route can trust end-to-end.
+
+export interface MessageClassification {
+  kind: "small_talk" | "stock" | "general_finance" | "general_other";
+  needs_web_search: boolean;
+  company_or_topic: string | null;
+  depth: "tiny" | "short" | "medium" | "long";
+}
+
+const CLASSIFIER_MODEL = "mistral-small-latest";
+const CLASSIFIER_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
+
+const CLASSIFIER_SYSTEM_PROMPT = `You are an intent classifier for a personal finance chatbot. For each user message, return STRICT JSON with this shape:
+
+{
+  "kind": "small_talk" | "stock" | "general_finance" | "general_other",
+  "needs_web_search": boolean,
+  "company_or_topic": string | null,
+  "depth": "tiny" | "short" | "medium" | "long"
+}
+
+Definitions:
+- small_talk: casual chat, greetings, mood, daily life, exam, food, sleep, brief acks ("ok", "thanks", "lol", "im tired", "tmrw is my exam"). Never a finance question.
+- stock: explicit query about a specific stock, ticker, company's price/analysis/buy-sell.
+- general_finance: finance topic but not a specific stock (e.g. "what is RSI", "explain mutual funds", "is gold a good hedge").
+- general_other: non-finance information question.
+
+needs_web_search = true ONLY when the user wants fresh / external / news / time-sensitive info that the model cannot reliably answer from prior knowledge. NEVER true for small_talk or pure definitions.
+
+company_or_topic: the entity or topic the user is asking about, or null for small_talk.
+
+depth:
+- tiny  → 1–3 sentences (small talk, simple acks, single-fact answers)
+- short → ~80–180 words (definitions, quick explanations)
+- medium → ~300–500 words (overviews, balanced explanations)
+- long  → 500+ words with sections (deep analysis, full company breakdowns)
+
+Return JSON only. No prose. No code fences.`;
+
+function readMistralKey(): string {
+  const raw = process.env.MISTRAL_API_KEY?.trim() ?? "";
+  if (!raw) return "";
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    return raw.slice(1, -1).trim();
+  }
+  return raw;
+}
+
+function fallbackClassification(message: string): MessageClassification {
+  // Used when the LLM call fails. Conservative defaults: treat unknown short
+  // messages as small_talk so we never accidentally launch a 500-word
+  // response or a web search on someone saying "ok bro".
+  const t = message.trim();
+  const words = t.split(/\s+/).length;
+  if (words <= 5 && !/\?/.test(t)) {
+    return {
+      kind: "small_talk",
+      needs_web_search: false,
+      company_or_topic: null,
+      depth: "tiny",
+    };
+  }
+  return {
+    kind: "general_other",
+    needs_web_search: false,
+    company_or_topic: null,
+    depth: "short",
+  };
+}
+
+export async function classifyMessage(
+  message: string,
+  recentHistory: ChatHistory = []
+): Promise<MessageClassification> {
+  const trimmed = message.trim();
+  if (!trimmed) return fallbackClassification("");
+
+  const apiKey = readMistralKey();
+  if (!apiKey) return fallbackClassification(trimmed);
+
+  // Give the classifier the last 2 turns for coreference (e.g. "and what
+  // about its dividend?"). Keep it tiny — this is a fast/cheap call.
+  const historyTail = recentHistory.slice(-2).map((m) => ({
+    role: m.role,
+    content: m.content.slice(0, 240),
+  }));
+
+  const payload = {
+    model: CLASSIFIER_MODEL,
+    temperature: 0.0,
+    max_tokens: 200,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: CLASSIFIER_SYSTEM_PROMPT },
+      ...historyTail,
+      { role: "user", content: trimmed },
+    ],
+  };
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3500);
+  try {
+    const res = await fetch(CLASSIFIER_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.warn("[classifyMessage] HTTP", res.status);
+      return fallbackClassification(trimmed);
+    }
+    const data = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const raw = data.choices?.[0]?.message?.content ?? "";
+    const cleaned = raw
+      .trim()
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/```\s*$/i, "")
+      .trim();
+    const parsed = JSON.parse(cleaned) as Partial<MessageClassification>;
+
+    const kind: MessageClassification["kind"] =
+      parsed.kind === "small_talk" ||
+      parsed.kind === "stock" ||
+      parsed.kind === "general_finance" ||
+      parsed.kind === "general_other"
+        ? parsed.kind
+        : "general_other";
+    const depth: MessageClassification["depth"] =
+      parsed.depth === "tiny" ||
+      parsed.depth === "short" ||
+      parsed.depth === "medium" ||
+      parsed.depth === "long"
+        ? parsed.depth
+        : "short";
+    const needs_web_search =
+      kind === "small_talk" ? false : Boolean(parsed.needs_web_search);
+    const company_or_topic =
+      typeof parsed.company_or_topic === "string" && parsed.company_or_topic.trim().length > 0
+        ? parsed.company_or_topic.trim()
+        : null;
+
+    return { kind, needs_web_search, company_or_topic, depth };
+  } catch (err) {
+    console.warn(
+      "[classifyMessage] failed, using fallback:",
+      err instanceof Error ? err.message : err
+    );
+    return fallbackClassification(trimmed);
+  } finally {
+    clearTimeout(timer);
+  }
 }

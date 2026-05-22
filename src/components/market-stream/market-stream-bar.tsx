@@ -42,21 +42,50 @@ export function MarketStreamBar() {
     <div
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className="group relative w-full overflow-hidden border-y border-white/[0.06] bg-gradient-to-b from-zinc-950 via-zinc-950/95 to-zinc-950 backdrop-blur-xl"
-      style={{ height: 38 }}
+      className="group relative -z-10 w-full overflow-hidden border-y backdrop-blur-xl print:hidden"
+      style={{
+        height: 38,
+        background:
+          'linear-gradient(to bottom, var(--market-bar-bg), var(--market-bar-bg-soft))',
+        borderColor: 'var(--market-bar-border)',
+      }}
     >
       {/* Edge fade masks */}
-      <div className="pointer-events-none absolute left-0 top-0 z-20 h-full w-16 bg-gradient-to-r from-zinc-950 to-transparent" />
-      <div className="pointer-events-none absolute right-0 top-0 z-20 h-full w-16 bg-gradient-to-l from-zinc-950 to-transparent" />
+      <div
+        className="pointer-events-none absolute left-0 top-0 z-0 h-full w-16"
+        style={{
+          background:
+            'linear-gradient(to right, var(--market-bar-bg-soft), transparent)',
+        }}
+      />
+      <div
+        className="pointer-events-none absolute right-0 top-0 z-0 h-full w-16"
+        style={{
+          background:
+            'linear-gradient(to left, var(--market-bar-bg-soft), transparent)',
+        }}
+      />
 
       {/* Brand badge — left fixed */}
-      <div className="absolute left-0 top-0 z-30 flex h-full items-center gap-1.5 border-r border-white/[0.06] bg-zinc-950/80 pl-3 pr-3 backdrop-blur-xl">
+      <div
+        className="absolute left-0 top-0 z-10 flex h-full items-center gap-1.5 border-r pl-3 pr-3 backdrop-blur-xl"
+        style={{
+          borderColor: 'var(--market-bar-border)',
+          background: 'var(--market-bar-bg)',
+        }}
+      >
         <span className="relative flex h-1.5 w-1.5">
-          <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/70" />
-          <span className="absolute inset-0 rounded-full bg-emerald-400" />
+          <span
+            className="absolute inset-0 animate-ping rounded-full"
+            style={{ backgroundColor: 'var(--market-bar-accent)', opacity: 0.55 }}
+          />
+          <span className="absolute inset-0 rounded-full" style={{ backgroundColor: 'var(--market-bar-accent)' }} />
         </span>
-        <Activity className="h-3 w-3 text-emerald-300" />
-        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-300">
+        <Activity className="h-3 w-3" style={{ color: 'var(--market-bar-accent)' }} />
+        <span
+          className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+          style={{ color: 'var(--market-bar-text)' }}
+        >
           Live · AI Stream
         </span>
       </div>
@@ -64,13 +93,13 @@ export function MarketStreamBar() {
       {/* Stream */}
       <div className="absolute inset-y-0 left-0 right-0 pl-[150px]">
         {!hasData && !error && (
-          <div className="flex h-full items-center gap-2 pl-2 text-[11px] text-zinc-500">
+          <div className="flex h-full items-center gap-2 pl-2 text-[11px]" style={{ color: 'var(--market-bar-muted)' }}>
             <Loader2 className="h-3 w-3 animate-spin" />
             Connecting to markets…
           </div>
         )}
         {error && !hasData && (
-          <div className="flex h-full items-center pl-2 text-[11px] text-rose-400/70">
+          <div className="flex h-full items-center pl-2 text-[11px]" style={{ color: 'var(--market-negative)' }}>
             Market feed unavailable. Retrying…
           </div>
         )}

@@ -49,7 +49,13 @@
       "Bash(git tag *)",
       "Bash(vercel --version)",
       "Bash(gh api *)",
-      "WebFetch(domain:vercel.link)"
+      "WebFetch(domain:vercel.link)",
+      "Bash(git commit *)",
+      "Bash(git stash *)",
+      "Bash(dig @8.8.8.8 info.alphasightai.online +short)",
+      "Bash(dig @1.1.1.1 info.alphasightai.online +short)",
+      "Bash(dig @8.8.8.8 chat.alphasightai.online +short)",
+      "Bash(dig @8.8.8.8 www.alphasightai.online +short)"
     ]
   },
   "enableAllProjectMcpServers": true,

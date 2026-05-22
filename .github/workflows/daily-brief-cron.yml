@@ -1,0 +1,27 @@
+name: Daily Brief Cron
+
+# Runs every 15 min so users' scheduled briefs fire within ~15 min of their
+# chosen local time. Vercel Hobby caps vercel.json cron at daily, so we drive
+# this from GitHub Actions instead (free, no plan limit). The route checks
+# CRON_SECRET on the Authorization header before doing anything.
+#
+# Note: GitHub-hosted cron can lag 5-15 min under load — that's expected and
+# fine because the route's SCHEDULE_LOOKBACK_MINUTES window absorbs the drift.
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger-daily-brief:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Daily Brief API
+        run: |
+          status=$(curl -s -o /tmp/body -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            https://chat.alphasightai.online/api/daily-brief)
+          echo "HTTP $status"
+          cat /tmp/body || true
+          # Fail the job on non-2xx so failed runs show up in the Actions tab.
+          [ "$status" -ge 200 ] && [ "$status" -lt 300 ]

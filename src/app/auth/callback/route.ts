@@ -1,11 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { supabaseCookieOptions } from "@/lib/supabase/cookie-options";
+import { getRequestOrigin } from "@/lib/url/server-origin";
+
+type SetAllCookies = (
+  cookies: Array<{ name: string; value: string; options?: CookieOptions }>
+) => void;
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const origin = getRequestOrigin(request);
   const code = searchParams.get("code");
   const rawRedirect = searchParams.get("redirect") || "/";
-  // Whitelist: must start with / and not be external URL
   const redirect =
     typeof rawRedirect === "string" &&
     rawRedirect.startsWith("/") &&
@@ -13,9 +19,25 @@ export async function GET(request: NextRequest) {
       ? rawRedirect
       : "/";
 
-  // Handle auth callback
   if (code) {
-    const supabase = await createClient();
+    const cookiesToSet: Parameters<SetAllCookies>[0] = [];
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key",
+      {
+        cookieOptions: supabaseCookieOptions(),
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(newCookies: Parameters<SetAllCookies>[0]) {
+            cookiesToSet.push(...newCookies);
+          },
+        },
+      }
+    );
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error) {
@@ -25,14 +47,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get authenticated user and sync profile
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (user) {
       try {
-        // Ensure user preferences exist
         const { data: existingPrefs } = await supabase
           .from("user_preferences")
           .select("*")
@@ -40,7 +60,6 @@ export async function GET(request: NextRequest) {
           .single();
 
         if (!existingPrefs) {
-          // Create default preferences for new user
           const { error: prefError } = await supabase
             .from("user_preferences")
             .insert({
@@ -54,18 +73,21 @@ export async function GET(request: NextRequest) {
           }
         }
       } catch (error) {
-        // Preferences table might not exist for guest users, continue anyway
         console.debug("[auth/callback] User profile sync skipped:", error);
       }
     }
 
-    return NextResponse.redirect(new URL(redirect, origin));
+    const redirectUrl = new URL(redirect, origin);
+    const response = NextResponse.redirect(redirectUrl);
+    cookiesToSet.forEach(({ name, value, options }) => {
+      response.cookies.set(name, value, options);
+    });
+
+    return response;
   }
 
-  // Missing code
   console.error("[auth/callback] Missing auth code");
   return NextResponse.redirect(
     new URL("/login?error=missing_code", origin)
   );
 }
-

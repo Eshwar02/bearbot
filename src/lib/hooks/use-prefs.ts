@@ -18,6 +18,7 @@ const DEFAULTS: Prefs = {
 
 let cache: Prefs | null = null;
 let inflight: Promise<Prefs> | null = null;
+export const PREFS_UPDATED_EVENT = 'alphasight:prefs-updated';
 
 async function loadPrefs(): Promise<Prefs> {
   if (cache) return cache;
@@ -43,6 +44,12 @@ export function invalidatePrefs() {
   cache = null;
 }
 
+export function publishPrefsUpdate(updates: Partial<Prefs>) {
+  cache = { ...(cache ?? DEFAULTS), ...updates };
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent<Partial<Prefs>>(PREFS_UPDATED_EVENT, { detail: updates }));
+}
+
 export function usePrefs(): Prefs {
   const [prefs, setPrefs] = useState<Prefs>(cache ?? DEFAULTS);
   useEffect(() => {
@@ -54,5 +61,18 @@ export function usePrefs(): Prefs {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onPrefsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<Partial<Prefs>>).detail ?? {};
+      setPrefs((prev) => ({ ...prev, ...detail }));
+    };
+    window.addEventListener(PREFS_UPDATED_EVENT, onPrefsUpdated as EventListener);
+    return () => {
+      window.removeEventListener(PREFS_UPDATED_EVENT, onPrefsUpdated as EventListener);
+    };
+  }, []);
+
   return prefs;
 }

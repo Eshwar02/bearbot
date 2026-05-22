@@ -2,20 +2,158 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme tokens: light (default) ────────────────────────────────── */
+:root {
+  --bg-canvas: #ffffff;
+  --bg-sidebar: #f7f7f8;
+  --bg-input: #ffffff;
+  --bg-elevated: #fafafa;
+  --bg-elevated-hover: #f0f0f2;
+  --bg-code: #f6f8fa;
+  --bg-skeleton: #e5e5e7;
+
+  --text-primary: #0d0d0d;
+  --text-secondary: #5d5d5d;
+  --text-muted: #8e8e8e;
+  --text-inverse: #ffffff;
+
+  --border-subtle: #ececec;
+  --border-strong: #d9d9d9;
+  --border-focus: rgba(20, 184, 166, 0.35);
+
+  --accent-brand: #14b8a6;
+  --accent-brand-hover: #0d9488;
+  --accent-brand-muted: rgba(20, 184, 166, 0.12);
+  --accent-brand-ring: rgba(20, 184, 166, 0.35);
+  --accent-green: #0dba98;
+  --accent-red: #ed5533;
+  --accent-blue: #3b82f6;
+  --accent-amber: #f59e0b;
+
+  --market-bar-bg: rgba(255, 255, 255, 0.94);
+  --market-bar-bg-soft: rgba(248, 250, 252, 0.98);
+  --market-bar-border: rgba(15, 23, 42, 0.08);
+  --market-bar-text: #1f2937;
+  --market-bar-muted: #64748b;
+  --market-bar-accent: #0dba98;
+  --market-positive: #0dba98;
+  --market-negative: #ed5533;
+  --market-positive-soft: rgba(13, 186, 152, 0.12);
+  --market-negative-soft: rgba(237, 85, 51, 0.12);
+  --market-positive-glow: rgba(13, 186, 152, 0.42);
+  --market-negative-glow: rgba(237, 85, 51, 0.42);
+  --market-tooltip-bg: rgba(255, 255, 255, 0.98);
+  --market-tooltip-text: #111827;
+  --market-tooltip-muted: #64748b;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+
+  --scrollbar-thumb: #d1d5db;
+  --scrollbar-thumb-hover: #9ca3af;
+
+  --selection-bg: rgba(20, 184, 166, 0.2);
+  --selection-text: #0d0d0d;
+
+  --progress-bg: rgba(240, 240, 242, 0.92);
+  --progress-border: rgba(0, 0, 0, 0.06);
+  --progress-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Theme tokens: dark ───────────────────────────────────────────── */
+html.dark {
+  --bg-canvas: #202123;
+  --bg-sidebar: #171719;
+  --bg-input: #2a2b36;
+  --bg-elevated: #2a2b36;
+  --bg-elevated-hover: #343541;
+  --bg-code: #171719;
+  --bg-skeleton: #343541;
+
+  --text-primary: #ececf1;
+  --text-secondary: #8e8ea0;
+  --text-muted: #6e6e80;
+  --text-inverse: #0d0d0d;
+
+  /* Borders are intentionally near-invisible in dark mode; cards get their
+     definition from --shadow-* tokens below (ChatGPT-style soft elevation
+     instead of a stark white outline). */
+  --border-subtle: rgba(255, 255, 255, 0.03);
+  --border-strong: rgba(255, 255, 255, 0.05);
+  --border-focus: rgba(45, 212, 191, 0.35);
+
+  --accent-brand: #2dd4bf;
+  --accent-brand-hover: #5eead4;
+  --accent-brand-muted: rgba(45, 212, 191, 0.12);
+  --accent-brand-ring: rgba(45, 212, 191, 0.35);
+  --accent-green: #0dba98;
+  --accent-red: #ed5533;
+
+  --market-bar-bg: rgba(15, 15, 15, 0.9);
+  --market-bar-bg-soft: rgba(9, 9, 11, 0.96);
+  --market-bar-border: rgba(255, 255, 255, 0.08);
+  --market-bar-text: #d4d4d8;
+  --market-bar-muted: #a1a1aa;
+  --market-bar-accent: #0dba98;
+  --market-positive: #0dba98;
+  --market-negative: #ed5533;
+  --market-positive-soft: rgba(13, 186, 152, 0.18);
+  --market-negative-soft: rgba(237, 85, 51, 0.18);
+  --market-positive-glow: rgba(13, 186, 152, 0.72);
+  --market-negative-glow: rgba(237, 85, 51, 0.72);
+  --market-tooltip-bg: rgba(9, 9, 11, 0.96);
+  --market-tooltip-text: #f4f4f5;
+  --market-tooltip-muted: #a1a1aa;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  --scrollbar-thumb: #4a4a5a;
+  --scrollbar-thumb-hover: #6e6e80;
+
+  --selection-bg: rgba(45, 212, 191, 0.2);
+  --selection-text: #ececf1;
+
+  --progress-bg: rgba(15, 15, 15, 0.85);
+  --progress-border: rgba(255, 255, 255, 0.08);
+  --progress-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+/* ── Base ─────────────────────────────────────────────────────────── */
 * {
   scroll-behavior: smooth;
 }
 
 body {
-  @apply bg-white text-gray-900 antialiased transition-colors duration-300;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv11', 'ss01', 'ss03', 'cv02', 'cv03', 'cv04';
+  letter-spacing: -0.01em;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Dark theme */
-html.dark body {
-  @apply bg-dark-900 text-gray-300;
+h1, h2, h3 {
+  letter-spacing: -0.02em;
 }
 
-/* Custom scrollbar - light theme default */
+.tabular-nums,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -26,129 +164,70 @@ html.dark body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: var(--scrollbar-thumb-hover);
 }
 
-/* Dark theme scrollbar */
-html.dark ::-webkit-scrollbar-thumb {
-  @apply bg-dark-700;
-}
-
-html.dark ::-webkit-scrollbar-thumb:hover {
-  @apply bg-dark-600;
-}
-
-/* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d1d5db transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-html.dark {
-  scrollbar-color: #4a4a5a transparent;
-}
-
-body {
-  @apply bg-white text-gray-900 antialiased transition-colors duration-300;
-}
-
-/* Dark theme */
-  html.dark body {
-    @apply bg-dark-900 text-gray-300;
-  }
-
-  /* Custom scrollbar - light theme default */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 3px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
-  }
-
-  /* Dark theme scrollbar */
-  html.dark ::-webkit-scrollbar-thumb {
-    @apply bg-dark-700;
-  }
-
-  html.dark ::-webkit-scrollbar-thumb:hover {
-    @apply bg-dark-600;
-  }
-
-  /* Firefox scrollbar */
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: #d1d5db transparent;
-  }
-
-  html.dark {
-    scrollbar-color: #4a4a5a transparent;
-  }
-
+/* ── Components ────────────────────────────────────────────────────── */
 @layer components {
-
-  /* Markdown / Prose overrides */
   .prose pre {
-    @apply rounded-lg border border-gray-300 bg-gray-50;
-  }
-
-  html.dark .prose pre {
-    @apply border-dark-700 bg-dark-950;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-subtle);
+    background-color: var(--bg-code);
   }
 
   .prose code:not(pre code) {
-    @apply rounded bg-gray-100 px-1.5 py-0.5 text-accent-green;
-  }
-
-  html.dark .prose code:not(pre code) {
-    @apply bg-dark-950 text-accent-green;
+    border-radius: 0.25rem;
+    background-color: var(--bg-code);
+    padding: 0.125rem 0.375rem;
+    font-size: 0.875rem;
+    color: var(--accent-green);
   }
 
   .prose a {
-    @apply text-accent-green underline decoration-accent-green/40 transition-colors hover:decoration-accent-green;
+    color: var(--accent-green);
+    text-decoration: underline;
+    text-decoration-color: rgba(16, 185, 129, 0.4);
+    transition: color 0.15s ease;
+  }
+
+  .prose a:hover {
+    text-decoration-color: var(--accent-green);
   }
 
   .prose table {
-    @apply w-full border-collapse;
+    width: 100%;
+    border-collapse: collapse;
   }
 
   .prose th {
-    @apply border-b border-gray-300 px-3 py-2 text-left text-sm font-semibold text-gray-900;
-  }
-
-  html.dark .prose th {
-    @apply border-b border-dark-700 text-gray-100;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
   }
 
   .prose td {
-    @apply border-b border-gray-300/50 px-3 py-2 text-sm;
-  }
-
-  html.dark .prose td {
-    @apply border-b border-dark-700/50;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
   }
 
   .prose blockquote {
-    @apply border-l-2 border-gray-300 italic text-gray-600;
-  }
-
-  html.dark .prose blockquote {
-    @apply border-l-2 border-dark-600 text-dark-400;
+    border-left: 2px solid var(--border-strong);
+    font-style: italic;
+    color: var(--text-secondary);
   }
 
   /* Chat message animation */
@@ -193,6 +272,15 @@ body {
     }
   }
 
+  @keyframes ai-progress-shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
   /* Gradient text helper */
   .gradient-text {
     @apply bg-gradient-to-r from-accent-green to-accent-blue bg-clip-text text-transparent;
@@ -207,5 +295,48 @@ body {
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+/* ── Print Styles ──────────────────────────────────────────────────── */
+@media print {
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+  }
+
+  /* Hide app chrome */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Ensure main content takes full width */
+  main {
+    width: 100% !important;
+    max-width: none !important;
+    overflow: visible !important;
+  }
+
+  /* Style links for print */
+  a {
+    color: black !important;
+    text-decoration: underline;
+  }
+
+  /* Hide scrollbars */
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Ensure backgrounds print if needed (optional) */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

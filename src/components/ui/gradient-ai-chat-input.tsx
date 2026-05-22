@@ -2,18 +2,11 @@
 
 /**
  * Gradient AI chat input — adapted from the shadcn snippet for AlphaSight.
- *
- * Key differences vs the original:
- *  - Dark-mode only (app doesn't use next-themes).
- *  - Teal/cyan gradient palette to match accent-brand, not the warm amber.
- *  - No file-attach UI (not yet supported by the backend).
- *  - Send button is a ChatGPT-style circular arrow, not the plain Send glyph.
- *  - Exposes `value` + `onChange` + `onStop` + `isStreaming` so it can slot
- *    into the existing `ChatPanel` flow without duplicating state.
+ * Theme-aware: uses CSS variables for light/dark mode.
  */
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, Square, ChevronDown, Check, Globe } from 'lucide-react';
+import { ArrowUp, Square, ChevronDown, Check, Globe, Paperclip, X, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ModelOption {
@@ -27,43 +20,38 @@ interface GradientAIChatInputProps {
   placeholder?: string;
   value: string;
   onChange: (value: string) => void;
-  onSend: () => void;
+  onSend: () => void | Promise<void>;
   onStop?: () => void;
   isStreaming?: boolean;
   disabled?: boolean;
-
-  /** Model picker options. Pass an empty array to hide the dropdown. */
   modelOptions?: ModelOption[];
   selectedModel?: ModelOption | null;
   onModelSelect?: (option: ModelOption) => void;
-
   enableAnimations?: boolean;
   className?: string;
-
-  /** Web-search toggle (per-turn) */
   webSearchEnabled?: boolean;
   onWebSearchToggle?: (next: boolean) => void;
+  attachments?: File[];
+  onAttachmentsChange?: (attachments: File[]) => void;
+  onAttachmentRemove?: (index: number) => void;
 }
 
-// ── Teal/cyan gradient palette (dark-mode only) ──────────────────────
 const MAIN_GRADIENT = {
-  topLeft: '#0e7490', // cyan-700
-  topRight: '#0d9488', // teal-600
-  bottomRight: '#115e59', // teal-800
-  bottomLeft: '#1e3a8a', // blue-900 → subtle depth
+  topLeft: '#0e7490',
+  topRight: '#0d9488',
+  bottomRight: '#115e59',
+  bottomLeft: '#1e3a8a',
 };
 
 const OUTER_GRADIENT = {
-  topLeft: '#083344', // cyan-950
-  topRight: '#042f2e', // teal-950
+  topLeft: '#083344',
+  topRight: '#042f2e',
   bottomRight: '#022c22',
   bottomLeft: '#172554',
 };
 
-const BUTTON_BORDER = '#3f3f46'; // zinc-700
-const SHADOW_COLOR = 'rgb(45, 212, 191)'; // accent-brand
+const SHADOW_COLOR = 'rgb(20, 184, 166)';
 
-// ── Utils ────────────────────────────────────────────────────────────
 function hexToRgba(color: string, alpha: number): string {
   if (color.startsWith('rgb(')) {
     const parts = color.slice(4, -1).split(',').map((v) => parseInt(v.trim(), 10));
@@ -93,17 +81,25 @@ export function GradientAIChatInput({
   className,
   webSearchEnabled = false,
   onWebSearchToggle,
+  attachments = [],
+  onAttachmentsChange,
+  onAttachmentRemove,
 }: GradientAIChatInputProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const shouldReduceMotion = useReducedMotion();
   const shouldAnimate = enableAnimations && !shouldReduceMotion;
   const dropdownRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasText = value.trim().length > 0;
   const showDropdown = modelOptions.length > 0;
+  const hasAttachments = attachments.length > 0;
+  const canSend = hasText || hasAttachments;
+  const supportedTypes =
+    'image/*,.txt,.md,.csv,.tsv,.json,.xml,.html,.htm,.yaml,.yml,.xlsx,.xls';
 
-  // Auto-resize textarea
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -119,7 +115,6 @@ export function GradientAIChatInput({
     textareaRef.current?.focus();
   }, []);
 
-  // Close dropdown on outside click
   useEffect(() => {
     if (!isDropdownOpen) return;
     const handler = (e: MouseEvent) => {
@@ -135,13 +130,65 @@ export function GradientAIChatInput({
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        if (hasText && !isStreaming && !disabled) {
+        if (canSend && !isStreaming && !disabled) {
           onSend();
         }
       }
     },
-    [hasText, isStreaming, disabled, onSend],
+    [canSend, isStreaming, disabled, onSend],
   );
+
+  const handleFileSelection = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selected = Array.from(event.target.files ?? []);
+      if (selected.length === 0) return;
+      const merged = [...attachments, ...selected].filter(
+        (file, index, list) =>
+          list.findIndex(
+            (candidate) =>
+              candidate.name === file.name &&
+              candidate.size === file.size &&
+              candidate.lastModified === file.lastModified,
+          ) === index,
+      );
+      onAttachmentsChange?.(merged.slice(0, 5));
+      event.target.value = '';
+    },
+    [attachments, onAttachmentsChange],
+  );
+
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = Array.from(event.clipboardData.items ?? []);
+      const pastedFiles = items
+        .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+        .map((item) => item.getAsFile() ?? undefined)
+        .filter((file): file is File => Boolean(file))
+        .map((file, index) =>
+          new File([file], file.name || `pasted-image-${index + 1}.png`, {
+            type: file.type || 'image/png',
+            lastModified: Date.now(),
+          }),
+        );
+
+      if (pastedFiles.length === 0) return;
+
+      event.preventDefault();
+      const merged = [...attachments, ...pastedFiles].filter(
+        (file, index, list) =>
+          list.findIndex(
+            (candidate) =>
+              candidate.name === file.name &&
+              candidate.size === file.size &&
+              candidate.lastModified === file.lastModified,
+          ) === index,
+      );
+      onAttachmentsChange?.(merged.slice(0, 5));
+    },
+    [attachments, onAttachmentsChange],
+  );
+
+  const idleBorder = 'rgba(200, 200, 200, 0.5)';
 
   return (
     <motion.div
@@ -151,101 +198,102 @@ export function GradientAIChatInput({
       transition={{ type: 'spring', stiffness: 300, damping: 30, mass: 0.8 }}
     >
       <div className="relative">
-        {/* Outer 0.5px conic border — deeper palette */}
         <div
-          className="absolute inset-0 rounded-[20px] p-[0.5px]"
+          className="absolute inset-0 rounded-[20px] p-[0.5px] transition-opacity duration-200"
           style={{
-            background: `conic-gradient(from 0deg at 50% 50%,
-              ${OUTER_GRADIENT.topLeft} 0deg,
-              ${OUTER_GRADIENT.topRight} 90deg,
-              ${OUTER_GRADIENT.bottomRight} 180deg,
-              ${OUTER_GRADIENT.bottomLeft} 270deg,
-              ${OUTER_GRADIENT.topLeft} 360deg)`,
+            background: isFocused
+              ? `conic-gradient(from 0deg at 50% 50%,
+                  ${OUTER_GRADIENT.topLeft} 0deg,
+                  ${OUTER_GRADIENT.topRight} 90deg,
+                  ${OUTER_GRADIENT.bottomRight} 180deg,
+                  ${OUTER_GRADIENT.bottomLeft} 270deg,
+                  ${OUTER_GRADIENT.topLeft} 360deg)`
+              : idleBorder,
           }}
         >
-          {/* Main 2px conic gradient border */}
           <div
-            className="h-full w-full rounded-[19.5px] p-[2px]"
+            className="h-full w-full rounded-[19.5px] p-[1.5px] transition-opacity duration-200"
             style={{
-              background: `conic-gradient(from 0deg at 50% 50%,
-                ${MAIN_GRADIENT.topLeft} 0deg,
-                ${MAIN_GRADIENT.topRight} 90deg,
-                ${MAIN_GRADIENT.bottomRight} 180deg,
-                ${MAIN_GRADIENT.bottomLeft} 270deg,
-                ${MAIN_GRADIENT.topLeft} 360deg)`,
+              background: isFocused
+                ? `conic-gradient(from 0deg at 50% 50%,
+                    ${MAIN_GRADIENT.topLeft} 0deg,
+                    ${MAIN_GRADIENT.topRight} 90deg,
+                    ${MAIN_GRADIENT.bottomRight} 180deg,
+                    ${MAIN_GRADIENT.bottomLeft} 270deg,
+                    ${MAIN_GRADIENT.topLeft} 360deg)`
+                : 'transparent',
             }}
           >
-            {/* Inner surface — app background */}
-            <div className="relative h-full w-full rounded-[17.5px] bg-dark-900">
-              {/* Faint inner tint using the same gradient at low opacity */}
-              <div
-                className="absolute inset-0 rounded-[17.5px] p-[0.5px]"
-                style={{
-                  background: `conic-gradient(from 0deg at 50% 50%,
-                    ${hexToRgba(OUTER_GRADIENT.topLeft, 0.1)} 0deg,
-                    ${hexToRgba(OUTER_GRADIENT.topRight, 0.1)} 90deg,
-                    ${hexToRgba(OUTER_GRADIENT.bottomRight, 0.1)} 180deg,
-                    ${hexToRgba(OUTER_GRADIENT.bottomLeft, 0.1)} 270deg,
-                    ${hexToRgba(OUTER_GRADIENT.topLeft, 0.1)} 360deg)`,
-                }}
-              >
-                <div className="h-full w-full rounded-[17px] bg-dark-900" />
-              </div>
+            <div className="relative h-full w-full rounded-[17.5px] bg-input">
+              {isFocused && (
+                <div
+                  className="absolute inset-0 rounded-[17.5px] p-[0.5px]"
+                  style={{
+                    background: `conic-gradient(from 0deg at 50% 50%,
+                      ${hexToRgba(OUTER_GRADIENT.topLeft, 0.1)} 0deg,
+                      ${hexToRgba(OUTER_GRADIENT.topRight, 0.1)} 90deg,
+                      ${hexToRgba(OUTER_GRADIENT.bottomRight, 0.1)} 180deg,
+                      ${hexToRgba(OUTER_GRADIENT.bottomLeft, 0.1)} 270deg,
+                      ${hexToRgba(OUTER_GRADIENT.topLeft, 0.1)} 360deg)`,
+                  }}
+                >
+                  <div className="h-full w-full rounded-[17px] bg-input" />
+                </div>
+              )}
+              {!isFocused && (
+                <div className="h-full w-full rounded-[17px] bg-input" />
+              )}
 
-              {/* Top highlight */}
-              <div
-                className="absolute left-4 right-4 top-0 h-[0.5px]"
-                style={{
-                  background: `linear-gradient(to right, transparent, ${hexToRgba(
-                    MAIN_GRADIENT.topLeft,
-                    0.4,
-                  )}, transparent)`,
-                }}
-              />
-              {/* Bottom highlight */}
-              <div
-                className="absolute bottom-0 left-4 right-4 h-[0.5px]"
-                style={{
-                  background: `linear-gradient(to right, transparent, ${hexToRgba(
-                    MAIN_GRADIENT.bottomRight,
-                    0.25,
-                  )}, transparent)`,
-                }}
-              />
+              {isFocused && (
+                <>
+                  <div
+                    className="absolute left-4 right-4 top-0 h-[0.5px]"
+                    style={{
+                      background: `linear-gradient(to right, transparent, ${hexToRgba(MAIN_GRADIENT.topLeft, 0.4)}, transparent)`,
+                    }}
+                  />
+                  <div
+                    className="absolute bottom-0 left-4 right-4 h-[0.5px]"
+                    style={{
+                      background: `linear-gradient(to right, transparent, ${hexToRgba(MAIN_GRADIENT.bottomRight, 0.25)}, transparent)`,
+                    }}
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Content */}
         <div className="relative px-4 pb-3 pt-3.5">
-          {/* Row 1 — textarea + circular send */}
           <div className="mb-2 flex items-start gap-3">
-            <textarea
-              ref={textareaRef}
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
+              <textarea
+                ref={textareaRef}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                placeholder={placeholder}
               disabled={disabled}
               rows={1}
               className={cn(
                 'flex-1 resize-none border-0 bg-transparent px-0 py-1.5',
-                'text-[15px] leading-6 text-gray-100 placeholder:text-dark-500',
+                'text-[15px] leading-6 text-primary placeholder:text-muted',
                 'outline-none focus:outline-none focus:ring-0',
-                'scrollbar-thin scrollbar-thumb-dark-700',
+                'scrollbar-thin scrollbar-thumb-borderStrong',
                 disabled && 'cursor-not-allowed opacity-50',
               )}
               style={{ minHeight: 28, maxHeight: 160 }}
             />
 
-            {/* Send / Stop — circular ChatGPT-style */}
             {isStreaming ? (
               <motion.button
                 type="button"
                 onClick={onStop}
                 className={cn(
                   'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-                  'bg-dark-700 text-gray-200 transition-colors hover:bg-dark-600',
+                  'bg-elevated text-secondary transition-colors hover:bg-elevated-hover',
                 )}
                 whileHover={shouldAnimate ? { scale: 1.05 } : {}}
                 whileTap={shouldAnimate ? { scale: 0.95 } : {}}
@@ -254,27 +302,81 @@ export function GradientAIChatInput({
                 <Square className="h-3.5 w-3.5 fill-current" />
               </motion.button>
             ) : (
-              <motion.button
-                type="button"
-                onClick={() => hasText && !disabled && onSend()}
-                disabled={!hasText || disabled}
-                className={cn(
-                  'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-                  'transition-all duration-200',
-                  hasText && !disabled
-                    ? 'bg-accent-brand text-dark-950 shadow-[0_0_0_1px_rgba(45,212,191,0.4)] hover:bg-accent-brand-hover'
-                    : 'cursor-not-allowed bg-dark-700 text-dark-500',
-                )}
-                whileHover={shouldAnimate && hasText && !disabled ? { scale: 1.05 } : {}}
-                whileTap={shouldAnimate && hasText && !disabled ? { scale: 0.92 } : {}}
-                aria-label="Send message"
-              >
-                <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-              </motion.button>
+              <div className="flex shrink-0 items-center gap-2">
+                <motion.button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={disabled || isStreaming || attachments.length >= 5}
+                  className={cn(
+                    'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border',
+                    'border-borderSubtle bg-elevated text-secondary transition-colors hover:bg-elevated-hover hover:text-primary',
+                    (disabled || isStreaming || attachments.length >= 5) && 'cursor-not-allowed opacity-50',
+                  )}
+                  whileHover={shouldAnimate && !disabled && !isStreaming && attachments.length < 5 ? { scale: 1.05 } : {}}
+                  whileTap={shouldAnimate && !disabled && !isStreaming && attachments.length < 5 ? { scale: 0.95 } : {}}
+                  aria-label="Attach files"
+                >
+                  <Paperclip className="h-4 w-4" />
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={() => canSend && !disabled && onSend()}
+                  disabled={!canSend || disabled}
+                  className={cn(
+                    'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
+                    'transition-all duration-200',
+                    canSend && !disabled
+                      ? 'bg-accent-brand text-dark-950 shadow-[0_0_0_1px_rgba(20,184,166,0.4)] hover:bg-accent-brand-hover'
+                      : 'cursor-not-allowed bg-elevated text-muted',
+                  )}
+                  whileHover={shouldAnimate && canSend && !disabled ? { scale: 1.05 } : {}}
+                  whileTap={shouldAnimate && canSend && !disabled ? { scale: 0.92 } : {}}
+                  aria-label="Send message"
+                >
+                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+                </motion.button>
+              </div>
             )}
           </div>
 
-          {/* Row 2 — toolbar: web search toggle + (optional) model dropdown */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={supportedTypes}
+            className="hidden"
+            onChange={handleFileSelection}
+          />
+
+          {hasAttachments && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {attachments.map((file, index) => (
+                <div
+                  key={`${file.name}-${file.lastModified}-${file.size}`}
+                  className="flex items-center gap-2 rounded-full border border-borderSubtle bg-elevated px-3 py-1 text-xs text-secondary"
+                >
+                  {file.type.startsWith('image/') ? (
+                    <ImageIcon className="h-3 w-3 text-muted" />
+                  ) : (
+                    <Paperclip className="h-3 w-3 text-muted" />
+                  )}
+                  <span className="max-w-[180px] truncate">{file.name}</span>
+                  <span className="text-muted">{Math.max(1, Math.round(file.size / 1024))} KB</span>
+                  {onAttachmentRemove && (
+                    <button
+                      type="button"
+                      onClick={() => onAttachmentRemove(index)}
+                      className="rounded-full p-0.5 text-muted transition-colors hover:bg-elevated-hover hover:text-primary"
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
           {(showDropdown || onWebSearchToggle) && (
             <div className="flex items-center gap-2">
               {onWebSearchToggle && (
@@ -291,8 +393,8 @@ export function GradientAIChatInput({
                     'flex items-center gap-1.5 rounded-full px-3 py-1',
                     'text-xs font-medium transition-colors border',
                     webSearchEnabled
-                      ? 'bg-accent-brand/15 text-accent-brand border-accent-brand/40 shadow-[0_0_0_1px_rgba(45,212,191,0.25)]'
-                      : 'bg-dark-850 text-gray-300 border-dark-700 hover:bg-dark-800 hover:text-gray-100',
+                      ? 'bg-accent-brand/15 text-accent-brand border-accent-brand/40 shadow-[0_0_0_1px_rgba(20,184,166,0.25)]'
+                      : 'bg-elevated text-secondary border-borderSubtle hover:bg-elevated-hover hover:text-primary',
                     disabled && 'cursor-not-allowed opacity-50',
                   )}
                   whileHover={shouldAnimate && !disabled ? { scale: 1.02 } : {}}
@@ -310,7 +412,6 @@ export function GradientAIChatInput({
             </div>
           )}
 
-          {/* Row 3 — model dropdown (only if options provided) */}
           {showDropdown && (
             <div className="mt-2 flex items-center gap-2">
               <div className="relative" ref={dropdownRef}>
@@ -320,14 +421,13 @@ export function GradientAIChatInput({
                   disabled={disabled}
                   className={cn(
                     'flex items-center gap-1.5 rounded-full px-3 py-1',
-                    'text-xs font-medium text-gray-300 transition-colors',
-                    'bg-dark-850 hover:bg-dark-800 hover:text-gray-100',
-                    'border border-dark-700',
+                    'text-xs font-medium text-secondary transition-colors',
+                    'bg-elevated hover:bg-elevated-hover hover:text-primary',
+                    'border border-borderSubtle',
                     disabled && 'cursor-not-allowed opacity-50',
                   )}
                   whileHover={shouldAnimate ? { scale: 1.02 } : {}}
                   whileTap={shouldAnimate ? { scale: 0.98 } : {}}
-                  style={{ borderColor: BUTTON_BORDER }}
                   aria-haspopup="listbox"
                   aria-expanded={isDropdownOpen}
                 >
@@ -350,8 +450,8 @@ export function GradientAIChatInput({
                       transition={{ duration: 0.12 }}
                       className={cn(
                         'absolute bottom-full left-0 z-20 mb-2 min-w-[200px]',
-                        'rounded-xl border border-dark-700 bg-dark-850',
-                        'p-1 shadow-xl shadow-black/40',
+                        'rounded-xl border border-borderSubtle bg-canvas',
+                        'p-1 shadow-lg',
                       )}
                       role="listbox"
                     >
@@ -370,10 +470,10 @@ export function GradientAIChatInput({
                             className={cn(
                               'flex w-full items-start gap-2 rounded-lg px-2.5 py-2',
                               'text-left text-xs transition-colors',
-                              'hover:bg-dark-800',
+                              'hover:bg-elevated',
                               isSelected
-                                ? 'text-gray-100'
-                                : 'text-gray-300',
+                                ? 'text-primary'
+                                : 'text-secondary',
                             )}
                           >
                             <span
@@ -381,7 +481,7 @@ export function GradientAIChatInput({
                                 'mt-[3px] h-1.5 w-1.5 shrink-0 rounded-full',
                                 isSelected
                                   ? 'bg-accent-brand'
-                                  : 'bg-dark-500',
+                                  : 'bg-muted',
                               )}
                             />
                             <span className="flex-1">
@@ -389,7 +489,7 @@ export function GradientAIChatInput({
                                 {option.label}
                               </span>
                               {option.description && (
-                                <span className="mt-0.5 block text-[11px] text-dark-500">
+                                <span className="mt-0.5 block text-[11px] text-muted">
                                   {option.description}
                                 </span>
                               )}
@@ -405,27 +505,30 @@ export function GradientAIChatInput({
                 </AnimatePresence>
               </div>
 
-              <span className="text-[11px] text-dark-500">
+              <span className="text-[11px] text-muted">
                 Shift + Enter for newline
               </span>
             </div>
           )}
+
+          <div className="mt-2 text-[11px] text-muted">
+            Supported: images, TXT, MD, CSV, JSON, XML, HTML, YAML, XLSX
+          </div>
         </div>
 
-        {/* Soft teal glow underneath */}
         <div
-          className="pointer-events-none absolute -bottom-3 left-3 right-3 h-6 rounded-full blur-md"
+          className="pointer-events-none absolute -bottom-3 left-3 right-3 h-6 rounded-full blur-md transition-opacity duration-200"
           style={{
-            background: `linear-gradient(to bottom, ${hexToRgba(
-              SHADOW_COLOR,
-              0.12,
-            )} 0%, transparent 100%)`,
+            background: `linear-gradient(to bottom, ${hexToRgba(SHADOW_COLOR, isFocused ? 0.12 : 0)} 0%, transparent 100%)`,
+            opacity: isFocused ? 1 : 0,
           }}
         />
         <div
-          className="pointer-events-none absolute inset-0 rounded-[20px]"
+          className="pointer-events-none absolute inset-0 rounded-[20px] transition-shadow duration-200"
           style={{
-            boxShadow: `0 10px 30px ${hexToRgba(SHADOW_COLOR, 0.08)}`,
+            boxShadow: isFocused
+              ? `0 10px 30px ${hexToRgba(SHADOW_COLOR, 0.08)}`
+              : 'none',
           }}
         />
       </div>

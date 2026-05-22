@@ -21,6 +21,7 @@ import { LivePrice } from '@/components/ui/live-price';
 import { useLiveQuotes } from '@/lib/hooks/use-live-quotes';
 import type { PortfolioHolding } from '@/types/stock';
 import { AddHoldingModal } from '@/components/portfolio/add-holding-modal';
+import { BuyMoreModal } from '@/components/portfolio/buy-more-modal';
 import type {
   AssetIntelligenceCard,
   PortfolioIntelligence,
@@ -61,7 +62,13 @@ function momentumBadge(momentum: 'strong' | 'moderate' | 'weak') {
   return 'amber' as const;
 }
 
-function PortfolioCard({ holding }: { holding: EnrichedHolding }) {
+function PortfolioCard({
+  holding,
+  onBuyMore,
+}: {
+  holding: EnrichedHolding;
+  onBuyMore: (h: EnrichedHolding) => void;
+}) {
   const isPositive = holding.livePnl >= 0;
 
   return (
@@ -76,9 +83,20 @@ function PortfolioCard({ holding }: { holding: EnrichedHolding }) {
           <h3 className="font-semibold text-primary">{holding.symbol}</h3>
           <p className="text-xs text-muted">{holding.name || holding.symbol}</p>
         </div>
-        <Badge variant={isPositive ? 'green' : 'red'}>
-          {formatPercent(holding.livePnlPct)}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={isPositive ? 'green' : 'red'}>
+            {formatPercent(holding.livePnlPct)}
+          </Badge>
+          <button
+            type="button"
+            onClick={() => onBuyMore(holding)}
+            title={`Buy more ${holding.symbol}`}
+            aria-label={`Buy more ${holding.symbol}`}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent-green/15 text-accent-green transition-colors hover:bg-accent-green/25"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
@@ -313,6 +331,7 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [intelLoading, setIntelLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [buyMoreTarget, setBuyMoreTarget] = useState<EnrichedHolding | null>(null);
 
   const fetchHoldings = async () => {
     try {
@@ -461,7 +480,11 @@ export default function PortfolioPage() {
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {enriched.map((holding) => (
-            <PortfolioCard key={holding.id} holding={holding} />
+            <PortfolioCard
+              key={holding.id}
+              holding={holding}
+              onBuyMore={setBuyMoreTarget}
+            />
           ))}
         </div>
       )}
@@ -470,6 +493,17 @@ export default function PortfolioPage() {
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSaved={handleHoldingAdded}
+      />
+
+      <BuyMoreModal
+        open={buyMoreTarget !== null}
+        holding={buyMoreTarget}
+        livePrice={buyMoreTarget?.livePrice ?? null}
+        onClose={() => setBuyMoreTarget(null)}
+        onSaved={() => {
+          void fetchHoldings();
+          void fetchIntelligence();
+        }}
       />
     </div>
   );

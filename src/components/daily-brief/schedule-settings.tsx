@@ -394,8 +394,8 @@ function CreateScheduleForm({
         </div>
 
         {showSuggestions && searchResults.length > 0 && (
-          <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-md bg-elevated shadow-lg hover:shadow-xl transition-shadow duration-200">
-            {searchResults.slice(0, 4).map((result, index) => (
+          <div className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-md bg-elevated shadow-lg hover:shadow-xl transition-shadow duration-200">
+            {searchResults.slice(0, 10).map((result, index) => (
               <div
                 key={`${result.symbol}-${index}`}
                 className="cursor-pointer border-b border-borderSubtle/50 px-3 py-2 hover:bg-borderSubtle last:border-b-0"

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Geist_Mono, Fraunces } from 'next/font/google';
+import { Geist_Mono, Fraunces } from 'next/font/google';
 import { Providers } from '@/components/providers';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { PWAInstallPrompt } from '@/components/ui/pwa-install-prompt';
@@ -10,12 +10,6 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-mono',
-});
-
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-sans',
 });
 
 const fraunces = Fraunces({
@@ -99,7 +93,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${inter.variable} ${geistMono.variable} ${fraunces.variable} font-sans antialiased transition-colors duration-200`}
+        className={`${geistMono.variable} ${fraunces.variable} font-sans antialiased transition-colors duration-200`}
       >
         <ErrorBoundary>
           <Providers>{children}</Providers>

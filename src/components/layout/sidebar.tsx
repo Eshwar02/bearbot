@@ -195,7 +195,7 @@ export function Sidebar() {
         
         {grouped.map((group) => (
           <div key={group.label} className="mb-4">
-              <h3 className="mb-1 px-3 text-[11px] font-medium uppercase tracking-[0.06em] text-muted/70">
+              <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
                 {group.label}
               </h3>
             {group.items.map((conv) => {
@@ -222,7 +222,7 @@ export function Sidebar() {
                       isActive ? 'text-accent-brand' : 'text-muted',
                     )}
                   />
-                  <span className="flex-1 truncate text-[13px] leading-snug tracking-tight">{conv.title}</span>
+                  <span className="flex-1 truncate text-[13px]">{conv.title}</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

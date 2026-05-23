@@ -143,7 +143,17 @@ export function Sidebar() {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-sidebar text-sm">
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
-        <div className="flex items-center gap-2 px-1">
+        <button
+          onClick={() => {
+            createNewChat();
+            setActiveView('chat');
+            if (pathname !== '/') router.push('/');
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+            if (isMobile) toggleSidebar();
+          }}
+          className="flex items-center gap-2 rounded-md px-1 py-1 transition-colors hover:bg-elevated"
+          aria-label="Start a new chat"
+        >
           <Image src="/logo.svg" alt="AlphaSight" width={20} height={20} />
           <span
             className="font-serif text-[19px] font-medium leading-none tracking-tight text-primary"
@@ -151,7 +161,7 @@ export function Sidebar() {
           >
             AlphaSight
           </span>
-        </div>
+        </button>
         <button
           onClick={toggleSidebar}
           className="rounded-lg p-1.5 text-secondary transition-colors hover:bg-elevated hover:text-primary"

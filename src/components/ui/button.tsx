@@ -12,6 +12,8 @@ const variantStyles = {
     'bg-accent-red text-white hover:bg-red-400 focus-visible:ring-accent-red',
   ghost:
     'bg-transparent text-secondary hover:bg-elevated hover:text-primary focus-visible:ring-borderFocus',
+  outline:
+    'border border-input bg-transparent hover:bg-accent hover:text-accent-foreground',
 };
 
 const sizeStyles = {

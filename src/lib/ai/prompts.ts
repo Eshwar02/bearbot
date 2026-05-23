@@ -7,6 +7,19 @@ Keep it warm, casual, and short. Use Tamil words for connectors and emotion (da,
 
 export const LANG_INSTRUCTION_AUTO = `Language: Match the user's language. If the user wrote in English, reply in English. If the user wrote in Tanglish (mix of Tamil words in Roman script + English), reply in Tanglish casual tone. Never switch language mid-conversation unless the user does.`;
 
+export const THINK_MODE_INSTRUCTION = `Think mode (enabled by user):
+- Reason more deeply before answering: trade-offs, second-order effects, and edge cases.
+- Cross-check facts only against provided context blocks — never invent data.
+- You may include a short "Key checks" list (3–5 bullets) naming what you verified from context.
+- Do NOT output hidden chain-of-thought, internal monologue, or long "thinking out loud" sections.
+- Add depth through better synthesis, not padding; stay within the active response-shape directive.`;
+
+export const CANVAS_MODE_INSTRUCTION = `Canvas mode (enabled by user):
+- Structure the answer as a self-contained brief the user could paste into a report or slide.
+- Use clear markdown sections, comparison tables where helpful, and bullet lists for metrics.
+- Lead each section with the takeaway, then supporting detail.
+- Bold decision-relevant numbers. Keep prose tight and scannable.`;
+
 export const WEB_SEARCH_INSTRUCTION = `Web Search Citations:
 - You have been given fresh web search results below, numbered [1], [2], [3], etc.
 - When you use information from these results, cite the source inline with a bracketed number like [1] or [2] matching the result's position.

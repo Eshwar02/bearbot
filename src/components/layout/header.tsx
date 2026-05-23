@@ -28,8 +28,8 @@ export function Header() {
       }
     }
     if (menuOpen) {
-      document.addEventListener('mousedown', handleClick);
-      return () => document.removeEventListener('mousedown', handleClick);
+      document.addEventListener('click', handleClick);
+      return () => document.removeEventListener('click', handleClick);
     }
   }, [menuOpen]);
 
@@ -115,6 +115,7 @@ export function Header() {
         <PWAInstallButton />
         <div ref={menuRef} className="relative">
           <button
+            type="button"
             onClick={() => setMenuOpen((p) => !p)}
             className={cn(
               'flex h-8 w-8 items-center justify-center rounded-full',
@@ -134,9 +135,11 @@ export function Header() {
             <div
               className="absolute right-0 top-full z-[99999] mt-2 w-60 overflow-visible rounded-xl border border-borderSubtle bg-canvas shadow-lg"
               role="menu"
+              onPointerDown={(e) => e.stopPropagation()}
             >
               {/* Personalization — placed at the top per user spec */}
               <button
+                type="button"
                 className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-primary transition-colors hover:bg-elevated"
                 onClick={() => {
                   setMenuOpen(false);
@@ -155,9 +158,11 @@ export function Header() {
               </button>
               <div className="my-1 border-t border-borderSubtle" />
               <button
+                type="button"
                 className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-primary transition-colors hover:bg-elevated"
                 onClick={() => {
-                  window.location.href = "/profile";
+                  setMenuOpen(false);
+                  router.push('/profile');
                 }}
                 role="menuitem"
                 aria-label="Open profile page"
@@ -169,6 +174,7 @@ export function Header() {
               </button>
               <div className="my-1 border-t border-borderSubtle" />
               <button
+                type="button"
                 className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-accent-red transition-colors hover:bg-elevated"
                 onClick={() => void handleSignOut()}
                 role="menuitem"

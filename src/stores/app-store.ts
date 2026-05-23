@@ -9,11 +9,20 @@ import { normalizeChatContent } from '@/lib/chat-content';
 
 // ── Extended chat message with client-side fields ──────────────────
 
+export type CanvasArtifact = {
+  id: string;
+  type: 'markdown' | 'html' | 'jsx' | 'python' | 'code';
+  title: string;
+  content: string;
+};
+
 export interface ChatMessage extends Message {
   isStreaming?: boolean;
   stockData?: StockQuote[];
   newsData?: NewsItem[];
   sources?: WebSource[];
+  thinkingBlock?: string;
+  artifact?: CanvasArtifact;
 }
 
 export type AppView = 'chat' | 'portfolio' | 'brief' | 'watchlist' | 'settings';
@@ -58,6 +67,10 @@ interface AppState {
   /* ── Model preference (user-selected via composer dropdown) ─────── */
   preferredModel: 'mistral';
   setPreferredModel: (model: 'mistral') => void;
+
+  /* ── Canvas (artifact side panel) ─────────── */
+  canvasArtifact: CanvasArtifact | null;
+  setCanvasArtifact: (artifact: CanvasArtifact | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -215,4 +228,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Mistral-only model selection.
   preferredModel: 'mistral',
   setPreferredModel: (model) => set({ preferredModel: model }),
+
+  /* ── Canvas ───────────────────────────────── */
+  canvasArtifact: null,
+  setCanvasArtifact: (artifact) => set({ canvasArtifact: artifact }),
 }));

@@ -172,7 +172,12 @@ export function useChat() {
   const sendMessage = useCallback(
     async (
       content: string,
-      opts?: { forceWebSearch?: boolean; attachments?: File[] },
+      opts?: {
+        forceWebSearch?: boolean;
+        attachments?: File[];
+        thinkMode?: boolean;
+        canvasMode?: boolean;
+      },
     ): Promise<boolean> => {
       if (isStreaming) return false;
 
@@ -253,6 +258,8 @@ export function useChat() {
               }
               formData.append('model', preferredModel);
               formData.append('forceWebSearch', String(opts?.forceWebSearch === true));
+              formData.append('thinkMode', String(opts?.thinkMode === true));
+              formData.append('canvasMode', String(opts?.canvasMode === true));
               attachments.forEach((file) => {
                 formData.append('attachments', file, file.name);
               });
@@ -263,6 +270,8 @@ export function useChat() {
               conversationId: activeConversationId,
               model: preferredModel,
               forceWebSearch: opts?.forceWebSearch === true,
+              thinkMode: opts?.thinkMode === true,
+              canvasMode: opts?.canvasMode === true,
             });
 
         const res = await fetch('/api/chat', {

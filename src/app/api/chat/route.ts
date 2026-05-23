@@ -29,6 +29,8 @@ import {
   LANG_INSTRUCTION_TANGLISH,
   LANG_INSTRUCTION_ENGLISH,
   WEB_SEARCH_INSTRUCTION,
+  THINK_MODE_INSTRUCTION,
+  CANVAS_MODE_INSTRUCTION,
 } from "@/lib/ai/prompts";
 import { runDeepResearch, formatResearchBundle } from "@/lib/ai/deep-research";
 import { resolveSymbol } from "@/lib/stock/symbols";
@@ -422,6 +424,8 @@ export async function POST(request: NextRequest) {
     let requestedConversationId: string | null = null;
     let requestedModel = "mistral" as const;
     let forceWebSearch = false;
+    let thinkMode = false;
+    let canvasMode = false;
     let attachmentSummaries: AttachmentSummary[] = [];
     let hasImageAttachments = false;
 
@@ -430,6 +434,8 @@ export async function POST(request: NextRequest) {
       incomingMessage = String(formData.get("message") ?? "").trim();
       requestedConversationId = String(formData.get("conversationId") ?? "").trim() || null;
       forceWebSearch = parseFormBoolean(formData.get("forceWebSearch"));
+      thinkMode = parseFormBoolean(formData.get("thinkMode"));
+      canvasMode = parseFormBoolean(formData.get("canvasMode"));
       const uploadedFiles = formData
         .getAll("attachments")
         .filter((value): value is File => value instanceof File);
@@ -460,11 +466,15 @@ export async function POST(request: NextRequest) {
         conversationId?: string;
         model?: "mistral";
         forceWebSearch?: boolean;
+        thinkMode?: boolean;
+        canvasMode?: boolean;
       };
       incomingMessage = body.message?.trim() ?? "";
       requestedConversationId = body.conversationId ?? null;
       requestedModel = body.model ?? "mistral";
       forceWebSearch = body.forceWebSearch === true;
+      thinkMode = body.thinkMode === true;
+      canvasMode = body.canvasMode === true;
     }
 
     const attachmentContext = formatAttachmentContext(attachmentSummaries);
@@ -957,6 +967,14 @@ export async function POST(request: NextRequest) {
     userMemory = userMemory
       ? `${userMemory}\n\n${shapeDirective}`
       : shapeDirective;
+
+    // Composer toggles: append think / canvas instructions when active.
+    if (thinkMode) {
+      userMemory = `${userMemory}\n\n${THINK_MODE_INSTRUCTION}`;
+    }
+    if (canvasMode) {
+      userMemory = `${userMemory}\n\n${CANVAS_MODE_INSTRUCTION}`;
+    }
     console.debug("[chat-api] response shape", {
       shape: responseShape,
       chatMode,

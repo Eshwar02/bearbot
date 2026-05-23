@@ -234,7 +234,7 @@ export function useChat() {
         } catch {
           // abort() can throw if the underlying fetch has already settled; ignore
         }
-      }, 120000);
+      }, 180_000);
 
       try {
         sourceQueueRef.current = [];

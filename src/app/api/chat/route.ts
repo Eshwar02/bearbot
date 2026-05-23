@@ -972,7 +972,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const timedStream = withStreamTimeout(llmStream, 60_000);
+    // 90s inter-chunk timeout. Some providers buffer for several seconds
+    // between bursts on long answers; the previous 60s window was clipping
+    // mid-response when the upstream paused to fetch tool results.
+    const timedStream = withStreamTimeout(llmStream, 90_000);
     const decoder = new TextDecoder();
     const encoder = new TextEncoder();
     const chunks: string[] = [];

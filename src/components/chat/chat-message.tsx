@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
 import { ThumbsUp, ThumbsDown, Share, Check, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MarkdownRenderer } from './markdown-renderer';
@@ -74,11 +73,6 @@ export function ChatMessage({ message }: ChatMessageProps) {
         .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
     },
     [message.content],
-  );
-
-  const streamingContent = useMemo(
-    () => normalizedContent.replace(/^#+\s*/gm, ''),
-    [normalizedContent],
   );
 
   const visibleText = useMemo(
@@ -172,22 +166,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
             )}
 
             {/* Body */}
-            {hasStreamingText && (
-              <MarkdownRenderer
-                content={normalizedContent}
-                streaming={isStreaming}
-                sources={message.sources}
-              />
-            )}
-            {!hasStreamingText && isStreaming && <StreamingDots />}
-            {!hasContent && !isStreaming && (
-              <div className="text-[15px] leading-7 text-secondary italic">
-                {EMPTY_RESPONSE_FALLBACK}
-              </div>
-            )}
-
-            {/* Body - highly readable typography */}
-            <div className="prose prose-sm dark:prose-invert max-w-none text-gray-900 dark:text-gray-100">
+            <div className="prose prose-sm dark:prose-invert max-w-none text-primary">
               {hasStreamingText && (
                 <MarkdownRenderer
                   content={normalizedContent}
@@ -197,7 +176,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
               )}
               {!hasStreamingText && isStreaming && <StreamingDots />}
               {!hasContent && !isStreaming && (
-                <div className="text-[15px] leading-7 text-gray-500 italic">
+                <div className="text-[15px] leading-7 italic text-muted">
                   {EMPTY_RESPONSE_FALLBACK}
                 </div>
               )}

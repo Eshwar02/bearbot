@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { resolveCurrency } from '@/lib/currency-preference';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -10,16 +11,19 @@ export function formatCurrency(
   currency = 'INR',
   options: { compact?: boolean } = {}
 ): string {
+  const displayCurrency = resolveCurrency(currency);
+  const symbols: Record<string, string> = { USD: '$', INR: '₹', EUR: '€', GBP: '£' };
+
   // Compact: 1.23M, 4.5K — for chart axes and KPI tiles where full digits
   // would overflow.
   if (options.compact && Math.abs(value) >= 1000) {
-    const symbol = currency === 'USD' ? '$' : '₹';
+    const symbol = symbols[displayCurrency] || `${displayCurrency} `;
     return `${symbol}${formatNumber(value)}`;
   }
 
   // For Indian users, use INR with rupee symbol
-  if (currency === 'INR' || currency === 'USD') {
-    const symbol = currency === 'USD' ? '$' : '₹';
+  if (displayCurrency === 'INR' || displayCurrency === 'USD') {
+    const symbol = symbols[displayCurrency];
     return `${symbol}${value.toLocaleString('en-IN', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -29,7 +33,7 @@ export function formatCurrency(
   // Fallback for other currencies
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency,
+    currency: displayCurrency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);

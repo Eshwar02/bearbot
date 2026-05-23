@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/stores/app-store';
 import { useAIProgressStore } from '@/stores/ai-progress-store';
 import { ThemeProvider } from '@/components/theme-provider';
+import { usePrefs } from '@/lib/hooks/use-prefs';
+import { setPreferredCurrency } from '@/lib/currency-preference';
 import type { ChatMessage } from '@/stores/app-store';
 import type { Json } from '@/types/database';
 
@@ -13,6 +15,7 @@ interface ProvidersProps {
 }
 
 export function Providers({ children }: ProvidersProps) {
+  const prefs = usePrefs();
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const setConversations = useAppStore((s) => s.setConversations);
   const activeConversationId = useAppStore((s) => s.activeConversationId);
@@ -260,6 +263,10 @@ export function Providers({ children }: ProvidersProps) {
     }
     loadMessages();
   }, [activeConversationId, setMessages, setIsLoadingConversation]);
+
+  useEffect(() => {
+    setPreferredCurrency(prefs.currency);
+  }, [prefs.currency]);
 
   return <ThemeProvider>{children}</ThemeProvider>;
 }

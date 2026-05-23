@@ -188,7 +188,7 @@ export default function StockDetailPage() {
 
       {/* KPI strip */}
       <section className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiTile label="Market Cap" value={q.marketCap > 0 ? `${currency === 'USD' ? '$' : '₹'}${formatNumber(q.marketCap)}` : '—'} />
+        <KpiTile label="Market Cap" value={q.marketCap > 0 ? formatCurrency(q.marketCap, currency) : '—'} />
         <KpiTile
           label="Volume"
           value={q.volume > 0 ? formatNumber(q.volume) : '—'}
@@ -400,8 +400,7 @@ function fmtPct(v: number | null | undefined): string {
 
 function fmtBig(v: number | null | undefined, currency: string): string {
   if (v == null || !Number.isFinite(v) || v === 0) return '—';
-  const sym = currency === 'USD' ? '$' : currency === 'INR' ? '₹' : currency ? `${currency} ` : '';
-  return `${sym}${formatNumber(v)}`;
+  return currency ? formatCurrency(v, currency) : formatNumber(v);
 }
 
 function KpiTile({

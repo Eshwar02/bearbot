@@ -1,5 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Image, Link } from '@react-pdf/renderer';
 import React from 'react';
+import fs from 'node:fs';
+import path from 'node:path';
 
 interface HoldingSnapshot {
   id?: string;
@@ -324,6 +326,9 @@ const formatNewsDate = (dateString: string) => {
   });
 };
 
+const logoSvg = fs.readFileSync(path.join(process.cwd(), 'public/logo.svg'), 'utf8');
+const logoDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(logoSvg)}`;
+
 // Robust Markdown Parser for PDF
 const parseBoldText = (text: string) => {
   const parts = text.split(/(\*\*.*?\*\*)/g);
@@ -437,7 +442,7 @@ export const BriefPDF = ({ brief }: BriefPDFProps) => {
         <View style={styles.header}>
           <View style={styles.logoSection}>
             <Image
-              src="https://raw.githubusercontent.com/Eshwar02/bearbot/main/public/logo.svg"
+              src={logoDataUri}
               style={styles.logo}
             />
             <Text style={styles.brandName}>AlphaSight AI</Text>

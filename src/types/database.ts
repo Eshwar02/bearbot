@@ -198,6 +198,7 @@ export type Database = {
           notif_in_app: boolean;
           daily_brief_time: string;
           daily_brief_tz: string;
+          currency: "INR" | "USD" | "EUR" | "GBP";
           created_at: string;
           updated_at: string;
         };
@@ -213,6 +214,7 @@ export type Database = {
           notif_in_app?: boolean;
           daily_brief_time?: string;
           daily_brief_tz?: string;
+          currency?: "INR" | "USD" | "EUR" | "GBP";
           created_at?: string;
           updated_at?: string;
         };
@@ -228,6 +230,7 @@ export type Database = {
           notif_in_app?: boolean;
           daily_brief_time?: string;
           daily_brief_tz?: string;
+          currency?: "INR" | "USD" | "EUR" | "GBP";
           created_at?: string;
           updated_at?: string;
         };

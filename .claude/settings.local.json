@@ -55,7 +55,10 @@
       "Bash(dig @8.8.8.8 info.alphasightai.online +short)",
       "Bash(dig @1.1.1.1 info.alphasightai.online +short)",
       "Bash(dig @8.8.8.8 chat.alphasightai.online +short)",
-      "Bash(dig @8.8.8.8 www.alphasightai.online +short)"
+      "Bash(dig @8.8.8.8 www.alphasightai.online +short)",
+      "Bash(npx eslint *)",
+      "Bash(git reset *)",
+      "Bash(git pull *)"
     ]
   },
   "enableAllProjectMcpServers": true,

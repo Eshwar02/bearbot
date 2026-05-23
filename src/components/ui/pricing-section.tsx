@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CheckIcon, Minus, Plus } from "lucide-react";
+import { BadgeCheck, CheckIcon, Minus, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -102,21 +102,31 @@ const PlanCard = ({
         "border-borderSubtle dark:border-borderStrong",
         "hover:-translate-y-0.5 hover:border-accent-brand/50 hover:shadow-md",
         plan.title === "Institutional" && "border-blue-500/70 ring-1 ring-blue-500/15",
-        plan.title === "Insight+" && "border-orange-500/70 ring-1 ring-orange-500/15"
+        plan.title === "Insight+" && "border-orange-500/70 ring-1 ring-orange-500/15",
+        plan.title === "Core" && "border-orange-500/70 ring-1 ring-orange-500/15"
       )}
     >
       {plan.title === "Institutional" && (
         <div className="absolute inset-x-8 top-0 h-24 rounded-full bg-blue-600/10 blur-3xl" />
       )}
 
-      {plan.badge && (
+      {plan.title === "Core" && (
+        <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-orange-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-orange-300">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-orange-500/20 text-orange-200">
+            <BadgeCheck className="h-3 w-3" />
+          </span>
+          Most Popular
+        </span>
+      )}
+
+      {plan.badge && plan.title !== "Core" && (
         <span className="absolute right-4 top-4 rounded-full border border-blue-500/30 bg-blue-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-blue-300">
           {plan.badge}
         </span>
       )}
 
       <div className="relative flex flex-1 flex-col">
-        <div className="pr-20">
+        <div className="pr-24">
           <h2 className="text-sm font-medium tracking-tight text-foreground">{plan.title}</h2>
           <p className="mt-1 text-sm leading-5 text-muted-foreground">{plan.tagline}</p>
         </div>
@@ -132,39 +142,41 @@ const PlanCard = ({
           {plan.desc}
         </p>
 
-      <div className="mt-5 flex flex-col gap-3">
-        <Button size="lg" className="w-full rounded-2xl">
-          {plan.buttonText}
-        </Button>
-        <div className="h-6 overflow-hidden">
-          <AnimatePresence mode="wait">
-            <motion.span
-              key={billing}
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -20, opacity: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="block text-center text-xs text-muted-foreground"
-            >
-              {billing === "monthly"
-                ? "Billed monthly"
-                : "Billed in one annual payment"}
-            </motion.span>
-          </AnimatePresence>
-        </div>
-      </div>
-
-      <div className="mt-5 border-t border-borderSubtle pt-4">
-        <span className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Includes
-        </span>
-        {plan.features.map((feature, index) => (
-          <div key={index} className="flex items-start gap-2.5 py-1">
-            <CheckIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
-            <span className="text-sm leading-6 text-foreground/90">{feature}</span>
+        <div className="mt-auto pt-5">
+          <div className="flex flex-col gap-2.5">
+            <Button size="md" className="w-full rounded-2xl !px-4 !py-2.5 text-sm font-semibold !text-white">
+              {plan.buttonText}
+            </Button>
+            <div className="h-5 overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={billing}
+                  initial={{ y: 16, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -16, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="block text-center text-[11px] text-muted-foreground"
+                >
+                  {billing === "monthly"
+                    ? "Billed monthly"
+                    : "Billed in one annual payment"}
+                </motion.span>
+              </AnimatePresence>
+            </div>
           </div>
-        ))}
-      </div>
+
+          <div className="mt-4 border-t border-borderSubtle pt-4">
+            <span className="mb-3 block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Includes
+            </span>
+            {plan.features.map((feature, index) => (
+              <div key={index} className="flex items-start gap-2.5 py-1">
+                <CheckIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-500" />
+                <span className="text-sm leading-6 text-foreground/90">{feature}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

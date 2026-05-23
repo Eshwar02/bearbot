@@ -98,7 +98,8 @@ const PlanCard = ({
   return (
     <div
       className={cn(
-        "relative flex h-full flex-col overflow-hidden rounded-3xl border bg-background/55 p-5 shadow-sm transition-all duration-200",
+        "relative flex h-full flex-col rounded-3xl border bg-background/55 p-5 shadow-sm transition-all duration-200",
+        plan.title === "Core" ? "overflow-visible" : "overflow-hidden",
         "border-borderSubtle dark:border-borderStrong",
         "hover:-translate-y-0.5 hover:border-accent-brand/50 hover:shadow-md",
         plan.title === "Institutional" && "border-blue-500/70 ring-1 ring-blue-500/15",
@@ -111,7 +112,7 @@ const PlanCard = ({
       )}
 
       {plan.title === "Core" && (
-        <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-orange-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-orange-300">
+        <span className="absolute left-4 top-0 z-10 inline-flex -translate-y-1/2 items-center gap-1.5 rounded-full border border-orange-500/50 bg-background px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-orange-300 shadow-sm">
           <span className="flex h-4 w-4 items-center justify-center rounded-full bg-orange-500/20 text-orange-200">
             <BadgeCheck className="h-3 w-3" />
           </span>

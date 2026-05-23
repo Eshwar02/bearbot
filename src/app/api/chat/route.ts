@@ -62,7 +62,7 @@ type AIProgressFrame = {
 const TICKER_PATTERN = /\$([A-Z]{1,10}(?:\.[A-Z]{1,2})?)\b/;
 const NOUN_PHRASE_PATTERN =
   /(?:analyze|analysis\s+of|price\s+of|quote\s+for|stock\s+of)\s+([a-zA-Z0-9.&\-\s]{2,40})/i;
-const IMAGE_ANALYSIS_TIMEOUT_MS = 12_000;
+const IMAGE_ANALYSIS_TIMEOUT_MS = 25_000;
 
 // Regex-only stock detection. Returns a high-confidence match (dollar ticker,
 // bare all-caps ticker, or explicit "analyze X" noun phrase) or null.
@@ -263,7 +263,13 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
           {
             type: "text",
             text:
-              "Describe this uploaded image for a chat assistant. If there is readable text, transcribe the important text. If it is a chart, screenshot, document, or photo, summarize the visible details concisely. Return plain text only.",
+              "Describe this image accurately for a helpful AI assistant. Follow these rules:\n" +
+              "1. If there is readable text (headings, labels, numbers), transcribe it exactly\n" +
+              "2. If it is a chart or graph: identify the chart type (bar, line, pie etc), axes, data points, trends, and notable values\n" +
+              "3. If it is a screenshot or document: extract all visible text content in order\n" +
+              "4. If it is a photo: describe the subject, setting, objects, people, actions, and visible context\n" +
+              "5. If it is a stock chart or financial data: extract prices, timeframes, indicators, and annotations precisely\n" +
+              "Be thorough but concise. Return plain text only, no markdown formatting.",
           },
           {
             type: "image_url",
@@ -274,12 +280,13 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
         ],
       },
     ],
-    temperature: 0.2,
-    max_tokens: 220,
+    temperature: 0.1,
+    max_tokens: 1024,
   });
 
   const text = response.choices[0]?.message?.content;
-  return typeof text === "string" ? text.trim() : "";
+  const result = typeof text === "string" ? text.trim() : "";
+  return result || `[Image uploaded: ${file.name || "attachment"}]`;
 }
 
 async function analyzeImageAttachment(file: File): Promise<string> {
@@ -416,16 +423,30 @@ export async function POST(request: NextRequest) {
     let requestedModel = "mistral" as const;
     let forceWebSearch = false;
     let attachmentSummaries: AttachmentSummary[] = [];
+    let hasImageAttachments = false;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       incomingMessage = String(formData.get("message") ?? "").trim();
       requestedConversationId = String(formData.get("conversationId") ?? "").trim() || null;
-      requestedModel = (String(formData.get("model") ?? "mistral") as "mistral") || "mistral";
       forceWebSearch = parseFormBoolean(formData.get("forceWebSearch"));
       const uploadedFiles = formData
         .getAll("attachments")
         .filter((value): value is File => value instanceof File);
+      hasImageAttachments = uploadedFiles.some((f) => isImageFile(f));
+
+      // Model orchestration: when images are present, validate Groq Vision is available.
+      // Use Groq as the text model for image/file conversations (faster, cheaper).
+      if (hasImageAttachments) {
+        const groqKey = process.env.GROQ_API_KEY?.trim();
+        if (!groqKey) {
+          return chatJsonResponse("Image analysis requires GROQ_API_KEY to be configured.", 400, {
+            error: "GROQ_API_KEY not set",
+          });
+        }
+        requestedModel = "mistral";
+      }
+
       try {
         attachmentSummaries = await Promise.all(uploadedFiles.map((file) => extractAttachmentText(file)));
       } catch (error) {

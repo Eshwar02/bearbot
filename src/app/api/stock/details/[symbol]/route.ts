@@ -6,6 +6,8 @@ import {
   type ChartRange,
 } from "@/lib/stock/data";
 import { fetchStockNews } from "@/lib/stock/news";
+import { analyzeTechnicals } from "@/lib/stock/technicals";
+import type { TechnicalIndicators } from "@/types/stock";
 
 const VALID_RANGES: ChartRange[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "5Y", "ALL"];
 
@@ -48,12 +50,18 @@ export async function GET(
       fetchStockNews(symbol).catch(() => []),
     ]);
 
+    const historyData = history || [];
+    const currentPrice = quote?.price ?? 0;
+    const technicals: TechnicalIndicators | null =
+      historyData.length > 20 ? analyzeTechnicals(historyData, currentPrice) : null;
+
     return NextResponse.json({
       quote,
-      history,
+      history: historyData,
       sparkline,
       info,
       news,
+      technicals,
       range,
     });
   } catch (err) {

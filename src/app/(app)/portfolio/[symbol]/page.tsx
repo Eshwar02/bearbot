@@ -19,24 +19,18 @@ import { PriceChart, type Range } from '@/components/portfolio/price-chart';
 import type {
   StockQuote,
   StockHistory,
-  CompanyInfo,
+  CompanyInfoFull,
   NewsItem,
+  FundamentalsExtended,
 } from '@/types/stock';
 
-type FullQuote = StockQuote & {
-  marketCap: number;
-  sharesOutstanding: number | null;
-  dividendYield: number | null;
-  beta: number | null;
-  eps: number | null;
-  averageVolume: number | null;
-};
+type FullQuote = StockQuote & FundamentalsExtended;
 
 interface DetailResponse {
   quote: FullQuote | null;
   history: StockHistory;
   sparkline: StockHistory;
-  info: CompanyInfo | null;
+  info: CompanyInfoFull | null;
   news: NewsItem[];
   range: Range;
 }
@@ -214,7 +208,14 @@ export default function StockDetailPage() {
       {/* Chart */}
       <section className="mb-8">
         <PriceChart
-          series={data.history.map((h) => ({ date: h.date, close: h.close }))}
+          series={data.history.map((h) => ({
+            date: h.date,
+            close: h.close,
+            open: h.open,
+            high: h.high,
+            low: h.low,
+            volume: h.volume,
+          }))}
           currency={currency}
           range={range}
           onRangeChange={setRange}
@@ -222,39 +223,88 @@ export default function StockDetailPage() {
         />
       </section>
 
-      {/* Additional stats */}
-      <section className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiTile label="52W High" value={formatCurrency(q.high52, currency)} />
-        <KpiTile label="52W Low" value={formatCurrency(q.low52, currency)} />
-        <KpiTile label="Open" value={formatCurrency(q.open, currency)} />
-        <KpiTile label="Prev. Close" value={formatCurrency(q.previousClose, currency)} />
-        <KpiTile label="P/E Ratio" value={q.pe != null ? q.pe.toFixed(2) : '—'} />
-        <KpiTile label="EPS" value={q.eps != null ? q.eps.toFixed(2) : '—'} />
-        <KpiTile label="Beta" value={q.beta != null ? q.beta.toFixed(2) : '—'} />
-        <KpiTile
-          label="Dividend Yield"
-          value={q.dividendYield != null ? `${(q.dividendYield * 100).toFixed(2)}%` : '—'}
-        />
+      {/* Price stats */}
+      <section className="mb-6">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+          Price stats
+        </h3>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <KpiTile label="52W High" value={formatCurrency(q.high52, currency)} />
+          <KpiTile label="52W Low" value={formatCurrency(q.low52, currency)} />
+          <KpiTile label="Open" value={formatCurrency(q.open, currency)} />
+          <KpiTile label="Prev. Close" value={formatCurrency(q.previousClose, currency)} />
+        </div>
+      </section>
+
+      {/* Valuation */}
+      <section className="mb-6">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+          Valuation
+        </h3>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <KpiTile label="P/E Ratio" value={fmtRatio(q.pe)} />
+          <KpiTile label="EPS" value={fmtRatio(q.eps)} />
+          <KpiTile label="Price/Book" value={fmtRatio(q.priceToBook)} />
+          <KpiTile label="Book Value" value={q.bookValue != null ? formatCurrency(q.bookValue, currency) : '—'} />
+          <KpiTile label="Enterprise Value" value={fmtBig(q.enterpriseValue, currency)} />
+          <KpiTile label="EBITDA" value={fmtBig(q.ebitda, currency)} />
+          <KpiTile label="Beta" value={fmtRatio(q.beta)} />
+          <KpiTile label="Shares Out" value={fmtBig(q.sharesOutstanding, '')} />
+        </div>
+      </section>
+
+      {/* Profitability + Growth */}
+      <section className="mb-6">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+          Profitability & growth
+        </h3>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <KpiTile label="ROE" value={fmtPct(q.roe)} />
+          <KpiTile label="ROA" value={fmtPct(q.returnOnAssets)} />
+          <KpiTile label="Profit Margin" value={fmtPct(q.profitMargins)} />
+          <KpiTile label="Revenue Growth" value={fmtPct(q.revenueGrowth)} accent={q.revenueGrowth != null && q.revenueGrowth >= 0 ? 'green' : 'red'} />
+          <KpiTile label="Earnings Growth" value={fmtPct(q.earningsGrowth)} accent={q.earningsGrowth != null && q.earningsGrowth >= 0 ? 'green' : 'red'} />
+          <KpiTile label="Revenue" value={fmtBig(q.revenue, currency)} />
+          <KpiTile label="Gross Profit" value={fmtBig(q.grossProfit, currency)} />
+          <KpiTile label="Avg Volume" value={fmtBig(q.averageVolume, '')} />
+        </div>
+      </section>
+
+      {/* Balance sheet + cash flow */}
+      <section className="mb-6">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">
+          Balance sheet & cash flow
+        </h3>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <KpiTile label="Debt/Equity" value={fmtRatio(q.debtToEquity)} />
+          <KpiTile label="Current Ratio" value={fmtRatio(q.currentRatio)} />
+          <KpiTile label="Total Cash" value={fmtBig(q.totalCash, currency)} />
+          <KpiTile label="Free Cash Flow" value={fmtBig(q.freeCashflow, currency)} />
+          <KpiTile label="Operating Cash" value={fmtBig(q.operatingCashflow, currency)} />
+          <KpiTile label="Dividend Yield" value={fmtPct(q.dividendYield)} />
+          <KpiTile label="Dividend Rate" value={q.dividendRate != null ? formatCurrency(q.dividendRate, currency) : '—'} />
+          <KpiTile label="Payout Ratio" value={fmtPct(q.payoutRatio)} />
+        </div>
       </section>
 
       {/* Company info + News two-col */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {data.info && (data.info.description || data.info.sector !== 'Unknown') && (
+        {data.info && (
           <div className="rounded-2xl border border-borderSubtle bg-elevated p-5 shadow-md lg:col-span-2">
             <h2 className="mb-4 flex items-center gap-2 text-base font-semibold text-primary">
               <Building2 className="h-4 w-4 text-accent-blue" />
-              About {q.name || q.symbol}
+              About {data.info.longName || q.name || q.symbol}
             </h2>
             {data.info.description && (
               <p className="mb-4 text-sm leading-relaxed text-secondary line-clamp-6">
                 {data.info.description}
               </p>
             )}
-            <dl className="grid grid-cols-2 gap-3 text-sm">
+            <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
               {data.info.industry && data.info.industry !== 'Unknown' && (
                 <Stat label="Industry" value={data.info.industry} />
               )}
-              {data.info.country && <Stat label="Country" value={data.info.country} />}
+              {data.info.ceo && <Stat label="CEO" value={data.info.ceo} />}
               {data.info.employees != null && (
                 <Stat
                   label="Employees"
@@ -262,6 +312,28 @@ export default function StockDetailPage() {
                   icon={<Users className="h-3.5 w-3.5" />}
                 />
               )}
+              {(data.info.city || data.info.state || data.info.country) && (
+                <Stat
+                  label="Headquarters"
+                  value={[data.info.city, data.info.state, data.info.country]
+                    .filter(Boolean)
+                    .join(', ')}
+                />
+              )}
+              {data.info.ipoDate && <Stat label="IPO Date" value={data.info.ipoDate} />}
+              {data.info.exchange && <Stat label="Exchange" value={data.info.exchange} />}
+              {data.info.exchangeTimezone && (
+                <Stat label="Timezone" value={data.info.exchangeTimezone} />
+              )}
+              {data.info.currency && <Stat label="Currency" value={data.info.currency} />}
+              {data.info.quoteType && <Stat label="Type" value={data.info.quoteType} />}
+              {data.info.fundFamily && <Stat label="Fund Family" value={data.info.fundFamily} />}
+              {data.info.fundCategory && (
+                <Stat label="Fund Category" value={data.info.fundCategory} />
+              )}
+              {data.info.legalType && <Stat label="Legal Type" value={data.info.legalType} />}
+              {data.info.phone && <Stat label="Phone" value={data.info.phone} />}
+              {data.info.address && <Stat label="Address" value={data.info.address} />}
               {data.info.website && (
                 <Stat
                   label="Website"
@@ -316,6 +388,20 @@ export default function StockDetailPage() {
       </section>
     </div>
   );
+}
+
+function fmtRatio(v: number | null | undefined): string {
+  return v != null && Number.isFinite(v) ? v.toFixed(2) : '—';
+}
+
+function fmtPct(v: number | null | undefined): string {
+  return v != null && Number.isFinite(v) ? `${(v * 100).toFixed(2)}%` : '—';
+}
+
+function fmtBig(v: number | null | undefined, currency: string): string {
+  if (v == null || !Number.isFinite(v) || v === 0) return '—';
+  const sym = currency === 'USD' ? '$' : currency === 'INR' ? '₹' : currency ? `${currency} ` : '';
+  return `${sym}${formatNumber(v)}`;
 }
 
 function KpiTile({

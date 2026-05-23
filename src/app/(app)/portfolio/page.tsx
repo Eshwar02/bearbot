@@ -11,7 +11,6 @@ import {
   Activity,
   BrainCircuit,
   Gauge,
-  Sparkles,
 } from 'lucide-react';
 import { cn, formatCurrency, formatPercent } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -220,49 +219,6 @@ function AIIntelligencePanel({ intelligence }: { intelligence: PortfolioIntellig
   );
 }
 
-function TechnicalAnalyticsPanel({ technicals }: { technicals: TechnicalSnapshot[] }) {
-  if (technicals.length === 0) return null;
-  return (
-    <div className="mb-8 rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
-      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-primary">
-        <Sparkles className="h-5 w-5 text-accent-blue" />
-        Advanced Technical Analytics
-      </h2>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {technicals.slice(0, 9).map((t) => (
-          <div key={t.symbol} className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-canvas p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="font-semibold text-primary">{t.symbol}</p>
-              <Badge variant={momentumBadge(t.momentum)}>{t.momentum}</Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <p className="text-muted">RSI</p>
-                <p className="text-primary">{t.rsi === null ? 'N/A' : t.rsi.toFixed(1)}</p>
-              </div>
-              <div>
-                <p className="text-muted">MACD Hist</p>
-                <p className="text-primary">
-                  {t.macdHistogram === null ? 'N/A' : t.macdHistogram.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted">SMA 20</p>
-                <p className="text-primary">{t.sma20 === null ? 'N/A' : t.sma20.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-muted">SMA 50</p>
-                <p className="text-primary">{t.sma50 === null ? 'N/A' : t.sma50.toFixed(2)}</p>
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-muted">Trend: {t.trend}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
   const [intelligence, setIntelligence] = useState<PortfolioIntelligence | null>(null);
@@ -424,9 +380,6 @@ export default function PortfolioPage() {
       {enriched.length > 0 && <PortfolioSummary holdings={enriched} />}
 
       {!intelLoading && intelligence && <AIIntelligencePanel intelligence={intelligence} />}
-      {!intelLoading && intelligence && intelligence.technicals.length > 0 && (
-        <TechnicalAnalyticsPanel technicals={intelligence.technicals} />
-      )}
 
       {intelLoading && (
         <div className="mb-8 rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">

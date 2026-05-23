@@ -18,6 +18,10 @@ type Range = (typeof RANGES)[number];
 interface PricePoint {
   date: string;
   close: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
 }
 
 interface PriceChartProps {
@@ -28,36 +32,66 @@ interface PriceChartProps {
   loading?: boolean;
 }
 
-function ChartTooltip(props: unknown, currency: string) {
+function formatVolume(v: number): string {
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(2)}B`;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(2)}K`;
+  return String(v);
+}
+
+function ChartTooltip(props: unknown, currency: string, isIntraday: boolean) {
   // Recharts content callback gets a loosely-typed object; read what we need
   // and ignore the rest.
   const p = props as {
     active?: boolean;
-    payload?: ReadonlyArray<{ value?: number | string }>;
+    payload?: ReadonlyArray<{ value?: number | string; payload?: PricePoint }>;
     label?: string | number;
   };
   if (!p.active || !p.payload || p.payload.length === 0) return null;
-  const raw = p.payload[0].value;
-  const value = typeof raw === 'number' ? raw : Number(raw);
-  if (!Number.isFinite(value)) return null;
-  const label = p.label;
-  // Yahoo date strings come as YYYY-MM-DD for daily, full ISO for intraday.
-  const d = new Date(label as string);
+  const point = p.payload[0].payload;
+  if (!point) return null;
+  const close = typeof point.close === 'number' ? point.close : Number(point.close);
+  if (!Number.isFinite(close)) return null;
+  const label = p.label ?? point.date;
+  const d = new Date(String(label));
+  const isISO = String(label).includes('T');
   const formatted = Number.isNaN(d.getTime())
     ? String(label)
-    : d.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        ...(String(label).includes('T') && { hour: '2-digit', minute: '2-digit' }),
-      });
+    : isIntraday || isISO
+      ? d.toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        })
+      : d.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        });
+
+  const rows: Array<[string, string, string?]> = [];
+  if (typeof point.open === 'number') rows.push(['Open', formatCurrency(point.open, currency)]);
+  if (typeof point.high === 'number')
+    rows.push(['High', formatCurrency(point.high, currency), 'text-accent-green']);
+  if (typeof point.low === 'number')
+    rows.push(['Low', formatCurrency(point.low, currency), 'text-accent-red']);
+  rows.push(['Close', formatCurrency(close, currency), 'font-semibold text-primary']);
+  if (typeof point.volume === 'number' && point.volume > 0)
+    rows.push(['Volume', formatVolume(point.volume)]);
 
   return (
-    <div className="rounded-lg border border-borderSubtle bg-canvas/95 px-3 py-2 text-xs shadow-lg backdrop-blur-sm">
-      <p className="mb-0.5 text-muted">{formatted}</p>
-      <p className="font-semibold text-primary">
-        {formatCurrency(value, currency)}
-      </p>
+    <div className="min-w-[180px] rounded-lg border border-borderSubtle bg-canvas/95 px-3 py-2 text-xs shadow-lg backdrop-blur-sm">
+      <p className="mb-1.5 border-b border-borderSubtle pb-1 text-muted">{formatted}</p>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+        {rows.map(([k, v, cls]) => (
+          <div key={k} className="contents">
+            <dt className="text-muted">{k}</dt>
+            <dd className={cn('text-right tabular-nums text-primary', cls)}>{v}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -94,11 +128,24 @@ function PriceChart({ series, currency = 'USD', range, onRangeChange, loading }:
             <p className="mt-1 text-lg font-semibold text-primary">
               {formatCurrency(hovered.close, currency)}
               <span className="ml-2 text-xs font-normal text-muted">
-                {new Date(hovered.date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
+                {(() => {
+                  const d = new Date(hovered.date);
+                  if (Number.isNaN(d.getTime())) return hovered.date;
+                  const intraday = range === '1D' || range === '1W';
+                  return intraday
+                    ? d.toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true,
+                      })
+                    : d.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      });
+                })()}
               </span>
             </p>
           ) : (
@@ -202,7 +249,9 @@ function PriceChart({ series, currency = 'USD', range, onRangeChange, loading }:
               />
               <Tooltip
                 cursor={{ stroke: 'var(--border-strong)', strokeWidth: 1 }}
-                content={(props) => ChartTooltip(props, currency)}
+                content={(props) =>
+                  ChartTooltip(props, currency, range === '1D' || range === '1W')
+                }
               />
               <Area
                 type="monotone"

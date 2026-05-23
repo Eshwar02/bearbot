@@ -180,48 +180,52 @@ export default function InfoPage() {
 
   return (
     <main className="relative w-full bg-black">
-      <div className="fixed inset-0 w-full h-full">
-        <div className="absolute inset-0 bg-black/60 z-10" />
-        <ShaderAnimation />
-      </div>
+      <section className="relative min-h-screen w-full overflow-hidden">
+        <div className="absolute inset-0 w-full h-full">
+          <div className="absolute inset-0 bg-black/60 z-10" />
+          <ShaderAnimation />
+        </div>
 
-      <GooeyFilter id="pixel-trail-goo" strength={6} />
-      <div
-        className="fixed inset-0 z-[15] pointer-events-none"
-        style={{ filter: "url(#pixel-trail-goo)" }}
-      >
-        <PixelTrail
-          pixelSize={screenSize.lessThan("md") ? 20 : 28}
-          fadeDuration={500}
-          delay={80}
-          pixelClassName="bg-white/8"
-          className="pointer-events-none"
-        />
-      </div>
+        <GooeyFilter id="pixel-trail-goo" strength={6} />
+        <div
+          className="absolute inset-0 z-[15] pointer-events-none"
+          style={{ filter: "url(#pixel-trail-goo)" }}
+        >
+          <PixelTrail
+            pixelSize={screenSize.lessThan("md") ? 20 : 28}
+            fadeDuration={500}
+            delay={80}
+            pixelClassName="bg-white/8"
+            className="pointer-events-none"
+          />
+        </div>
 
-      <header className="relative z-20 flex items-center justify-between px-6 py-4 md:px-10 md:py-6">
-        <span className="font-serif text-lg md:text-xl tracking-tightish text-white">
-          AlphaSight AI
-        </span>
-        <Button variant="primary" size="sm" onClick={goToLogin} aria-label="Log in to AlphaSight AI">
-          Log in
-        </Button>
-      </header>
+        <header className="relative z-20 flex items-center justify-between px-6 py-4 md:px-10 md:py-6">
+          <span className="font-serif text-lg md:text-xl tracking-tightish text-white">
+            AlphaSight AI
+          </span>
+          <Button variant="primary" size="sm" onClick={goToLogin} aria-label="Log in to AlphaSight AI">
+            Log in
+          </Button>
+        </header>
 
-      <div className="relative z-20 flex flex-col items-center justify-center min-h-screen">
-        <Hero
-          inverted
-          primaryLabel="Get Started"
-          secondaryLabel="Learn More"
-          onPrimaryClick={goToLogin}
-          onSecondaryClick={goToLogin}
-        />
+        <div className="relative z-20 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)]">
+          <Hero
+            inverted
+            primaryLabel="Get Started"
+            secondaryLabel="Learn More"
+            onPrimaryClick={goToLogin}
+            onSecondaryClick={goToLogin}
+          />
+        </div>
+      </section>
 
-        <div className="relative z-20 w-full">
+      <div className="relative w-full">
+        <div className="w-full">
           <RadialOrbitalTimeline timelineData={timelineData} />
         </div>
 
-        <div className="relative z-20 w-full">
+        <div className="w-full">
           <PricingSection
             plans={pricingPlans}
             heading="Plans that scale with you"
@@ -229,7 +233,7 @@ export default function InfoPage() {
           />
         </div>
 
-        <div className="w-full max-w-3xl px-6 pb-32">
+        <div className="w-full max-w-3xl mx-auto px-6 pb-32">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tighter text-white text-center mb-12">
             Everything you need to invest smarter
           </h2>

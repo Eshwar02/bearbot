@@ -218,39 +218,14 @@ export function Sidebar() {
                       e.stopPropagation();
                       void handleDeleteConversation(conv.id);
                     }}
-                    className="ml-1 hidden shrink-0 rounded p-1 text-muted transition-colors hover:bg-elevated-hover hover:text-red-500 group-hover:block"
+                    className="ml-1 hidden shrink-0 rounded p-1 text-muted transition-colors hover:bg-elevated-hover hover:text-accent-red group-hover:block"
                     aria-label="Delete conversation"
                   >
-                    <MessageSquare
-                      size={14}
-                      className={cn(
-                        'mr-2.5 shrink-0',
-                        isActive ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-dark-500',
-                      )}
-                    />
-                    
-                    <span className="flex-1 truncate text-[13px]">
-                      {conv.title}
-                    </span>
-                    
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleDeleteConversation(conv.id);
-                      }}
-                      className={cn(
-                        "ml-1 hidden shrink-0 rounded p-1 transition-colors",
-                        "text-gray-400 hover:bg-white hover:text-red-500 dark:hover:bg-dark-900 dark:hover:text-red-400",
-                        "group-hover:block"
-                      )}
-                      aria-label="Delete conversation"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>

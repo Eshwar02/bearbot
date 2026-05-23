@@ -5,7 +5,7 @@ import { useAppStore } from '@/stores/app-store';
 import { useChat } from '@/lib/hooks/use-chat';
 import { ChatMessage } from './chat-message';
 import { WelcomeScreen } from './welcome-screen';
-import { GradientAIChatInput } from '@/components/ui/gradient-ai-chat-input';
+import { PromptInputBox } from '@/components/ui/ai-prompt-box';
 import { cn } from '@/lib/utils';
 
 // Clean, standard productivity skeleton loader
@@ -112,14 +112,13 @@ export function ChatPanel() {
       {/* Composer */}
       <div className="bg-canvas px-4 pb-5 pt-2 sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <GradientAIChatInput
+          <PromptInputBox
             value={draft}
             onChange={setDraft}
             onSend={handleSend}
             onStop={stopStreaming}
             isStreaming={isStreaming}
             placeholder="Ask about any stock, market, or portfolio…"
-            modelOptions={[]}
             webSearchEnabled={webSearchEnabled}
             onWebSearchToggle={setWebSearchEnabled}
             attachments={attachments}

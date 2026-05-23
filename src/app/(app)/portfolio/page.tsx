@@ -22,6 +22,7 @@ import type { PortfolioHolding } from '@/types/stock';
 import { AddHoldingModal } from '@/components/portfolio/add-holding-modal';
 import { BuyMoreModal } from '@/components/portfolio/buy-more-modal';
 import { PortfolioTable } from '@/components/portfolio/portfolio-table';
+import { BacktestPanel } from '@/components/portfolio/BacktestPanel';
 import type {
   AssetIntelligenceCard,
   PortfolioIntelligence,

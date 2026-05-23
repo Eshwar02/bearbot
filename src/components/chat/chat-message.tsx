@@ -168,7 +168,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   exchange={message.stockData[0].exchange}
                   height={320}
                 />
-              </>
+              </div>
             )}
 
             {/* Body */}

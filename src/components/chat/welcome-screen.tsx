@@ -71,17 +71,6 @@ export function WelcomeScreen({ onSendPrompt }: WelcomeScreenProps) {
         {phrase}
       </motion.h1>
 
-        {/* Minimal, high-contrast typography */}
-        <motion.h1
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
-          className="mb-12 text-center text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100"
-          suppressHydrationWarning
-        >
-          {greeting}
-        </motion.h1>
-
         {/* Symmetrical, flat suggestion grid */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
@@ -113,8 +102,6 @@ export function WelcomeScreen({ onSendPrompt }: WelcomeScreenProps) {
             </button>
           ))}
         </motion.div>
-        
-      </div>
     </div>
   );
 }

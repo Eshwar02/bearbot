@@ -35,7 +35,7 @@ export function AppShell({ children }: AppShellProps) {
   const showAIProgress = pathname === '/' || pathname.startsWith('/chat/');
 
   return (
-    <div className="flex h-dvh w-full overflow-auto">
+    <div className="flex h-dvh w-full">
       <Sidebar />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">

@@ -31,7 +31,7 @@ export function PersonalizationModal({ open, onClose }: PersonalizationModalProp
       role="presentation"
     >
       <div
-        className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-borderSubtle bg-canvas shadow-lg"
+        className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl border border-borderSubtle bg-canvas shadow-lg"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

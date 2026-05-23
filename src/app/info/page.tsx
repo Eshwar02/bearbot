@@ -30,7 +30,7 @@ export default function InfoPage() {
         <span className="font-serif text-lg md:text-xl tracking-tightish text-white">
           AlphaSight AI
         </span>
-        <Button variant="primary" size="sm" onClick={goToLogin}>
+        <Button variant="primary" size="sm" onClick={goToLogin} aria-label="Log in to AlphaSight AI">
           Log in
         </Button>
       </header>

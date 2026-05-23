@@ -419,6 +419,18 @@ h1, h2, h3 {
   }
 }
 
+/* ── Info page background animations ───────────────────────────────── */
+@keyframes shimmer {
+  0%, 100% { background-position: 200% 50%; }
+  50% { background-position: 0% 50%; }
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(5%, 3%) scale(1.05); }
+  66% { transform: translate(-3%, -2%) scale(0.95); }
+}
+
 /* ── Print Styles ──────────────────────────────────────────────────── */
 @media print {
   @page {

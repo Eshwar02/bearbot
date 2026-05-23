@@ -41,9 +41,7 @@
     "remark-gfm": "^4.0.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.0",
-    "tesseract.js": "^7.0.0",
     "three": "^0.184.0",
-    "twilio": "^6.0.0",
     "xlsx": "^0.18.5",
     "yahoo-finance2": "^2.14.0",
     "zustand": "^5.0.2"

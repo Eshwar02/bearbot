@@ -52,7 +52,6 @@ export const metadata: Metadata = {
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
   themeColor: '#1f2937',
 };
 
@@ -74,25 +73,7 @@ const themeInitScript = `
 const swRegisterScript = `
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/sw.js')
-      .then(function(registration) {
-        console.log('[PWA] Service Worker registered successfully:', registration.scope);
-
-        // Handle updates
-        registration.addEventListener('updatefound', function() {
-          const newWorker = registration.installing;
-          if (newWorker) {
-            newWorker.addEventListener('statechange', function() {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[PWA] New version installed; it will be used on the next page load.');
-              }
-            });
-          }
-        });
-      })
-      .catch(function(error) {
-        console.log('[PWA] Service Worker registration failed:', error);
-      });
+    navigator.serviceWorker.register('/sw.js').catch(function() {});
   });
 }
 `;

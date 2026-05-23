@@ -251,7 +251,7 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
   if (!apiKey) throw new Error("GROQ_API_KEY environment variable is not set");
 
   const groq = new Groq({ apiKey });
-  const model = process.env.GROQ_VISION_MODEL || "llama-3.2-11b-vision-preview";
+  const model = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
   const buffer = Buffer.from(await file.arrayBuffer());
   const dataUrl = imageDataUrl(file, buffer);
   const response = await groq.chat.completions.create({

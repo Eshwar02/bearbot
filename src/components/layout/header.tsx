@@ -2,14 +2,14 @@
 import Link from 'next/link';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Menu, LogOut, User, ArrowLeft } from 'lucide-react';
+import { Menu, LogOut, User, ArrowLeft, Palette } from 'lucide-react';
 import Image from 'next/image';
 import { useAppStore } from '@/stores/app-store';
 import { createClient } from '@/lib/supabase/client';
 import { logger } from '@/lib/logger';
 import { cn } from '@/lib/utils';
-import { ThemeSwitch } from '@/components/ui/theme-switch-button';
 import { PWAInstallButton } from '@/components/ui/pwa-install-button';
+import { PersonalizationModal } from '@/components/ui/personalization-modal';
 
 export function Header() {
   const router = useRouter();
@@ -18,6 +18,7 @@ export function Header() {
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [personalizationOpen, setPersonalizationOpen] = useState(false);
   const [initial, setInitial] = useState('A');
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -115,14 +116,13 @@ export function Header() {
 
       <div className="flex items-center gap-2">
         <PWAInstallButton />
-        <ThemeSwitch />
         <div ref={menuRef} className="relative">
           <button
             onClick={() => setMenuOpen((p) => !p)}
             className={cn(
               'flex h-8 w-8 items-center justify-center rounded-full',
-              'bg-accent-brand text-sm font-semibold text-dark-950',
-              'ring-1 ring-accent-brand/50 ring-offset-2 dark:ring-offset-dark-900',
+              'bg-accent-brand text-sm font-semibold text-inverse',
+              'ring-1 ring-accent-brand/50 ring-offset-2 ring-offset-canvas',
               'transition-transform hover:scale-105',
             )}
             aria-label="Open user menu"
@@ -135,9 +135,28 @@ export function Header() {
 
           {menuOpen && (
             <div
-              className="fixed right-4 top-16 z-[99999] w-56 overflow-visible rounded-xl border border-borderSubtle bg-canvas shadow-lg"
+              className="fixed right-4 top-16 z-[99999] w-60 overflow-visible rounded-xl border border-borderSubtle bg-canvas shadow-lg"
               role="menu"
             >
+              {/* Personalization — placed at the top per user spec */}
+              <button
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-primary transition-colors hover:bg-elevated"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setPersonalizationOpen(true);
+                }}
+                role="menuitem"
+                aria-label="Open personalization"
+              >
+                <div className="flex items-center justify-center rounded-lg bg-accent-brand/15 p-1.5 text-accent-brand">
+                  <Palette size={16} />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span>Personalization</span>
+                  <span className="text-[10px] text-muted">Themes & appearance</span>
+                </div>
+              </button>
+              <div className="my-1 border-t border-borderSubtle" />
               <button
                 className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-primary transition-colors hover:bg-elevated"
                 onClick={() => {
@@ -146,19 +165,19 @@ export function Header() {
                 role="menuitem"
                 aria-label="Open profile page"
               >
-                <div className="flex items-center justify-center rounded-lg bg-white/5 p-1.5 text-gray-400 group-hover:text-emerald-400 group-hover:bg-emerald-500/10 transition-colors">
+                <div className="flex items-center justify-center rounded-lg bg-elevated p-1.5 text-secondary">
                   <User size={16} />
                 </div>
                 <span>Profile Settings</span>
               </button>
               <div className="my-1 border-t border-borderSubtle" />
               <button
-                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-red-500 transition-colors hover:bg-elevated"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm text-accent-red transition-colors hover:bg-elevated"
                 onClick={() => void handleSignOut()}
                 role="menuitem"
                 aria-label="Sign out from account"
               >
-                <div className="flex items-center justify-center rounded-lg bg-white/5 p-1.5 text-gray-400 group-hover:text-red-400 group-hover:bg-red-500/20 transition-colors">
+                <div className="flex items-center justify-center rounded-lg bg-accent-red/10 p-1.5 text-accent-red">
                   <LogOut size={16} />
                 </div>
                 <span>Sign out</span>
@@ -167,6 +186,11 @@ export function Header() {
           )}
         </div>
       </div>
+
+      <PersonalizationModal
+        open={personalizationOpen}
+        onClose={() => setPersonalizationOpen(false)}
+      />
     </header>
   );
 }

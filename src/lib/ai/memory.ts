@@ -162,7 +162,8 @@ export function formatMemoriesForPrompt(rows: AiMemoryMatch[]): string {
   const lines = rows.map((r) => `- ${r.memory}`);
   const header = "Known facts about the user (from past chats):";
   const body = lines.join("\n");
-  const footer = "Use these naturally when relevant. Never invent or expand.";
+  const footer =
+    "Use these quietly when relevant to personalize depth, examples, and cautions. Never invent, expand, or mention saved memory unnecessarily.";
   let block = `${header}\n${body}\n${footer}`;
 
   const budget = AGENT_CONFIG.memory.promptCharBudget;
@@ -182,14 +183,17 @@ STRICT RULES:
 - Only the user's own message is your source of truth. You are NOT given the assistant's reply.
 - If the user explicitly asks to remember/save/store something, save that requested content even if it is not about the user. Rephrase as a concise memory, e.g. "User asked to remember: ..."
 - Otherwise extract personal facts the user stated about themselves: identity, preferences, goals, constraints, location, work/study, important dates, learning needs, communication style, risk profile, holdings, watchlist, investment plans, and durable interests.
+- Save durable tutoring signals when stated, such as experience level, topic being learned, preferred explanation style, desired response depth, or whether the user wants direct corrections.
 - Personal near-term context may be saved when useful for future conversation ("Has an exam tomorrow", "Is preparing for an interview", "Is learning options trading"). Include relative timing exactly as stated if no date is given; do not invent dates.
 - DO NOT extract ordinary transient moods or one-off states unless explicitly asked to save them ("I'm bored", "I'm tired", "I'm eating" → SKIP unless the user says remember/save it).
+- DO NOT store passwords, authentication tokens, account/card numbers, government identifiers, exact financial account credentials, or other secrets even if they appear in the message. If explicitly asked to remember a secret, SKIP it.
+- DO NOT store sensitive health, political, religious, or sexual information unless the user explicitly asks to remember it and it is necessary for personalization; when unsure, SKIP.
 - DO NOT extract market/news facts, prices, or third-party facts unless the user explicitly asks to save/store/remember that information.
 - DO NOT extract questions unless the question contains an explicit memory instruction or a personal preference/goal ("Can you remember that I prefer short answers?" → ADD).
 - If unsure → SKIP. False memories are far worse than missing memories.
 - Compare each candidate to existing memories. If it contradicts an existing memory, UPDATE the existing memory by id. If it's already covered or redundant, SKIP.
 - Memories must be short, third-person, self-contained sentences (e.g. "Prefers dividend stocks", "Lives in Bangalore", "Has low risk tolerance", "Asked to remember: use concise answers").
-- Use one-word categories: preference, risk_profile, holding_intent, personal, goal, constraint, study, work, saved_note.
+- Use one-word categories: preference, communication, learning, risk_profile, holding_intent, personal, goal, constraint, study, work, saved_note.
 - If the message has no useful memory content → return empty operations array.
 
 Output JSON only, no prose, no code fences. Schema:

@@ -100,14 +100,17 @@ export async function runDeepResearch(analysis: StockAnalysis): Promise<Research
   const commodities = pickCommodities(sector);
   const peers = pickPeers(sector, country, symbol);
 
-  const companyQuery = `${name} stock`;
-  const sectorQuery = `${sector} sector India 2026 outlook`;
-  const geoQuery = country ? `${country} economy market 2026` : "global markets 2026";
+  const market = country || "global";
+  const companyQuery = `${name} stock latest company developments`;
+  const sectorQuery = `${sector} sector ${market} 2026 outlook regulation supply chain`;
+  const geoQuery = `${name} ${sector} ${market} geopolitical risk sanctions tariffs trade route supply chain 2026`;
 
   const tasks: Promise<NewsItem[]>[] = [
     fetchGoogleNews(companyQuery, 5),
     fetchGoogleNews(sectorQuery, 4),
-    ...commodities.slice(0, 2).map((c) => fetchGoogleNews(`${c} price 2026`, 3)),
+    ...commodities
+      .slice(0, 2)
+      .map((c) => fetchGoogleNews(`${c} price supply disruption export restriction geopolitics 2026`, 3)),
     fetchGoogleNews(geoQuery, 3),
   ];
 
@@ -143,7 +146,7 @@ function fmtNews(items: NewsItem[], cap: number): string {
 
 export function formatResearchBundle(bundle: ResearchBundle): string {
   const blocks: string[] = [
-    "Thinking:\n- Conducting deep research for comprehensive analysis\n- Searching for company-specific news and developments\n- Gathering sector and industry updates\n- Monitoring key commodity and input cost movements\n- Analyzing geopolitical and macro-economic factors\n- Identifying peer companies for performance comparison\n\nDEEP RESEARCH CONTEXT"
+    "DEEP RESEARCH CONTEXT\nCoverage: company developments, sector conditions, key inputs, geopolitical and trade-route exposure, and peer context."
   ];
 
   if (bundle.peers.length > 0) {
@@ -169,7 +172,7 @@ export function formatResearchBundle(bundle: ResearchBundle): string {
   }
 
   blocks.push(
-    "Synthesis rules: Connect company performance to the news above. Cite specific URLs from this block. Do not invent sources. If a data point is missing, say so briefly rather than guessing."
+    "Synthesis rules: Connect company performance to the news above. For each material/input dependency, explain the plausible margin or supply impact and only identify a country, route, sanction, tariff, or conflict exposure when supported by this context. Cite specific URLs from this block. Do not invent sources. If evidence for an exposure or data point is missing, say so briefly rather than guessing."
   );
 
   return blocks.join("\n\n");

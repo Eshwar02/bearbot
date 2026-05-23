@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, BarChart3, Globe, ArrowLeftRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'; 
 
 interface WelcomeScreenProps {
   onSendPrompt: (prompt: string) => void;
@@ -71,7 +71,50 @@ export function WelcomeScreen({ onSendPrompt }: WelcomeScreenProps) {
         {phrase}
       </motion.h1>
 
+        {/* Minimal, high-contrast typography */}
+        <motion.h1
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1, ease: 'easeOut' }}
+          className="mb-12 text-center text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 dark:text-gray-100"
+          suppressHydrationWarning
+        >
+          {greeting}
+        </motion.h1>
 
+        {/* Symmetrical, flat suggestion grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: 'easeOut' }}
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full"
+        >
+          {suggestions.map((item, index) => (
+            <button
+              key={index}
+              onClick={() => onSendPrompt(item.prompt)}
+              className={cn(
+                "group flex flex-col text-left p-4 rounded-xl border transition-colors duration-200",
+                // Light mode: flat white, gray border, subtle gray hover
+                "bg-white border-gray-200 hover:bg-gray-50",
+                // Dark mode: flat dark, subtle border, lighter dark hover
+                "dark:bg-dark-900 dark:border-dark-800 dark:hover:bg-dark-800"
+              )}
+            >
+              <div className="flex items-center mb-2 text-gray-500 dark:text-dark-400 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
+                <item.icon className="w-5 h-5 mr-2" />
+                <span className="font-medium text-sm text-gray-900 dark:text-gray-200">
+                  {item.label}
+                </span>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-dark-400 leading-relaxed">
+                {item.description}
+              </p>
+            </button>
+          ))}
+        </motion.div>
+        
+      </div>
     </div>
   );
 }

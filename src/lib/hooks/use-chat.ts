@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAppStore, type ChatMessage } from '@/stores/app-store';
 import { generateId } from '@/lib/utils';
 import { useAIProgress } from '@/lib/hooks/use-ai-progress';
+import { toast } from 'sonner';
 
 const EMPTY_RESPONSE_FALLBACK =
   'Unable to generate analysis right now. Showing available data below.';
@@ -296,6 +297,7 @@ export function useChat() {
           finishAll();
           streamingDone = true;
           clearTimeout(timeoutId);
+          toast.success('Response generation complete.');
           console.debug('[useChat] sendMessage:json-response-applied', {
             hasText: hasVisibleText(text),
           });
@@ -476,6 +478,7 @@ export function useChat() {
         } else {
           updateMessage(assistantMsg.id, { isStreaming: false });
         }
+        toast.success('Response generation complete.');
 
         if (effectiveConversationId) {
           console.debug('[useChat] sendMessage:metadata-hydrate', {

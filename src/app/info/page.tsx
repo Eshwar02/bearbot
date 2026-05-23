@@ -122,6 +122,10 @@ export default function InfoPage() {
           onSecondaryClick={goToLogin}
         />
 
+        <div className="relative z-20 w-full">
+          <RadialOrbitalTimeline timelineData={timelineData} />
+        </div>
+
         <div className="w-full max-w-3xl px-6 pb-32">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tighter text-white text-center mb-12">
             Everything you need to invest smarter
@@ -175,10 +179,6 @@ export default function InfoPage() {
             <SocialIcons />
           </div>
         </div>
-      </div>
-
-      <div className="relative z-20">
-        <RadialOrbitalTimeline timelineData={timelineData} />
       </div>
     </main>
   );

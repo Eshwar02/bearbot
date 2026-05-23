@@ -15,7 +15,7 @@ import { useScreenSize } from '@/hooks/use-screen-size';
 import { PixelTrail } from '@/components/ui/pixel-trail';
 import { GooeyFilter } from '@/components/ui/gooey-filter';
 import RadialOrbitalTimeline from '@/components/ui/radial-orbital-timeline';
-import PricingSection from '@/components/ui/pricing-section';
+import { PricingSection } from '@/components/ui/pricing';
 import { Calendar, Activity, MessageSquare, Shield, Brain } from 'lucide-react';
 
 const timelineData = [
@@ -76,6 +76,100 @@ const timelineData = [
   },
 ];
 
+const pricingPlans = [
+  {
+    name: 'Free',
+    info: 'Start exploring markets',
+    price: {
+      monthly: 0,
+      yearly: 0,
+    },
+    features: [
+      { text: 'Limited AI Chats' },
+      { text: 'Basic Watchlists' },
+      { text: 'Market Tracking' },
+      { text: 'Public Research' },
+    ],
+    btn: {
+      text: 'Get Started',
+      href: '/login',
+    },
+  },
+  {
+    name: 'Core',
+    info: 'For active investors',
+    price: {
+      monthly: 300,
+      yearly: Math.round(300 * 12 * 0.8),
+    },
+    features: [
+      { text: 'AI Research Chat' },
+      { text: 'Live Quotes' },
+      { text: 'Technical Indicators' },
+      { text: 'Sentiment Tracking' },
+    ],
+    btn: {
+      text: 'Start Analyzing',
+      href: '/login',
+    },
+    highlighted: true,
+  },
+  {
+    name: 'Insight+',
+    info: 'Professional-grade intelligence',
+    price: {
+      monthly: 700,
+      yearly: Math.round(700 * 12 * 0.8),
+    },
+    features: [
+      { text: 'Deep Research Engine' },
+      { text: 'AI Progress Tracking' },
+      { text: 'Multi-Source Analysis' },
+      { text: 'Portfolio Monitoring' },
+    ],
+    btn: {
+      text: 'Unlock Insights',
+      href: '/login',
+    },
+  },
+  {
+    name: 'Pro',
+    info: 'Built for serious traders',
+    price: {
+      monthly: 1200,
+      yearly: Math.round(1200 * 12 * 0.8),
+    },
+    features: [
+      { text: 'Risk Radar' },
+      { text: 'Portfolio Brain' },
+      { text: 'Advanced Signals' },
+      { text: 'Real-Time Market Streams' },
+    ],
+    btn: {
+      text: 'Go Pro',
+      href: '/login',
+    },
+  },
+  {
+    name: 'Institutional',
+    info: 'Full AlphaSight infrastructure',
+    price: {
+      monthly: 2100,
+      yearly: Math.round(2100 * 12 * 0.8),
+    },
+    features: [
+      { text: 'Institutional AI Models' },
+      { text: 'Priority Processing' },
+      { text: 'Advanced Risk Systems' },
+      { text: 'Dedicated Intelligence Layer' },
+    ],
+    btn: {
+      text: 'Access Platform',
+      href: '/login',
+    },
+  },
+];
+
 export default function InfoPage() {
   const router = useRouter();
   const screenSize = useScreenSize();
@@ -128,7 +222,11 @@ export default function InfoPage() {
         </div>
 
         <div className="relative z-20 w-full">
-          <PricingSection />
+          <PricingSection
+            plans={pricingPlans}
+            heading="Plans that scale with you"
+            description="Flexible pricing for every stage, with the same AI-driven market intelligence across the board."
+          />
         </div>
 
         <div className="w-full max-w-3xl px-6 pb-32">

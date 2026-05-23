@@ -276,14 +276,14 @@ export default function WatchlistPage() {
               Live · prices refresh every 2s
             </p>
           </div>
-          <div className="flex gap-3">
-            <div className="relative">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-64 lg:w-72">
               <input
                 type="text"
                 value={stockInput}
                 onChange={(e) => setStockInput(e.target.value)}
                 placeholder="Search assets to add..."
-                className="px-4 py-2 bg-input border border-borderStrong rounded-lg text-primary placeholder:text-muted focus:border-accent-blue focus:ring-1 focus:ring-accent-blue w-64"
+                className="w-full rounded-lg border border-borderStrong bg-input px-4 py-2 text-primary placeholder:text-muted focus:border-accent-blue focus:ring-1 focus:ring-accent-blue"
               />
               {showSuggestions && searchResults.length > 0 && (
                 <div className="absolute z-10 w-full mt-1 bg-canvas border border-borderSubtle rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -319,6 +319,7 @@ export default function WatchlistPage() {
               onClick={() => stockInput && handleAddToWatchlist(stockInput.toUpperCase())}
               disabled={!stockInput || addingStock}
               size="sm"
+              className="w-full sm:w-auto shrink-0"
             >
               <Plus className="h-4 w-4 mr-2" />
               {addingStock ? 'Adding...' : 'Add'}

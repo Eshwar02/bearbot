@@ -1,5 +1,4 @@
 'use client';
-import Link from 'next/link';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Menu, LogOut, User, ArrowLeft, Palette } from 'lucide-react';
@@ -110,8 +109,6 @@ export function Header() {
         >
           AlphaSight
         </span>
-        <span className="text-muted">/</span>
-        <span className="text-secondary">Pro</span>
       </button>
 
       <div className="flex items-center gap-2">
@@ -135,7 +132,7 @@ export function Header() {
 
           {menuOpen && (
             <div
-              className="fixed right-4 top-16 z-[99999] w-60 overflow-visible rounded-xl border border-borderSubtle bg-canvas shadow-lg"
+              className="absolute right-0 top-full z-[99999] mt-2 w-60 overflow-visible rounded-xl border border-borderSubtle bg-canvas shadow-lg"
               role="menu"
             >
               {/* Personalization — placed at the top per user spec */}

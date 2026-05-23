@@ -39,6 +39,7 @@ import { assessMacroRisks, assessRawMaterialRisks } from "@/lib/stock/macro";
 import type { StockAnalysis } from "@/types/stock";
 import Groq from "groq-sdk";
 import * as XLSX from "xlsx";
+import { normalizeChatContent } from "@/lib/chat-content";
 
 const EMPTY_RESPONSE_FALLBACK =
   "Unable to generate analysis right now. Showing available data below.";
@@ -986,6 +987,7 @@ export async function POST(request: NextRequest) {
       persisted = true;
 
       let fullResponse = chunks.join("");
+      fullResponse = normalizeChatContent(fullResponse);
       if (!hasVisibleText(fullResponse)) {
         fullResponse = EMPTY_RESPONSE_FALLBACK;
       }

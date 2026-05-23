@@ -32,6 +32,7 @@ export function AppShell({ children }: AppShellProps) {
 
   // Show market stream only on portfolio, brief, and watchlist pages
   const showMarketStream = /\/(portfolio|daily-brief|watchlist)/.test(pathname);
+  const showAIProgress = pathname === '/' || pathname.startsWith('/chat/');
 
   return (
     <div className="flex h-dvh w-full overflow-auto">
@@ -44,7 +45,7 @@ export function AppShell({ children }: AppShellProps) {
       </div>
 
       {/* AI Progress Indicator */}
-      <AIProgressIndicator />
+      {showAIProgress && <AIProgressIndicator />}
     </div>
   );
 }

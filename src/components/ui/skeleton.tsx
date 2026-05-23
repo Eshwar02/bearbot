@@ -4,13 +4,37 @@ import { cn } from '@/lib/utils';
 
 interface SkeletonProps {
   className?: string;
+  variant?: 'default' | 'line' | 'circle' | 'card';
 }
 
-function Skeleton({ className }: SkeletonProps) {
+function Skeleton({ className, variant = 'default' }: SkeletonProps) {
+  if (variant === 'card') {
+    return (
+      <div
+        className={cn(
+          'rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-5 space-y-3',
+          className
+        )}
+      >
+        <div className="h-4 w-1/3 animate-pulse rounded-lg bg-skeleton" />
+        <div className="h-6 w-1/2 animate-pulse rounded-lg bg-skeleton" />
+        <div className="h-3 w-2/3 animate-pulse rounded-lg bg-skeleton" />
+      </div>
+    );
+  }
+
+  const shapeClass =
+    variant === 'line'
+      ? 'h-4 w-full'
+      : variant === 'circle'
+        ? 'h-10 w-10 rounded-full'
+        : '';
+
   return (
     <div
       className={cn(
         'animate-pulse rounded-lg bg-skeleton',
+        shapeClass,
         className
       )}
     />

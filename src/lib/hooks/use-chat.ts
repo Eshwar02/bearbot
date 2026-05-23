@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useAppStore, type ChatMessage } from '@/stores/app-store';
 import { generateId } from '@/lib/utils';
 import { useAIProgress } from '@/lib/hooks/use-ai-progress';
+import { normalizeChatContent } from '@/lib/chat-content';
 import { toast } from 'sonner';
 
 const EMPTY_RESPONSE_FALLBACK =
@@ -476,7 +477,10 @@ export function useChat() {
             content: EMPTY_RESPONSE_FALLBACK,
           });
         } else {
-          updateMessage(assistantMsg.id, { isStreaming: false });
+          updateMessage(assistantMsg.id, {
+            isStreaming: false,
+            content: normalizeChatContent(fullAssistantText),
+          });
         }
         toast.success('Response generation complete.');
 

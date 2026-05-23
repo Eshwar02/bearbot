@@ -5,6 +5,7 @@ import type { Conversation, Message, Json } from '@/types/database';
 import type { StockQuote } from '@/types/stock';
 import type { NewsItem } from '@/types/stock';
 import type { WebSource } from '@/lib/ai/web-search';
+import { normalizeChatContent } from '@/lib/chat-content';
 
 // ── Extended chat message with client-side fields ──────────────────
 
@@ -113,7 +114,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       const targetIdx = s.messages.findIndex((m) => m.id === id);
       if (targetIdx !== -1) {
         const next = [...s.messages];
-        next[targetIdx] = { ...next[targetIdx], ...partial };
+        next[targetIdx] = {
+          ...next[targetIdx],
+          ...partial,
+          ...(typeof partial.content === 'string'
+            ? { content: normalizeChatContent(partial.content) }
+            : {}),
+        };
         return { messages: next };
       }
 
@@ -136,7 +143,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (fallbackIdx === undefined) return { messages: s.messages };
 
       const next = [...s.messages];
-      next[fallbackIdx] = { ...next[fallbackIdx], ...partial };
+      next[fallbackIdx] = {
+        ...next[fallbackIdx],
+        ...partial,
+        ...(typeof partial.content === 'string'
+          ? { content: normalizeChatContent(partial.content) }
+          : {}),
+      };
       return { messages: next };
     }),
 
@@ -147,7 +160,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const next = [...s.messages];
         next[targetIdx] = {
           ...next[targetIdx],
-          content: next[targetIdx].content + chunk,
+          content: normalizeChatContent(next[targetIdx].content + chunk),
         };
         return { messages: next };
       }
@@ -173,7 +186,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const next = [...s.messages];
       next[fallbackIdx] = {
         ...next[fallbackIdx],
-        content: next[fallbackIdx].content + chunk,
+        content: normalizeChatContent(next[fallbackIdx].content + chunk),
       };
       return { messages: next };
     }),
@@ -182,7 +195,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => {
       const msgs = [...s.messages];
       if (msgs.length > 0) {
-        msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], content };
+        msgs[msgs.length - 1] = {
+          ...msgs[msgs.length - 1],
+          content: normalizeChatContent(content),
+        };
       }
       return { messages: msgs };
     }),

@@ -10,6 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { SocialIcons } from '@/components/ui/social-icons';
 
 export default function InfoPage() {
   const router = useRouter();
@@ -90,6 +91,11 @@ export default function InfoPage() {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          <div className="mt-24 flex flex-col items-center gap-4">
+            <p className="text-sm text-neutral-400">Connect with me</p>
+            <SocialIcons />
+          </div>
         </div>
       </div>
     </main>

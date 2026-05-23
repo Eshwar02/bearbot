@@ -24,13 +24,13 @@
 
 | Feature | Description |
 |---------|-------------|
-| **Low-Latency Chat** | Streaming responses with real-time market context & source transparency |
+| **Low-Latency Chat** | Streaming responses with real-time market context & source transparency     |
 | **Smart Portfolio** | Live P&L tracking, health scores, sentiment analysis & buy/hold/sell signals |
-| **Market Intelligence** | Real-time quotes, technical analysis, fundamentals & synthesized news |
-| **AI Transparency** | Execution phases, source tracking, deduplication & live activity monitor |
-| **Daily Briefs** | Automated portfolio summaries & market pulse reports (Vercel Cron) |
-| **Enterprise Security** | RLS-enforced Supabase auth, environment-isolated credentials |
-| **Multi-Turn Intelligence** | Coreference resolution for "that/it" queries, follow-up grounding |
+| **Market Intelligence** | Real-time quotes, technical analysis, fundamentals & synthesized news    |
+| **AI Transparency** | Execution phases, source tracking, deduplication & live activity monitor     |
+| **Daily Briefs** | Automated portfolio summaries & market pulse reports (Vercel Cron)              |
+| **Enterprise Security** | RLS-enforced Supabase auth, environment-isolated credentials             |
+| **Multi-Turn Intelligence** | Coreference resolution for "that/it" queries, follow-up grounding    |
 | **Responsive UI** | Mobile-first design with Tailwind CSS, Framer Motion, native OS body fonts, and Fraunces headings |
 
 ---
@@ -39,37 +39,37 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    CLIENT (Next.js + React 19)               │
+│                    CLIENT (Next.js + React 19)              │
 ├─────────────────────────────────────────────────────────────┤
-│  • Chat UI (streaming responses)                              │
-│  • Portfolio Dashboard (real-time P&L)                        │
-│  • Watchlist Monitor (price tracking)                         │
-│  • Settings & Profile Management                              │
-│  • State: Zustand (persistent client state)                   │
+│  • Chat UI (streaming responses)                            │
+│  • Portfolio Dashboard (real-time P&L)                      │
+│  • Watchlist Monitor (price tracking)                       │
+│  • Settings & Profile Management                            │
+│  • State: Zustand (persistent client state)                 │
 └─────────────────────┬───────────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│               API LAYER (Next.js Route Handlers)              │
+│               API LAYER (Next.js Route Handlers)            │
 ├─────────────────────────────────────────────────────────────┤
-│  /api/chat ......................... Streaming AI responses    │
-│  /api/portfolio/* .................. Holdings management      │
-│  /api/portfolio/intelligence ........ AI insights & signals   │
-│  /api/watchlist .................... Price monitoring        │
-│  /api/conversations/* .............. Chat history            │
+│  /api/chat ......................... Streaming AI responses │
+│  /api/portfolio/* .................. Holdings management    │
+│  /api/portfolio/intelligence ........ AI insights & signals │
+│  /api/watchlist .................... Price monitoring       │
+│  /api/conversations/* .............. Chat history           │
 │  /api/stock/* ...................... Market data            │
 │  /api/daily-brief .................. Report generation      │
 └─────────────────────┬───────────────────────────────────────┘
                       │
                       ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    SERVICES LAYER                             │
+│                    SERVICES LAYER                           │
 ├─────────────────────────────────────────────────────────────┤
-│  • Mistral AI (LLM, Embeddings)                               │
-│  • Supabase (Auth, Postgres, RLS)                             │
-│  • Yahoo Finance (Quotes, History, Search)                    │
-│  • MarketAux & NewsData (News Synthesis)                      │
-│  • Vercel Cron (Scheduled Briefs)                             │
+│  • Mistral AI (LLM, Embeddings)                             │
+│  • Supabase (Auth, Postgres, RLS)                           │
+│  • Yahoo Finance (Quotes, History, Search)                  │
+│  • MarketAux & NewsData (News Synthesis)                    │
+│  • Vercel Cron (Scheduled Briefs)                           │
 └─────────────────────────────────────────────────────────────┘
 ```
 

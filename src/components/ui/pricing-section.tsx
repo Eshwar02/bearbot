@@ -24,8 +24,8 @@ const plans = [
   },
   {
     title: "Core",
-    monthlyPrice: 799,
-    annuallyPrice: Math.round(799 * 12 * 0.8),
+    monthlyPrice: 300,
+    annuallyPrice: Math.round(300 * 12 * 0.8),
     tagline: "For active investors",
     desc: "Expanded AI research and deeper market analysis for daily trading workflows.",
     features: [
@@ -39,8 +39,8 @@ const plans = [
   },
   {
     title: "Insight+",
-    monthlyPrice: 1499,
-    annuallyPrice: Math.round(1499 * 12 * 0.8),
+    monthlyPrice: 700,
+    annuallyPrice: Math.round(700 * 12 * 0.8),
     tagline: "Professional-grade intelligence",
     desc: "Advanced market intelligence with AI research pipelines and real-time analysis systems.",
     features: [
@@ -54,8 +54,8 @@ const plans = [
   },
   {
     title: "Pro",
-    monthlyPrice: 2999,
-    annuallyPrice: Math.round(2999 * 12 * 0.8),
+    monthlyPrice: 1200,
+    annuallyPrice: Math.round(1200 * 12 * 0.8),
     tagline: "Built for serious traders",
     desc: "Institutional-style tools for portfolio management, volatility tracking, and market intelligence.",
     features: [
@@ -69,8 +69,8 @@ const plans = [
   },
   {
     title: "Institutional",
-    monthlyPrice: 5999,
-    annuallyPrice: Math.round(5999 * 12 * 0.8),
+    monthlyPrice: 2000,
+    annuallyPrice: Math.round(2000 * 12 * 0.8),
     tagline: "Full AlphaSight infrastructure",
     desc: "Enterprise-level financial intelligence with complete AI systems and advanced research capabilities.",
     features: [

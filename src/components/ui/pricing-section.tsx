@@ -69,8 +69,8 @@ const plans = [
   },
   {
     title: "Institutional",
-    monthlyPrice: 2000,
-    annuallyPrice: Math.round(2000 * 12 * 0.8),
+    monthlyPrice: 2100,
+    annuallyPrice: Math.round(2100 * 12 * 0.8),
     tagline: "Full AlphaSight infrastructure",
     desc: "Enterprise-level financial intelligence with complete AI systems and advanced research capabilities.",
     features: [

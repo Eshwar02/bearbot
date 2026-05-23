@@ -15,6 +15,7 @@ import { useScreenSize } from '@/hooks/use-screen-size';
 import { PixelTrail } from '@/components/ui/pixel-trail';
 import { GooeyFilter } from '@/components/ui/gooey-filter';
 import RadialOrbitalTimeline from '@/components/ui/radial-orbital-timeline';
+import PricingSection from '@/components/ui/pricing-section';
 import { Calendar, Activity, MessageSquare, Shield, Brain } from 'lucide-react';
 
 const timelineData = [
@@ -124,6 +125,10 @@ export default function InfoPage() {
 
         <div className="relative z-20 w-full">
           <RadialOrbitalTimeline timelineData={timelineData} />
+        </div>
+
+        <div className="relative z-20 w-full">
+          <PricingSection />
         </div>
 
         <div className="w-full max-w-3xl px-6 pb-32">

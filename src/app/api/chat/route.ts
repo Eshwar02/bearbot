@@ -624,6 +624,7 @@ export async function POST(request: NextRequest) {
     let llmMessage = composedMessage;
     let chatMode: "stock" | "general" = "general";
     let generalKind: "brief" | "normal" = "normal";
+    let isDetailedStockRequest = false;
 
     // Coreference resolution: if the user said "tell me about that" / "what
     // about its dividend?", rewrite into a standalone query naming the entity
@@ -766,6 +767,7 @@ export async function POST(request: NextRequest) {
             console.debug("[chat-api] simple stock analysis ready", { symbol: resolvedSymbol });
           } else {
             // Full analysis for complex queries
+            isDetailedStockRequest = true;
             recordProgress(`Fetching history, company profile, and news for ${resolvedSymbol}`, 50);
             const [historyResult, companyInfoResult, newsResult] = await Promise.allSettled([
               withTimeout(fetchHistory(resolvedSymbol, 1), 10000, "fetchHistory"), // Faster timeout
@@ -876,8 +878,10 @@ export async function POST(request: NextRequest) {
       userMemory += `\n\n${WEB_SEARCH_INSTRUCTION}\n\n${webSearch.formattedForPrompt}`;
     }
 
-    // Deep research pass for full stock analyses (skipped for simple price-only queries)
-    if (chatMode === "stock" && stockAnalysis && stockAnalysis.history.length > 0) {
+    // Deep research pass for detailed stock requests. Do not make research
+    // conditional on price-history availability: profile/news can still
+    // support a sourced company, supply-chain, and geopolitical assessment.
+    if (chatMode === "stock" && stockAnalysis && isDetailedStockRequest) {
       try {
         recordProgress("Running deep research: peers, sector, inputs, macro", 72);
         const research = await withTimeout(runDeepResearch(stockAnalysis), 8000, "deepResearch");
@@ -915,7 +919,7 @@ export async function POST(request: NextRequest) {
     const isFullStockAnalysis =
       chatMode === "stock" &&
       stockAnalysis !== null &&
-      stockAnalysis.history.length > 0;
+      isDetailedStockRequest;
     const responseShape = classifyResponseShape({
       message: composedMessage,
       routingMessage,

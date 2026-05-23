@@ -7,27 +7,33 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(
   value: number,
-  currency = 'INR',
+  currency = 'USD',
   options: { compact?: boolean } = {}
 ): string {
   // Compact: 1.23M, 4.5K — for chart axes and KPI tiles where full digits
   // would overflow.
   if (options.compact && Math.abs(value) >= 1000) {
-    const symbol = currency === 'USD' ? '$' : '₹';
+    const symbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
     return `${symbol}${formatNumber(value)}`;
   }
 
-  // For Indian users, use INR with rupee symbol
-  if (currency === 'INR' || currency === 'USD') {
-    const symbol = currency === 'USD' ? '$' : '₹';
-    return `${symbol}${value.toLocaleString('en-IN', {
+  const locale = currency === 'INR' ? 'en-IN' : 'en-US';
+
+  if (currency === 'INR') {
+    return `₹${value.toLocaleString(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+  if (currency === 'USD') {
+    return `$${value.toLocaleString(locale, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
   }
 
-  // Fallback for other currencies
-  return new Intl.NumberFormat('en-IN', {
+  // Fallback for EUR, GBP, and other currencies
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,

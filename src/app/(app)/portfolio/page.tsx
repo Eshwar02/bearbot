@@ -68,9 +68,53 @@ function momentumBadge(momentum: 'strong' | 'moderate' | 'weak') {
   return 'amber' as const;
 }
 
+const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP'] as const;
+type BaseCurrency = typeof CURRENCIES[number];
+
+const CURRENCY_SYMBOLS: Record<BaseCurrency, string> = {
+  USD: '$', INR: '₹', EUR: '€', GBP: '£',
+};
+
 function PortfolioSummary({ holdings }: { holdings: EnrichedHolding[] }) {
-  const totalValue = holdings.reduce((sum, h) => sum + h.liveValue, 0);
-  const totalCost = holdings.reduce((sum, h) => sum + h.quantity * h.avg_buy_price, 0);
+  const [baseCurrency, setBaseCurrency] = useState<BaseCurrency>('USD');
+  const [rates, setRates] = useState<Record<string, number>>({ USD: 1 });
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [ratesError, setRatesError] = useState(false);
+
+  // Get all unique currencies in the portfolio
+  const portfolioCurrencies = useMemo(
+    () => [...new Set(holdings.map((h) => h.currency || 'USD'))],
+    [holdings]
+  );
+  const isMixed = portfolioCurrencies.length > 1;
+
+  // Fetch exchange rates whenever baseCurrency or holdings change
+  useEffect(() => {
+    const foreign = portfolioCurrencies.filter(c => c !== baseCurrency);
+    if (foreign.length === 0) {
+      setRates({ [baseCurrency]: 1 });
+      return;
+    }
+    setRatesLoading(true);
+    setRatesError(false);
+    fetch(`/api/forex?base=${baseCurrency}&currencies=${foreign.join(',')}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.rates) setRates({ ...data.rates, [baseCurrency]: 1 });
+        else setRatesError(true);
+      })
+      .catch(() => setRatesError(true))
+      .finally(() => setRatesLoading(false));
+  }, [baseCurrency, portfolioCurrencies.join(',')]);
+
+  // Convert a value from its native currency to baseCurrency
+  function toBase(value: number, currency: string): number {
+    const rate = rates[currency] ?? 1;
+    return value * rate;
+  }
+
+  const totalValue = holdings.reduce((sum, h) => sum + toBase(h.liveValue, h.currency || 'USD'), 0);
+  const totalCost = holdings.reduce((sum, h) => sum + toBase(h.quantity * h.avg_buy_price, h.currency || 'USD'), 0);
   const totalPnl = totalValue - totalCost;
   const totalPnlPercent = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
 
@@ -78,7 +122,7 @@ function PortfolioSummary({ holdings }: { holdings: EnrichedHolding[] }) {
     {
       label: 'Total Value',
       value: totalValue,
-      format: (v: number) => formatCurrency(v),
+      format: (v: number) => formatCurrency(v, baseCurrency),
       icon: DollarSign,
       color: 'text-accent-green',
       bgColor: 'bg-accent-green/10',
@@ -86,7 +130,7 @@ function PortfolioSummary({ holdings }: { holdings: EnrichedHolding[] }) {
     {
       label: 'Total P&L',
       value: totalPnl,
-      format: (v: number) => `${formatCurrency(Math.abs(v))} (${formatPercent(totalPnlPercent)})`,
+      format: (v: number) => `${formatCurrency(Math.abs(v), baseCurrency)} (${formatPercent(totalPnlPercent)})`,
       icon: totalPnl >= 0 ? TrendingUp : TrendingDown,
       color: totalPnl >= 0 ? 'text-accent-green' : 'text-accent-red',
       bgColor: totalPnl >= 0 ? 'bg-accent-green/10' : 'bg-accent-red/10',
@@ -102,31 +146,69 @@ function PortfolioSummary({ holdings }: { holdings: EnrichedHolding[] }) {
   ];
 
   return (
-    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-      {cards.map((card, index) => (
-        <div
-          key={index}
-          className={cn(
-            'rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4',
-            card.bgColor
+    <div className="mb-8 space-y-3">
+      {/* Base currency selector */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isMixed && (
+            <span className="text-xs text-muted">
+              Mixed currencies · converted to:
+            </span>
           )}
-        >
-          <div className="flex items-center gap-3">
-            <div className={cn('rounded-lg bg-canvas p-2', card.color)}>
-              <card.icon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-sm text-muted">{card.label}</p>
-              <LivePrice
-                value={card.value}
-                format={card.format}
-                flash={index !== 2}
-                className="text-xl font-bold text-primary"
-              />
-            </div>
+          <div className="flex gap-1">
+            {CURRENCIES.map((cur) => (
+              <button
+                key={cur}
+                onClick={() => setBaseCurrency(cur)}
+                className={cn(
+                  'rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors',
+                  baseCurrency === cur
+                    ? 'bg-accent-green text-canvas'
+                    : 'bg-borderSubtle text-muted hover:bg-borderStrong hover:text-primary'
+                )}
+              >
+                {CURRENCY_SYMBOLS[cur]} {cur}
+              </button>
+            ))}
           </div>
         </div>
-      ))}
+        {ratesLoading && (
+          <span className="text-xs text-muted animate-pulse">Fetching live rates…</span>
+        )}
+        {ratesError && !ratesLoading && (
+          <span className="text-xs text-accent-red">⚠ Rate fetch failed — using 1:1</span>
+        )}
+        {!ratesLoading && !ratesError && isMixed && (
+          <span className="text-xs text-muted">Rates via Yahoo Finance · live</span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {cards.map((card, index) => (
+          <div
+            key={index}
+            className={cn(
+              'rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4',
+              card.bgColor
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <div className={cn('rounded-lg bg-canvas p-2', card.color)}>
+                <card.icon className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm text-muted">{card.label}</p>
+                <LivePrice
+                  value={card.value}
+                  format={card.format}
+                  flash={index !== 2}
+                  className="text-xl font-bold text-primary"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

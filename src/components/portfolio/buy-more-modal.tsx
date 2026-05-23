@@ -76,7 +76,7 @@ function BuyMoreModal({ open, holding, livePrice, onClose, onSaved }: BuyMoreMod
         throw new Error(data.error || 'Failed to add shares');
       }
       const { toast } = await import('sonner');
-      toast.success(`Added ${qty} ${holding.symbol} @ ${formatCurrency(px)}`);
+      toast.success(`Added ${qty} ${holding.symbol} @ ${formatCurrency(px, holding.currency ?? 'USD')}`);
       onSaved();
       onClose();
     } catch (err) {
@@ -98,13 +98,13 @@ function BuyMoreModal({ open, holding, livePrice, onClose, onSaved }: BuyMoreMod
           <div className="flex justify-between text-muted">
             <span>Current holding</span>
             <span className="text-primary">
-              {holding.quantity} @ {formatCurrency(holding.avg_buy_price)}
+              {holding.quantity} @ {formatCurrency(holding.avg_buy_price, holding.currency ?? 'USD')}
             </span>
           </div>
           {livePrice != null && livePrice > 0 && (
             <div className="mt-1 flex justify-between text-muted">
               <span>Live price</span>
-              <span className="text-primary">{formatCurrency(livePrice)}</span>
+              <span className="text-primary">{formatCurrency(livePrice, holding.currency ?? 'USD')}</span>
             </div>
           )}
         </div>
@@ -139,11 +139,11 @@ function BuyMoreModal({ open, holding, livePrice, onClose, onSaved }: BuyMoreMod
             </div>
             <div className="flex justify-between">
               <span className="text-muted">New avg buy price</span>
-              <span className="font-medium text-primary">{formatCurrency(preview.newAvg)}</span>
+              <span className="font-medium text-primary">{formatCurrency(preview.newAvg, holding.currency ?? 'USD')}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted">Cost of this batch</span>
-              <span className="font-medium text-primary">{formatCurrency(preview.added)}</span>
+              <span className="font-medium text-primary">{formatCurrency(preview.added, holding.currency ?? 'USD')}</span>
             </div>
           </div>
         )}

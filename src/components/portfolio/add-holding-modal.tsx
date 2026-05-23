@@ -50,7 +50,7 @@ function AddHoldingModal({
       setAvgBuyPrice(String(editingHolding.avg_buy_price));
       setCurrency(
         (editingHolding.currency as 'USD' | 'INR' | 'EUR' | 'GBP' | null) ||
-          'USD',
+        'USD',
       );
       setCurrencyTouched(true);
       setNotes(editingHolding.notes || '');

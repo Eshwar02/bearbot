@@ -74,7 +74,7 @@ function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps
                     {h.name || h.symbol}
                   </p>
                   <p className="mt-0.5 text-xs text-muted">
-                    {h.quantity} share{h.quantity === 1 ? '' : 's'} · Avg {formatCurrency(h.avg_buy_price)}
+                    {h.quantity} share{h.quantity === 1 ? '' : 's'} · Avg {formatCurrency(h.avg_buy_price, h.currency ?? 'USD')}
                   </p>
                 </div>
 
@@ -86,7 +86,7 @@ function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps
                 {/* Market price + 1D change */}
                 <div className="md:text-right">
                   <p className="font-medium text-primary">
-                    {h.livePrice != null ? formatCurrency(h.livePrice) : '—'}
+                    {h.livePrice != null ? formatCurrency(h.livePrice, h.currency ?? 'USD') : '—'}
                   </p>
                   <p
                     className={cn(
@@ -95,7 +95,7 @@ function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps
                     )}
                   >
                     {dayUp ? '+' : ''}
-                    {formatCurrency(Math.abs(dayChange))} ({formatPercent(dayChangePct)})
+                    {formatCurrency(Math.abs(dayChange), h.currency ?? 'USD')} ({formatPercent(dayChangePct)})
                   </p>
                 </div>
 
@@ -108,7 +108,7 @@ function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps
                     )}
                   >
                     {returnsUp ? '+' : ''}
-                    {formatCurrency(Math.abs(h.livePnl))}
+                    {formatCurrency(Math.abs(h.livePnl), h.currency ?? 'USD')}
                   </p>
                   <p
                     className={cn(
@@ -122,8 +122,8 @@ function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps
 
                 {/* Current / Invested */}
                 <div className="md:text-right">
-                  <p className="font-medium text-primary">{formatCurrency(h.liveValue)}</p>
-                  <p className="mt-0.5 text-xs text-muted">{formatCurrency(invested)}</p>
+                  <p className="font-medium text-primary">{formatCurrency(h.liveValue, h.currency ?? 'USD')}</p>
+                  <p className="mt-0.5 text-xs text-muted">{formatCurrency(invested, h.currency ?? 'USD')}</p>
                 </div>
 
                 {/* Plus button — stop propagation so it doesn't navigate */}

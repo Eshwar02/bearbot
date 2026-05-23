@@ -70,17 +70,19 @@ function CustomTooltip({
   active,
   payload,
   label,
+  currency,
 }: {
   active?: boolean;
   payload?: { value: number }[];
   label?: string;
+  currency: string;
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-dark-700 bg-dark-800/95 px-3 py-2 shadow-xl">
       <p className="text-xs text-dark-400">{label}</p>
       <p className="text-sm font-semibold text-gray-100">
-        {formatCurrency(payload[0].value, 'USD', { compact: false })}
+        {formatCurrency(payload[0].value, currency, { compact: false })}
       </p>
     </div>
   );
@@ -310,7 +312,7 @@ export function BacktestPanel() {
                     }
                     width={60}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip currency={prefs.currency} />} />
                   <Line
                     type="monotone"
                     dataKey="value"

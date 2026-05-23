@@ -13,7 +13,7 @@ interface TimelineItem {
   category: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   relatedIds: number[];
-  status: "completed" | "in-progress" | "pending";
+  status: "completed" | "in-progress" | "pending" | "active" | "developing";
   energy: number;
 }
 
@@ -144,11 +144,28 @@ export default function RadialOrbitalTimeline({
       case "completed":
         return "text-white bg-black border-white";
       case "in-progress":
+      case "active":
         return "text-black bg-white border-black";
       case "pending":
+      case "developing":
         return "text-white bg-black/40 border-white/50";
       default:
         return "text-white bg-black/40 border-white/50";
+    }
+  };
+
+  const getStatusLabel = (status: TimelineItem["status"]): string => {
+    switch (status) {
+      case "completed":
+        return "COMPLETE";
+      case "in-progress":
+        return "IN PROGRESS";
+      case "active":
+        return "ACTIVE";
+      case "developing":
+        return "DEVELOPING";
+      default:
+        return "PENDING";
     }
   };
 
@@ -261,11 +278,7 @@ export default function RadialOrbitalTimeline({
                             item.status
                           )}`}
                         >
-                          {item.status === "completed"
-                            ? "COMPLETE"
-                            : item.status === "in-progress"
-                            ? "IN PROGRESS"
-                            : "PENDING"}
+                          {getStatusLabel(item.status)}
                         </Badge>
                         <span className="text-xs font-mono text-white/50">
                           {item.date}

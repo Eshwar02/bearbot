@@ -27,25 +27,61 @@ export default function RadialOrbitalTimeline({
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>(
     {}
   );
-  const [viewMode, setViewMode] = useState<"orbital">("orbital");
   const [rotationAngle, setRotationAngle] = useState<number>(0);
-  const [autoRotate, setAutoRotate] = useState<boolean>(true);
   const [pulseEffect, setPulseEffect] = useState<Record<number, boolean>>({});
-  const [centerOffset, setCenterOffset] = useState<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
   const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  const isDragging = useRef(false);
+  const lastX = useRef(0);
+  const velocityRef = useRef(0.3);
+
+  const hasExpanded = Object.values(expandedItems).some(Boolean);
+
+  useEffect(() => {
+    const tick = setInterval(() => {
+      if (!isDragging.current) {
+        velocityRef.current *= 0.97;
+
+        if (Math.abs(velocityRef.current) < 0.05) {
+          velocityRef.current = hasExpanded ? 0 : 0.3;
+        }
+      }
+
+      setRotationAngle((prev) => {
+        const newAngle = (prev + velocityRef.current) % 360;
+        return Number(newAngle.toFixed(3));
+      });
+    }, 50);
+
+    return () => clearInterval(tick);
+  }, [hasExpanded]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.target === containerRef.current || e.target === orbitRef.current) {
+      isDragging.current = true;
+      lastX.current = e.clientX;
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    const deltaX = e.clientX - lastX.current;
+    lastX.current = e.clientX;
+    velocityRef.current = deltaX * 0.5;
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+  };
 
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === containerRef.current || e.target === orbitRef.current) {
       setExpandedItems({});
       setActiveNodeId(null);
       setPulseEffect({});
-      setAutoRotate(true);
     }
   };
 
@@ -62,7 +98,7 @@ export default function RadialOrbitalTimeline({
 
       if (!prev[id]) {
         setActiveNodeId(id);
-        setAutoRotate(false);
+        velocityRef.current = 0;
 
         const relatedItems = getRelatedItems(id);
         const newPulseEffect: Record<number, boolean> = {};
@@ -74,7 +110,6 @@ export default function RadialOrbitalTimeline({
         centerViewOnNode(id);
       } else {
         setActiveNodeId(null);
-        setAutoRotate(true);
         setPulseEffect({});
       }
 
@@ -82,27 +117,8 @@ export default function RadialOrbitalTimeline({
     });
   };
 
-  useEffect(() => {
-    let rotationTimer: ReturnType<typeof setInterval>;
-
-    if (autoRotate && viewMode === "orbital") {
-      rotationTimer = setInterval(() => {
-        setRotationAngle((prev) => {
-          const newAngle = (prev + 0.3) % 360;
-          return Number(newAngle.toFixed(3));
-        });
-      }, 50);
-    }
-
-    return () => {
-      if (rotationTimer) {
-        clearInterval(rotationTimer);
-      }
-    };
-  }, [autoRotate, viewMode]);
-
   const centerViewOnNode = (nodeId: number) => {
-    if (viewMode !== "orbital" || !nodeRefs.current[nodeId]) return;
+    if (!nodeRefs.current[nodeId]) return;
 
     const nodeIndex = timelineData.findIndex((item) => item.id === nodeId);
     const totalNodes = timelineData.length;
@@ -116,8 +132,8 @@ export default function RadialOrbitalTimeline({
     const radius = 200;
     const radian = (angle * Math.PI) / 180;
 
-    const x = radius * Math.cos(radian) + centerOffset.x;
-    const y = radius * Math.sin(radian) + centerOffset.y;
+    const x = radius * Math.cos(radian);
+    const y = radius * Math.sin(radian);
 
     const zIndex = Math.round(100 + 50 * Math.cos(radian));
     const opacity = Math.max(
@@ -171,9 +187,13 @@ export default function RadialOrbitalTimeline({
 
   return (
     <div
-      className="w-full h-screen flex flex-col items-center justify-center bg-black overflow-hidden"
+      className="w-full h-screen flex flex-col items-center justify-center bg-black overflow-hidden select-none"
       ref={containerRef}
       onClick={handleContainerClick}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
     >
       <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
         <div
@@ -181,7 +201,6 @@ export default function RadialOrbitalTimeline({
           ref={orbitRef}
           style={{
             perspective: "1000px",
-            transform: `translate(${centerOffset.x}px, ${centerOffset.y}px)`,
           }}
         >
           <div className="absolute w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 via-blue-500 to-teal-500 animate-pulse flex items-center justify-center z-10">

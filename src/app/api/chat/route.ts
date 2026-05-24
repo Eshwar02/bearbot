@@ -625,6 +625,12 @@ export async function POST(request: NextRequest) {
       ? LANG_INSTRUCTION_TANGLISH
       : LANG_INSTRUCTION_ENGLISH;
 
+    const userDisplayName =
+      (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
+      (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
+      (user.email?.split("@")[0] ?? "").trim() ||
+      "there";
+
     const semanticMemoryBlock = formatMemoriesForPrompt(semanticMemoryRows);
     console.debug("[chat-api] semantic memory recall", {
       hits: semanticMemoryRows.length,
@@ -651,6 +657,8 @@ export async function POST(request: NextRequest) {
             : "";
         return { role: metadata.role, content: `${metadata.content ?? ""}${fileContext}` };
       });
+    const isFirstAssistantTurn =
+      !conversationHistory.some((entry) => entry.role === "assistant");
 
     let stockAnalysis: StockAnalysis | null = null;
     let llmMessage = composedMessage;
@@ -967,6 +975,10 @@ export async function POST(request: NextRequest) {
     userMemory = userMemory
       ? `${userMemory}\n\n${shapeDirective}`
       : shapeDirective;
+
+    if (isFirstAssistantTurn) {
+      userMemory = `${userMemory}\n\nFirst-reply instruction: Start with an energetic but short intro line using the user's name like "Sure ${userDisplayName}, I'll do it." then continue normally. Do this only for this first assistant reply in the conversation.`;
+    }
 
     // Composer toggles: append think / canvas instructions when active.
     if (thinkMode) {

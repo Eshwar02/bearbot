@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // ── Textarea ────────────────────────────────────────────────────────
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -360,9 +361,9 @@ export const PromptInputBox = forwardRef<HTMLDivElement, PromptInputBoxProps>(
       (file: File) => {
         if (!isImageFile(file)) return;
         if (file.size > 10 * 1024 * 1024) return;
-        onAttachmentsChange?.([...attachments, file]);
+        toast.info('File attachments are in development right now.');
       },
-      [attachments, onAttachmentsChange],
+      [],
     );
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -558,7 +559,7 @@ export const PromptInputBox = forwardRef<HTMLDivElement, PromptInputBoxProps>(
                     />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Upload image</TooltipContent>
+                <TooltipContent side="top">Attachments in development</TooltipContent>
               </Tooltip>
 
               <div className="flex items-center">
@@ -667,8 +668,7 @@ export const PromptInputBox = forwardRef<HTMLDivElement, PromptInputBoxProps>(
                     <button
                       type="button"
                       onClick={() => {
-                        setShowCanvas((p) => !p);
-                        setShowThink(false);
+                        toast.info('Canvas mode is in development right now.');
                       }}
                       className={cn(
                         'rounded-full transition-all flex items-center gap-1 px-2 py-1 border h-8',

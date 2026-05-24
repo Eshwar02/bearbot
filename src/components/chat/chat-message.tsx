@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, Share, Check, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Share, Check, Copy, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { normalizeChatContent } from '@/lib/chat-content';
 import { MarkdownRenderer } from './markdown-renderer';
@@ -10,6 +10,7 @@ import { StockCard } from './stock-card';
 import { ChartWidget } from './chart-widget';
 import { usePrefs } from '@/lib/hooks/use-prefs';
 import type { ChatMessage as ChatMessageType } from '@/stores/app-store';
+import { toast } from 'sonner';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -31,11 +32,15 @@ function ShareButton({ content }: { content: string }) {
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(content))));
+      const shareUrl = `${window.location.origin}/share/response?r=${encoded}`;
+      await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      toast.success('Share link copied');
     } catch (error) {
       console.error('Failed to copy:', error);
+      toast.error('Unable to create share link');
     }
   };
 
@@ -45,7 +50,33 @@ function ShareButton({ content }: { content: string }) {
       className="flex items-center gap-1 rounded px-2 py-1 text-xs text-secondary hover:bg-elevated hover:text-primary transition-colors"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" /> : <Share className="h-3.5 w-3.5" />}
-      {copied ? 'Copied' : 'Share'}
+      {copied ? 'Link Copied' : 'Share'}
+    </button>
+  );
+}
+
+function CopyButton({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success('Response copied');
+    } catch {
+      toast.error('Failed to copy response');
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1 rounded px-2 py-1 text-xs text-secondary hover:bg-elevated hover:text-primary transition-colors"
+      aria-label="Copy full response"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? 'Copied' : 'Copy'}
     </button>
   );
 }
@@ -62,6 +93,7 @@ function StreamingDots() {
 
 export function ChatMessage({ message }: ChatMessageProps) {
   const [feedback, setFeedback] = useState<'good' | 'poor' | null>(null);
+  const [feedbackReply, setFeedbackReply] = useState<string | null>(null);
   const prefs = usePrefs();
   const isUser = message.role === 'user';
   const isStreaming = message.isStreaming;
@@ -234,7 +266,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
             {!isUser && !isStreaming && hasContent && (
               <div className="mt-5 flex gap-2">
                 <button
-                  onClick={() => setFeedback('good')}
+                  onClick={() => {
+                    setFeedback('good');
+                    setFeedbackReply('Thanks for the feedback. I appreciate the effort.');
+                    toast.success('Thanks for your feedback.');
+                  }}
                   aria-label="Mark response as helpful"
                   aria-pressed={feedback === 'good'}
                     className={cn(
@@ -247,7 +283,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   <ThumbsUp className="h-3.5 w-3.5" />
                 </button>
                 <button
-                  onClick={() => setFeedback('poor')}
+                  onClick={() => {
+                    setFeedback('poor');
+                    setFeedbackReply('Thanks for the feedback. I will improve the next response.');
+                  }}
                   aria-label="Mark response as unhelpful"
                   aria-pressed={feedback === 'poor'}
                     className={cn(
@@ -260,9 +299,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   <ThumbsDown className="h-3.5 w-3.5" />
                 </button>
                 <div className="ml-2 border-l border-gray-200 dark:border-dark-800 pl-2">
+                  <CopyButton content={normalizedContent} />
+                </div>
+                <div className="border-l border-gray-200 dark:border-dark-800 pl-2">
                   <ShareButton content={normalizedContent} />
                 </div>
               </div>
+            )}
+            {!isUser && !isStreaming && feedbackReply && (
+              <p className="mt-2 text-xs text-muted">{feedbackReply}</p>
             )}
 
           </div>

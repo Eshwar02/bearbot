@@ -193,6 +193,9 @@ export default function SettingsPage() {
         if (key === 'currency' && (value === 'INR' || value === 'USD' || value === 'EUR' || value === 'GBP')) {
           livePatch.currency = value;
         }
+        if (key === 'theme' && (value === 'light' || value === 'dark' || value === 'sandal' || value === 'blue' || value === 'system')) {
+          livePatch.theme = value;
+        }
         if (Object.keys(livePatch).length > 0) {
           publishPrefsUpdate(livePatch);
         }

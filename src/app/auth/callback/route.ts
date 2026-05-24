@@ -11,13 +11,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const origin = getRequestOrigin(request);
   const code = searchParams.get("code");
-  const rawRedirect = searchParams.get("redirect") || "/";
-  const redirect =
-    typeof rawRedirect === "string" &&
-    rawRedirect.startsWith("/") &&
-    !rawRedirect.startsWith("//")
-      ? rawRedirect
-      : "/";
 
   if (code) {
     const cookiesToSet: Parameters<SetAllCookies>[0] = [];
@@ -66,6 +59,7 @@ export async function GET(request: NextRequest) {
               user_id: user.id,
               default_market: "US",
               theme: "dark",
+              currency: "INR",
             });
 
           if (prefError) {
@@ -77,7 +71,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const redirectUrl = new URL(redirect, origin);
+    const redirectUrl = new URL("/", origin);
     const response = NextResponse.redirect(redirectUrl);
     cookiesToSet.forEach(({ name, value, options }) => {
       response.cookies.set(name, value, options);

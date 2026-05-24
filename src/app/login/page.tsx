@@ -37,7 +37,7 @@ function LoginPageContent() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${appOrigin}/auth/callback?redirect=${encodeURIComponent(redirect)}`,
+          redirectTo: `${appOrigin}/auth/callback`,
           scopes: "openid email profile",
           queryParams: {
             access_type: "offline",
@@ -54,7 +54,7 @@ function LoginPageContent() {
   }
 
   function handleSuccess() {
-    router.push(redirect);
+    router.push('/');
     router.refresh();
   }
 

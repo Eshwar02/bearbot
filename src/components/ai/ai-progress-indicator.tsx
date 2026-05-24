@@ -74,7 +74,7 @@ export function AIProgressIndicator() {
 
   return (
     <div
-      className="fixed bottom-20 right-4 z-40 md:bottom-24 md:right-6 print:hidden"
+      className="fixed bottom-5 right-5 z-50 print:hidden"
       onMouseEnter={() => { cancelAutoCollapse(); setExpanded(true); }}
       onMouseLeave={() => { setExpanded(false); if (activeTask) scheduleAutoCollapse(); }}
       onClick={() => setExpanded(!isExpanded)}

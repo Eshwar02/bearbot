@@ -27,7 +27,8 @@ describe("formatMemoriesForPrompt", () => {
     const out = formatMemoriesForPrompt([row("Prefers dividend stocks")]);
     expect(out).toContain("Known facts about the user");
     expect(out).toContain("- Prefers dividend stocks");
-    expect(out).toContain("Never invent or expand");
+    expect(out).toContain("personalize depth, examples, and cautions");
+    expect(out).toContain("Never invent, expand, or mention saved memory unnecessarily");
   });
 
   it("preserves order of input rows (caller sorts by similarity)", () => {

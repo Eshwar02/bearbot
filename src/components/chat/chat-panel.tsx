@@ -1,26 +1,17 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/stores/app-store';
 import { useChat } from '@/lib/hooks/use-chat';
 import { ChatMessage } from './chat-message';
 import { WelcomeScreen } from './welcome-screen';
-import { GradientAIChatInput, type ModelOption } from '@/components/ui/gradient-ai-chat-input';
+import { PromptInputBox } from '@/components/ui/ai-prompt-box';
 import { cn } from '@/lib/utils';
 
-
-const MODEL_OPTIONS: ModelOption[] = [
-  {
-    id: 'mistral',
-    label: 'Mistral',
-    value: 'mistral',
-    description: 'Primary — large free tier',
-  },
-];
-
+// Clean, standard productivity skeleton loader
 function LoadingSkeleton() {
   return (
-    <div className="mx-auto flex max-w-3xl animate-pulse flex-col gap-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8 sm:px-6 w-full animate-pulse">
       {[1, 2, 3].map((i) => (
         <div key={i} className="flex gap-4">
           <div className="h-6 w-6 shrink-0 rounded bg-skeleton" />
@@ -34,9 +25,25 @@ function LoadingSkeleton() {
   );
 }
 
+function GenerationMarker() {
+  return (
+    <div
+      className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-borderStrong bg-elevated/95 px-3 py-2 shadow-lg backdrop-blur"
+      role="status"
+      aria-live="polite"
+      aria-label="Response is generating"
+    >
+      <div className="flex items-center gap-1.5">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-secondary [animation-delay:0ms]" />
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-secondary [animation-delay:160ms]" />
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-secondary [animation-delay:320ms]" />
+      </div>
+    </div>
+  );
+}
+
 export function ChatPanel() {
-  const { messages, isLoadingConversation, isStreaming, preferredModel, setPreferredModel } =
-    useAppStore();
+  const { messages, isLoadingConversation, isStreaming } = useAppStore();
   const { sendMessage, stopStreaming } = useChat();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -47,12 +54,6 @@ export function ChatPanel() {
 
   const hasMessages = messages.length > 0;
 
-  const selectedModel = useMemo(
-    () => MODEL_OPTIONS.find((m) => m.value === preferredModel) ?? MODEL_OPTIONS[0],
-    [preferredModel],
-  );
-
-  // Auto-scroll on new messages
   useEffect(() => {
     if (bottomRef.current && scrollRef.current) {
       const scrollContainer = scrollRef.current;
@@ -61,18 +62,6 @@ export function ChatPanel() {
       });
     }
   }, [messages.length]);
-
-  // Auto-scroll during streaming
-  const lastMessage = messages[messages.length - 1];
-  const streamingContent = lastMessage?.isStreaming ? lastMessage.content.length : 0;
-  useEffect(() => {
-    if (streamingContent > 0 && scrollRef.current) {
-      const scrollContainer = scrollRef.current;
-      requestAnimationFrame(() => {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      });
-    }
-  }, [streamingContent]);
 
   const handleSend = useCallback(async () => {
     const content = draft.trim();
@@ -92,51 +81,44 @@ export function ChatPanel() {
     setAttachments((current) => current.filter((_, i) => i !== index));
   }, []);
 
-  const handleStop = useCallback(() => {
-    stopStreaming();
-    // Add a message asking if issue
-    setTimeout(() => {
-      // Since sendMessage adds to messages, perhaps add a system message
-      // But for simplicity, perhaps alert or something, but since CLI, perhaps not.
-    }, 100);
-  }, [stopStreaming]);
-
   return (
     <div className="flex h-full min-h-0 flex-col bg-canvas">
 
 
-      <div
-        ref={scrollRef}
-        className={cn(
-          'min-h-0 flex-1 overflow-y-auto',
-          'scrollbar-thin scrollbar-track-transparent scrollbar-thumb-borderStrong',
-        )}
-      >
-        {isLoadingConversation ? (
-          <LoadingSkeleton />
-        ) : hasMessages ? (
-          <div className="pb-6 pt-2">
-            {messages.map((msg) => (
-              <ChatMessage key={msg.id} message={msg} />
-            ))}
-            <div ref={bottomRef} />
-          </div>
-        ) : (
-          <WelcomeScreen onSendPrompt={sendMessage} />
-        )}
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={scrollRef}
+          className={cn(
+            'h-full overflow-y-auto',
+            'scrollbar-thin scrollbar-track-transparent scrollbar-thumb-borderStrong',
+          )}
+        >
+          {isLoadingConversation ? (
+            <LoadingSkeleton />
+          ) : hasMessages ? (
+            <div className="mx-auto max-w-3xl px-4 pb-36 pt-6 sm:px-6">
+              {messages.map((msg) => (
+                <ChatMessage key={msg.id} message={msg} />
+              ))}
+              <div ref={bottomRef} />
+            </div>
+          ) : (
+            <WelcomeScreen />
+          )}
+        </div>
+        {isStreaming && <GenerationMarker />}
       </div>
 
       {/* Composer */}
       <div className="bg-canvas px-4 pb-5 pt-2 sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <GradientAIChatInput
+          <PromptInputBox
             value={draft}
             onChange={setDraft}
             onSend={handleSend}
             onStop={stopStreaming}
             isStreaming={isStreaming}
             placeholder="Ask about any stock, market, or portfolio…"
-            modelOptions={[]}
             webSearchEnabled={webSearchEnabled}
             onWebSearchToggle={setWebSearchEnabled}
             attachments={attachments}

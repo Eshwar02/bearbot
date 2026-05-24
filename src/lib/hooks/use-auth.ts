@@ -9,6 +9,7 @@ export interface UserProfile {
   preferences?: {
     default_market: "US" | "IN";
     theme: string;
+    currency: "INR" | "USD" | "EUR" | "GBP";
   };
 }
 
@@ -17,6 +18,7 @@ export function useAuth() {
   const [preferences, setPreferences] = useState<{
     default_market: "US" | "IN";
     theme: string;
+    currency: "INR" | "USD" | "EUR" | "GBP";
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,7 +58,7 @@ export function useAuth() {
     try {
       const { data, error } = await supabase
         .from("user_preferences")
-        .select("default_market, theme")
+        .select("default_market, theme, currency")
         .eq("user_id", userId)
         .single();
 
@@ -65,6 +67,7 @@ export function useAuth() {
         setPreferences({
           default_market: "US",
           theme: "dark",
+          currency: "INR",
         });
       } else if (data) {
         setPreferences(data);
@@ -74,6 +77,7 @@ export function useAuth() {
       setPreferences({
         default_market: "US",
         theme: "dark",
+        currency: "INR",
       });
     } finally {
       setLoading(false);
@@ -83,6 +87,7 @@ export function useAuth() {
   async function updatePreferences(updates: Partial<{
     default_market: "US" | "IN";
     theme: string;
+    currency: "INR" | "USD" | "EUR" | "GBP";
   }>) {
     if (!user) return;
 
@@ -113,4 +118,3 @@ export function useAuth() {
 
   return { user, preferences, loading, signOut, updatePreferences };
 }
-

@@ -66,7 +66,7 @@ function MobileBackdrop({ onClick }: { onClick: () => void }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-40 bg-black/60 md:hidden"
+      className="fixed inset-0 z-40 bg-black/40 md:hidden"
       onClick={onClick}
     />
   );
@@ -143,7 +143,17 @@ export function Sidebar() {
   const sidebarContent = (
     <div className="flex h-full flex-col bg-sidebar text-sm">
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
-        <div className="flex items-center gap-2 px-1">
+        <button
+          onClick={() => {
+            createNewChat();
+            setActiveView('chat');
+            if (pathname !== '/') router.push('/');
+            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+            if (isMobile) toggleSidebar();
+          }}
+          className="flex items-center gap-2 rounded-md px-1 py-1 transition-colors hover:bg-elevated"
+          aria-label="Start a new chat"
+        >
           <Image src="/logo.svg" alt="AlphaSight" width={20} height={20} />
           <span
             className="font-serif text-[19px] font-medium leading-none tracking-tight text-primary"
@@ -151,13 +161,13 @@ export function Sidebar() {
           >
             AlphaSight
           </span>
-        </div>
+        </button>
         <button
           onClick={toggleSidebar}
           className="rounded-lg p-1.5 text-secondary transition-colors hover:bg-elevated hover:text-primary"
           aria-label="Close sidebar"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={18} />
         </button>
       </div>
 
@@ -171,7 +181,7 @@ export function Sidebar() {
             'hover:border-accent-brand/40 hover:bg-elevated',
           )}
         >
-          <Plus size={15} strokeWidth={2} />
+          <Plus size={16} strokeWidth={2} className="text-gray-500 dark:text-gray-400" />
           <span>New chat</span>
         </button>
       </div>
@@ -182,11 +192,12 @@ export function Sidebar() {
             No conversations yet
           </p>
         )}
+        
         {grouped.map((group) => (
           <div key={group.label} className="mb-4">
-            <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
-              {group.label}
-            </h3>
+              <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                {group.label}
+              </h3>
             {group.items.map((conv) => {
               const isActive = conv.id === activeConversationId;
               return (
@@ -217,7 +228,7 @@ export function Sidebar() {
                       e.stopPropagation();
                       void handleDeleteConversation(conv.id);
                     }}
-                    className="ml-1 hidden shrink-0 rounded p-1 text-muted transition-colors hover:bg-elevated-hover hover:text-red-500 group-hover:block"
+                    className="ml-1 hidden shrink-0 rounded p-1 text-muted transition-colors hover:bg-elevated-hover hover:text-accent-red group-hover:block"
                     aria-label="Delete conversation"
                   >
                     <Trash2 size={13} />

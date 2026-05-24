@@ -41,6 +41,13 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch holdings' }, { status: 500 });
     }
 
+    const { data: prefs } = await supabase
+      .from('user_preferences')
+      .select('currency')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    const currency = prefs?.currency || 'INR';
+
     // Fetch company names and current prices for better data
     const enrichedHoldings = await Promise.all(
       holdings.map(async (h) => {
@@ -73,7 +80,7 @@ export async function GET(
           avg_buy_price: h.avg_buy_price,
           current_value: currentValue,
           pnl: pnl,
-          currency: 'INR', // Force INR for Indian market focus
+          currency,
         };
       })
     );
@@ -88,7 +95,7 @@ export async function GET(
       total_pnl: totalPnl,
       total_pnl_percent: totalPnlPercent,
       holdings: enrichedHoldings,
-      currency: 'INR',
+      currency,
     };
 
     // Fetch REAL news for each holding - Grouped by Company

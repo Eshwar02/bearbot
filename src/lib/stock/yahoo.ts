@@ -56,6 +56,8 @@ export type YahooSearchResult = {
   }>;
 };
 
+type NumLike = number | { raw?: number } | undefined;
+
 export type YahooQuoteSummary = {
   assetProfile?: {
     sector?: string;
@@ -64,10 +66,111 @@ export type YahooQuoteSummary = {
     fullTimeEmployees?: number;
     website?: string;
     country?: string;
+    city?: string;
+    state?: string;
+    address1?: string;
+    phone?: string;
+    companyOfficers?: Array<{ name?: string; title?: string }>;
   };
+  summaryProfile?: YahooQuoteSummary["assetProfile"];
+  fundProfile?: {
+    family?: string;
+    categoryName?: string;
+    legalType?: string;
+    longName?: string;
+  };
+  price?: {
+    marketCap?: NumLike;
+    exchangeName?: string;
+    exchange?: string;
+    exchangeTimezoneShortName?: string;
+    exchangeTimezoneName?: string;
+    currency?: string;
+    quoteType?: string;
+    longName?: string;
+    shortName?: string;
+  };
+  summaryDetail?: Record<string, NumLike>;
+  defaultKeyStatistics?: Record<string, NumLike>;
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+// ── Crumb / cookie session for quoteSummary ──────────────────────────
+// Yahoo's v10 quoteSummary endpoint requires a `crumb` token paired with
+// a session cookie. We obtain both once and cache them in-process; the
+// crumb survives for hours, so this keeps overhead negligible.
+type CrumbSession = { crumb: string; cookie: string; expiresAt: number };
+let crumbSession: CrumbSession | null = null;
+let crumbInflight: Promise<CrumbSession | null> | null = null;
+const CRUMB_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+async function obtainCrumbSession(): Promise<CrumbSession | null> {
+  if (crumbSession && crumbSession.expiresAt > Date.now()) return crumbSession;
+  if (crumbInflight) return crumbInflight;
+
+  crumbInflight = (async (): Promise<CrumbSession | null> => {
+    try {
+      // Bootstrap the A1 / A3 cookies that Yahoo's crumb endpoint requires.
+      const seed = await fetch("https://fc.yahoo.com/", {
+        headers: { "User-Agent": UA },
+        redirect: "follow",
+      });
+      const rawCookies = seed.headers.get("set-cookie") || "";
+      // Browsers concatenate Set-Cookie with `,`; we only need name=value pairs.
+      const cookie = rawCookies
+        .split(/,(?=\s*[A-Za-z0-9_-]+=)/)
+        .map((c) => c.split(";")[0].trim())
+        .filter(Boolean)
+        .join("; ");
+      if (!cookie) return null;
+
+      const crumbRes = await fetch(
+        "https://query1.finance.yahoo.com/v1/test/getcrumb",
+        { headers: { "User-Agent": UA, Cookie: cookie } },
+      );
+      if (!crumbRes.ok) return null;
+      const crumb = (await crumbRes.text()).trim();
+      if (!crumb || crumb.includes("<")) return null;
+
+      crumbSession = { crumb, cookie, expiresAt: Date.now() + CRUMB_TTL_MS };
+      return crumbSession;
+    } catch {
+      return null;
+    } finally {
+      crumbInflight = null;
+    }
+  })();
+  return crumbInflight;
+}
+
+async function fetchQuoteSummaryRaw(
+  symbol: string,
+  modules: string[],
+): Promise<Record<string, unknown> | null> {
+  const session = await obtainCrumbSession();
+  if (!session) return null;
+
+  const url =
+    `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}` +
+    `?modules=${modules.join(",")}&formatted=false&crumb=${encodeURIComponent(session.crumb)}`;
+
+  const res = await fetch(url, {
+    headers: { "User-Agent": UA, Cookie: session.cookie },
+  });
+
+  if (res.status === 401 || res.status === 403) {
+    // Crumb expired — drop the cache so the next call can refresh it.
+    crumbSession = null;
+    return null;
+  }
+  if (!res.ok) return null;
+
+  const data = (await res.json()) as {
+    quoteSummary?: { result?: Array<Record<string, unknown>> | null };
+  };
+  return data.quoteSummary?.result?.[0] ?? null;
+}
 
 async function fetchChartRaw(
   symbol: string,
@@ -158,14 +261,28 @@ export const yahoo = {
   },
 
   /**
-   * Fetch company profile. quoteSummary API is now 401, so we return
-   * a minimal profile derived from search results when possible.
+   * Fetch the v10 quoteSummary modules with crumb auth. Falls back to a
+   * search-derived assetProfile (sector/industry only) when the crumbed
+   * endpoint is unavailable.
    */
   async quoteSummary(
     symbol: string,
-    _options: { modules: string[] }
+    options: { modules: string[] }
   ): Promise<YahooQuoteSummary> {
-    // Try to get sector/industry from search results
+    const modules = options.modules.length > 0
+      ? options.modules
+      : ["assetProfile", "summaryDetail", "defaultKeyStatistics", "price"];
+
+    try {
+      const result = await fetchQuoteSummaryRaw(symbol, modules);
+      if (result && Object.keys(result).length > 0) {
+        return result as YahooQuoteSummary;
+      }
+    } catch {
+      // fall through to search fallback
+    }
+
+    // Fallback: at least surface sector/industry from search.
     try {
       const searchResult = await yahoo.search(symbol, { newsCount: 0, quotesCount: 1 });
       const q = searchResult.quotes?.[0];
@@ -182,7 +299,7 @@ export const yahoo = {
         };
       }
     } catch {
-      // Fallback below
+      // ignore
     }
 
     return {

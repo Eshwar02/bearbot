@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 /* ── Theme tokens: light (default) ────────────────────────────────── */
-:root {
+:root,
+:root[data-theme='light'] {
   --bg-canvas: #ffffff;
   --bg-sidebar: #f7f7f8;
   --bg-input: #ffffff;
@@ -62,62 +63,185 @@
   --progress-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 }
 
-/* ── Theme tokens: dark ───────────────────────────────────────────── */
-html.dark {
-  --bg-canvas: #202123;
-  --bg-sidebar: #171719;
-  --bg-input: #2a2b36;
-  --bg-elevated: #2a2b36;
-  --bg-elevated-hover: #343541;
-  --bg-code: #171719;
-  --bg-skeleton: #343541;
+/* ── Theme tokens: dark (pure-black, ChatGPT-style) ─────────────────── */
+html.dark,
+html[data-theme='dark'] {
+  --bg-canvas: #000000;
+  --bg-sidebar: #0a0a0a;
+  --bg-input: #131313;
+  --bg-elevated: #141414;
+  --bg-elevated-hover: #1c1c1c;
+  --bg-code: #0a0a0a;
+  --bg-skeleton: #1a1a1a;
 
-  --text-primary: #ececf1;
-  --text-secondary: #8e8ea0;
-  --text-muted: #6e6e80;
-  --text-inverse: #0d0d0d;
+  --text-primary: #ffffff;
+  --text-secondary: #c9c9c9;
+  --text-muted: #8a8a8a;
+  --text-inverse: #000000;
 
   --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.1);
-  --border-focus: rgba(45, 212, 191, 0.35);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-focus: rgba(16, 163, 127, 0.45);
 
-  --accent-brand: #2dd4bf;
-  --accent-brand-hover: #5eead4;
-  --accent-brand-muted: rgba(45, 212, 191, 0.12);
-  --accent-brand-ring: rgba(45, 212, 191, 0.35);
-  --accent-green: #0dba98;
-  --accent-red: #ed5533;
+  --accent-brand: #10a37f;
+  --accent-brand-hover: #1aae8a;
+  --accent-brand-muted: rgba(16, 163, 127, 0.14);
+  --accent-brand-ring: rgba(16, 163, 127, 0.35);
+  --accent-green: #19c37d;
+  --accent-red: #ef4146;
+  --accent-blue: #60a5fa;
+  --accent-amber: #f59e0b;
 
-  --market-bar-bg: rgba(15, 15, 15, 0.9);
-  --market-bar-bg-soft: rgba(9, 9, 11, 0.96);
+  --market-bar-bg: rgba(0, 0, 0, 0.92);
+  --market-bar-bg-soft: rgba(0, 0, 0, 0.98);
   --market-bar-border: rgba(255, 255, 255, 0.08);
-  --market-bar-text: #d4d4d8;
+  --market-bar-text: #f4f4f5;
   --market-bar-muted: #a1a1aa;
-  --market-bar-accent: #0dba98;
-  --market-positive: #0dba98;
-  --market-negative: #ed5533;
-  --market-positive-soft: rgba(13, 186, 152, 0.18);
-  --market-negative-soft: rgba(237, 85, 51, 0.18);
-  --market-positive-glow: rgba(13, 186, 152, 0.72);
-  --market-negative-glow: rgba(237, 85, 51, 0.72);
-  --market-tooltip-bg: rgba(9, 9, 11, 0.96);
-  --market-tooltip-text: #f4f4f5;
+  --market-bar-accent: #19c37d;
+  --market-positive: #19c37d;
+  --market-negative: #ef4146;
+  --market-positive-soft: rgba(25, 195, 125, 0.18);
+  --market-negative-soft: rgba(239, 65, 70, 0.18);
+  --market-positive-glow: rgba(25, 195, 125, 0.72);
+  --market-negative-glow: rgba(239, 65, 70, 0.72);
+  --market-tooltip-bg: rgba(0, 0, 0, 0.98);
+  --market-tooltip-text: #ffffff;
   --market-tooltip-muted: #a1a1aa;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
-  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.75), 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 
-  --scrollbar-thumb: #4a4a5a;
-  --scrollbar-thumb-hover: #6e6e80;
+  --scrollbar-thumb: #2e2e2e;
+  --scrollbar-thumb-hover: #4a4a4a;
 
-  --selection-bg: rgba(45, 212, 191, 0.2);
-  --selection-text: #ececf1;
+  --selection-bg: rgba(16, 163, 127, 0.32);
+  --selection-text: #ffffff;
 
-  --progress-bg: rgba(15, 15, 15, 0.85);
+  --progress-bg: rgba(0, 0, 0, 0.92);
   --progress-border: rgba(255, 255, 255, 0.08);
-  --progress-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --progress-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* ── Theme tokens: sandal (warm beige paper) ────────────────────────── */
+html[data-theme='sandal'] {
+  --bg-canvas: #f4ead5;
+  --bg-sidebar: #e9dcbf;
+  --bg-input: #fbf4e2;
+  --bg-elevated: #ede1c6;
+  --bg-elevated-hover: #e1d2af;
+  --bg-code: #e9dcbf;
+  --bg-skeleton: #d8c69e;
+
+  --text-primary: #3d2c1e;
+  --text-secondary: #6b513a;
+  --text-muted: #927757;
+  --text-inverse: #fbf4e2;
+
+  --border-subtle: rgba(61, 44, 30, 0.12);
+  --border-strong: rgba(61, 44, 30, 0.22);
+  --border-focus: rgba(184, 89, 60, 0.4);
+
+  --accent-brand: #b8593c;
+  --accent-brand-hover: #9d4830;
+  --accent-brand-muted: rgba(184, 89, 60, 0.14);
+  --accent-brand-ring: rgba(184, 89, 60, 0.35);
+  --accent-green: #5c8a3e;
+  --accent-red: #c0392b;
+  --accent-blue: #5b7a99;
+  --accent-amber: #d68a1a;
+
+  --market-bar-bg: rgba(244, 234, 213, 0.94);
+  --market-bar-bg-soft: rgba(251, 244, 226, 0.98);
+  --market-bar-border: rgba(61, 44, 30, 0.12);
+  --market-bar-text: #3d2c1e;
+  --market-bar-muted: #927757;
+  --market-bar-accent: #5c8a3e;
+  --market-positive: #5c8a3e;
+  --market-negative: #c0392b;
+  --market-positive-soft: rgba(92, 138, 62, 0.14);
+  --market-negative-soft: rgba(192, 57, 43, 0.14);
+  --market-positive-glow: rgba(92, 138, 62, 0.42);
+  --market-negative-glow: rgba(192, 57, 43, 0.42);
+  --market-tooltip-bg: rgba(251, 244, 226, 0.98);
+  --market-tooltip-text: #3d2c1e;
+  --market-tooltip-muted: #927757;
+
+  --shadow-sm: 0 1px 2px rgba(61, 44, 30, 0.08), 0 1px 3px rgba(61, 44, 30, 0.1);
+  --shadow-md: 0 4px 12px rgba(61, 44, 30, 0.1), 0 2px 4px rgba(61, 44, 30, 0.08);
+  --shadow-lg: 0 8px 32px rgba(61, 44, 30, 0.14), 0 2px 8px rgba(61, 44, 30, 0.08);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+
+  --scrollbar-thumb: #c4ad84;
+  --scrollbar-thumb-hover: #a18a62;
+
+  --selection-bg: rgba(184, 89, 60, 0.25);
+  --selection-text: #3d2c1e;
+
+  --progress-bg: rgba(237, 225, 198, 0.95);
+  --progress-border: rgba(61, 44, 30, 0.1);
+  --progress-shadow: 0 8px 32px rgba(61, 44, 30, 0.12);
+}
+
+/* ── Theme tokens: blue (deep navy) ─────────────────────────────────── */
+html[data-theme='blue'] {
+  --bg-canvas: #0b1a33;
+  --bg-sidebar: #08152a;
+  --bg-input: #112444;
+  --bg-elevated: #112444;
+  --bg-elevated-hover: #182f55;
+  --bg-code: #08152a;
+  --bg-skeleton: #182f55;
+
+  --text-primary: #e6efff;
+  --text-secondary: #a9c0e3;
+  --text-muted: #7892bf;
+  --text-inverse: #0b1a33;
+
+  --border-subtle: rgba(168, 199, 240, 0.1);
+  --border-strong: rgba(168, 199, 240, 0.2);
+  --border-focus: rgba(96, 165, 250, 0.45);
+
+  --accent-brand: #3b82f6;
+  --accent-brand-hover: #60a5fa;
+  --accent-brand-muted: rgba(59, 130, 246, 0.16);
+  --accent-brand-ring: rgba(59, 130, 246, 0.4);
+  --accent-green: #34d399;
+  --accent-red: #f87171;
+  --accent-blue: #60a5fa;
+  --accent-amber: #fbbf24;
+
+  --market-bar-bg: rgba(11, 26, 51, 0.92);
+  --market-bar-bg-soft: rgba(8, 21, 42, 0.96);
+  --market-bar-border: rgba(168, 199, 240, 0.12);
+  --market-bar-text: #e6efff;
+  --market-bar-muted: #a9c0e3;
+  --market-bar-accent: #34d399;
+  --market-positive: #34d399;
+  --market-negative: #f87171;
+  --market-positive-soft: rgba(52, 211, 153, 0.18);
+  --market-negative-soft: rgba(248, 113, 113, 0.18);
+  --market-positive-glow: rgba(52, 211, 153, 0.7);
+  --market-negative-glow: rgba(248, 113, 113, 0.7);
+  --market-tooltip-bg: rgba(8, 21, 42, 0.98);
+  --market-tooltip-text: #e6efff;
+  --market-tooltip-muted: #a9c0e3;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+  --scrollbar-thumb: #1f3a6b;
+  --scrollbar-thumb-hover: #2e5191;
+
+  --selection-bg: rgba(59, 130, 246, 0.3);
+  --selection-text: #e6efff;
+
+  --progress-bg: rgba(8, 21, 42, 0.92);
+  --progress-border: rgba(168, 199, 240, 0.12);
+  --progress-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 /* ── Base ─────────────────────────────────────────────────────────── */
@@ -293,6 +417,18 @@ h1, h2, h3 {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+}
+
+/* ── Info page background animations ───────────────────────────────── */
+@keyframes shimmer {
+  0%, 100% { background-position: 200% 50%; }
+  50% { background-position: 0% 50%; }
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(5%, 3%) scale(1.05); }
+  66% { transform: translate(-3%, -2%) scale(0.95); }
 }
 
 /* ── Print Styles ──────────────────────────────────────────────────── */

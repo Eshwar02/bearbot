@@ -11,7 +11,6 @@ import {
   Activity,
   BrainCircuit,
   Gauge,
-  Sparkles,
 } from 'lucide-react';
 import { cn, formatCurrency, formatPercent } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,9 @@ import type { PortfolioHolding } from '@/types/stock';
 import { AddHoldingModal } from '@/components/portfolio/add-holding-modal';
 import { ChartWidget } from '@/components/chat/chart-widget';
 import { PortfolioAllocationChart } from '@/components/portfolio/portfolio-allocation-chart';
+import { BuyMoreModal } from '@/components/portfolio/buy-more-modal';
+import { PortfolioTable } from '@/components/portfolio/portfolio-table';
+import { BacktestPanel } from '@/components/portfolio/BacktestPanel';
 import type {
   AssetIntelligenceCard,
   PortfolioIntelligence,
@@ -34,15 +36,20 @@ type EnrichedHolding = PortfolioHolding & {
   liveValue: number;
   livePnl: number;
   livePnlPct: number;
+  previousClose: number | null;
 };
 
-function enrich(h: PortfolioHolding, livePrice: number | null): EnrichedHolding {
+function enrich(
+  h: PortfolioHolding,
+  livePrice: number | null,
+  previousClose: number | null
+): EnrichedHolding {
   const price = livePrice ?? h.currentPrice ?? 0;
   const liveValue = price * h.quantity;
   const invested = h.avg_buy_price * h.quantity;
   const livePnl = liveValue - invested;
   const livePnlPct = invested > 0 ? (livePnl / invested) * 100 : 0;
-  return { ...h, livePrice, liveValue, livePnl, livePnlPct };
+  return { ...h, livePrice, liveValue, livePnl, livePnlPct, previousClose };
 }
 
 function sentimentStyle(sentiment: PortfolioIntelligence['sentiment']) {
@@ -267,49 +274,6 @@ function AIIntelligencePanel({ intelligence }: { intelligence: PortfolioIntellig
   );
 }
 
-function TechnicalAnalyticsPanel({ technicals }: { technicals: TechnicalSnapshot[] }) {
-  if (technicals.length === 0) return null;
-  return (
-    <div className="mb-8 rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
-      <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-primary">
-        <Sparkles className="h-5 w-5 text-accent-blue" />
-        Advanced Technical Analytics
-      </h2>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {technicals.slice(0, 9).map((t) => (
-          <div key={t.symbol} className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-canvas p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="font-semibold text-primary">{t.symbol}</p>
-              <Badge variant={momentumBadge(t.momentum)}>{t.momentum}</Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>
-                <p className="text-muted">RSI</p>
-                <p className="text-primary">{t.rsi === null ? 'N/A' : t.rsi.toFixed(1)}</p>
-              </div>
-              <div>
-                <p className="text-muted">MACD Hist</p>
-                <p className="text-primary">
-                  {t.macdHistogram === null ? 'N/A' : t.macdHistogram.toFixed(2)}
-                </p>
-              </div>
-              <div>
-                <p className="text-muted">SMA 20</p>
-                <p className="text-primary">{t.sma20 === null ? 'N/A' : t.sma20.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-muted">SMA 50</p>
-                <p className="text-primary">{t.sma50 === null ? 'N/A' : t.sma50.toFixed(2)}</p>
-              </div>
-            </div>
-            <p className="mt-2 text-xs text-muted">Trend: {t.trend}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
@@ -317,6 +281,8 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [intelLoading, setIntelLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [buyMoreTarget, setBuyMoreTarget] = useState<EnrichedHolding | null>(null);
+  const [sparklines, setSparklines] = useState<Record<string, Array<{ date: string; close: number }>>>({});
 
   const fetchHoldings = async () => {
     try {
@@ -329,6 +295,18 @@ export default function PortfolioPage() {
       console.error('Failed to fetch holdings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSparklines = async () => {
+    try {
+      const response = await fetch('/api/portfolio/sparklines', { cache: 'no-store' });
+      if (response.ok) {
+        const data = await response.json();
+        setSparklines(data.sparklines || {});
+      }
+    } catch (error) {
+      console.error('Failed to fetch sparklines:', error);
     }
   };
 
@@ -350,6 +328,7 @@ export default function PortfolioPage() {
   useEffect(() => {
     void fetchHoldings();
     void fetchIntelligence();
+    void fetchSparklines();
   }, []);
 
   useEffect(() => {
@@ -363,8 +342,21 @@ export default function PortfolioPage() {
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const liveQuotes = useLiveQuotes(symbols, 2000);
 
+  // Refresh sparklines when the set of held symbols changes (added/removed).
+  const symbolsKey = symbols.slice().sort().join(',');
+  useEffect(() => {
+    if (symbolsKey) void fetchSparklines();
+  }, [symbolsKey]);
+
   const enriched = useMemo(
-    () => holdings.map((h) => enrich(h, liveQuotes[h.symbol]?.price ?? null)),
+    () =>
+      holdings.map((h) =>
+        enrich(
+          h,
+          liveQuotes[h.symbol]?.price ?? null,
+          liveQuotes[h.symbol]?.previousClose ?? null
+        )
+      ),
     [holdings, liveQuotes]
   );
 
@@ -382,19 +374,30 @@ export default function PortfolioPage() {
             <SkeletonCard key={i} />
           ))}
         </div>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="rounded-2xl border border-borderSubtle bg-elevated shadow-md">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4">
-              <Skeleton className="mb-2 h-6 w-24" />
-              <Skeleton className="mb-4 h-4 w-32" />
-              <div className="grid grid-cols-2 gap-4">
-                {Array.from({ length: 4 }).map((__, j) => (
-                  <div key={j}>
-                    <Skeleton className="mb-1 h-3 w-16" />
-                    <Skeleton className="h-4 w-12" />
-                  </div>
-                ))}
+            <div
+              key={i}
+              className="grid grid-cols-[2fr_1.2fr_1.2fr_1fr_1fr_56px] items-center gap-4 border-b border-borderSubtle px-5 py-4 last:border-b-0"
+            >
+              <div>
+                <Skeleton className="mb-2 h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
               </div>
+              <Skeleton className="h-8 w-full" />
+              <div className="text-right">
+                <Skeleton className="ml-auto mb-1 h-4 w-20" />
+                <Skeleton className="ml-auto h-3 w-16" />
+              </div>
+              <div className="text-right">
+                <Skeleton className="ml-auto mb-1 h-4 w-16" />
+                <Skeleton className="ml-auto h-3 w-12" />
+              </div>
+              <div className="text-right">
+                <Skeleton className="ml-auto mb-1 h-4 w-20" />
+                <Skeleton className="ml-auto h-3 w-16" />
+              </div>
+              <Skeleton className="h-8 w-8 rounded-full" />
             </div>
           ))}
         </div>
@@ -447,9 +450,6 @@ export default function PortfolioPage() {
       )}
 
       {!intelLoading && intelligence && <AIIntelligencePanel intelligence={intelligence} />}
-      {!intelLoading && intelligence && intelligence.technicals.length > 0 && (
-        <TechnicalAnalyticsPanel technicals={intelligence.technicals} />
-      )}
 
       {intelLoading && (
         <div className="mb-8 rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
@@ -471,6 +471,7 @@ export default function PortfolioPage() {
           <ChartWidget symbol={selectedSymbol} height={500} />
         </div>
       )}
+      {enriched.length > 0 && <BacktestPanel />}
 
       {enriched.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -496,12 +497,28 @@ export default function PortfolioPage() {
             />
           ))}
         </div>
+        <PortfolioTable
+          holdings={enriched}
+          sparklines={sparklines}
+          onBuyMore={setBuyMoreTarget}
+        />
       )}
 
       <AddHoldingModal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSaved={handleHoldingAdded}
+      />
+
+      <BuyMoreModal
+        open={buyMoreTarget !== null}
+        holding={buyMoreTarget}
+        livePrice={buyMoreTarget?.livePrice ?? null}
+        onClose={() => setBuyMoreTarget(null)}
+        onSaved={() => {
+          void fetchHoldings();
+          void fetchIntelligence();
+        }}
       />
     </div>
   );

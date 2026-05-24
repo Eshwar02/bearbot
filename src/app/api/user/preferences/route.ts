@@ -11,11 +11,13 @@ const DEFAULTS = {
   notif_in_app: true,
   daily_brief_time: "09:00",
   daily_brief_tz: "Asia/Kolkata",
+  currency: "INR" as const,
 };
 
 const VALID_MARKETS = new Set(["US", "IN"]);
-const VALID_THEMES = new Set(["light", "dark", "system"]);
+const VALID_THEMES = new Set(["light", "dark", "sandal", "blue", "system"]);
 const VALID_LANG = new Set(["auto", "english", "tanglish"]);
+const VALID_CURRENCIES = new Set(["INR", "USD", "EUR", "GBP"]);
 
 export async function GET() {
   try {
@@ -32,7 +34,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from("user_preferences")
       .select(
-        "default_market, theme, language_mode, show_charts, show_news_cards, notif_brief_email, notif_in_app, daily_brief_time, daily_brief_tz"
+        "default_market, theme, language_mode, show_charts, show_news_cards, notif_brief_email, notif_in_app, daily_brief_time, daily_brief_tz, currency, created_at"
       )
       .eq("user_id", user.id)
       .maybeSingle();
@@ -96,6 +98,12 @@ export async function PUT(request: NextRequest) {
       }
       patch.daily_brief_tz = body.daily_brief_tz;
     }
+    if (body.currency !== undefined) {
+      if (!VALID_CURRENCIES.has(body.currency)) {
+        return NextResponse.json({ error: "Invalid currency" }, { status: 400 });
+      }
+      patch.currency = body.currency;
+    }
 
     const { data, error } = await supabase
       .from("user_preferences")
@@ -104,7 +112,7 @@ export async function PUT(request: NextRequest) {
         { onConflict: "user_id" }
       )
       .select(
-        "default_market, theme, language_mode, show_charts, show_news_cards, notif_brief_email, notif_in_app, daily_brief_time, daily_brief_tz"
+        "default_market, theme, language_mode, show_charts, show_news_cards, notif_brief_email, notif_in_app, daily_brief_time, daily_brief_tz, currency, created_at"
       )
       .single();
 

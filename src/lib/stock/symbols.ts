@@ -432,25 +432,103 @@ export async function resolveSymbol(query: string): Promise<string | null> {
   return null;
 }
 
+// Exchange preference: higher score = surfaced first. Yahoo's `exchange`
+// field is short codes like NSI (NSE), BSE, NMS (NASDAQ), NYQ (NYSE), KOE
+// (Korea KOSDAQ), etc. We rank major venues users actually care about above
+// the long tail of regional exchanges.
+const EXCHANGE_RANK: Record<string, number> = {
+  NSI: 100, // NSE India
+  BSE: 95,  // BSE India
+  NMS: 90,  // NASDAQ
+  NYQ: 90,  // NYSE
+  NGM: 85,  // NASDAQ Global Market
+  PCX: 80,  // NYSE Arca (ETFs)
+  ASE: 70,  // NYSE American
+  LSE: 60,  // London
+  TOR: 55,  // Toronto
+  GER: 55,  // Germany XETRA
+  // Everything else falls to 0 — KOE, KSC, JPX, etc. still appear but rank low.
+};
+
+const TYPE_RANK: Record<string, number> = {
+  EQUITY: 100,
+  ETF: 95,
+  INDEX: 80,
+  CRYPTOCURRENCY: 70,
+  MUTUALFUND: 50,
+  FUTURE: 30,
+  CURRENCY: 20,
+  OPTION: 10,
+};
+
+function scoreSearchResult(
+  q: { symbol: string; name: string; exchange: string; type: string },
+  queryLower: string,
+  queryUpper: string
+): number {
+  let score = 0;
+  const symbolUpper = q.symbol.toUpperCase();
+  const nameLower = q.name.toLowerCase();
+
+  // Exact symbol match (e.g. "ITC" → "ITC.NS")
+  if (symbolUpper === queryUpper) score += 1000;
+  else if (symbolUpper.startsWith(queryUpper + ".")) score += 950; // "ITC.NS" for "ITC"
+  else if (symbolUpper.startsWith(queryUpper)) score += 700;
+  else if (symbolUpper.includes(queryUpper)) score += 300;
+
+  // Name match
+  if (nameLower === queryLower) score += 600;
+  else if (nameLower.startsWith(queryLower)) score += 400;
+  else if (nameLower.includes(queryLower)) score += 200;
+
+  // Curated-map bonus: if this ticker is in our known US or Indian sets,
+  // it's almost certainly what the user wants over an obscure foreign listing.
+  if (KNOWN_NSE_TICKERS.has(symbolUpper.replace(/\.(NS|BO)$/, ""))) score += 400;
+  if (KNOWN_US_TICKERS.has(symbolUpper)) score += 400;
+
+  // Exchange & type preference
+  score += EXCHANGE_RANK[q.exchange] || 0;
+  score += TYPE_RANK[q.type] || 0;
+
+  return score;
+}
+
 /**
- * Search for stocks matching a query string. Returns top results.
+ * Search for stocks matching a query string. Returns top results, ranked so
+ * the most user-relevant matches (exact symbol, known tickers, major
+ * exchanges, equities) surface above the long tail of obscure listings that
+ * Yahoo's raw search occasionally puts on top.
  */
 export async function searchSymbols(
   query: string
 ): Promise<Array<{ symbol: string; name: string; exchange: string; type: string }>> {
   try {
-    const results = await yahoo.search(query, { newsCount: 0 });
+    const results = await yahoo.search(query, { newsCount: 0, quotesCount: 25 });
     if (!results.quotes) return [];
 
-    return results.quotes
+    const queryLower = query.trim().toLowerCase();
+    const queryUpper = query.trim().toUpperCase();
+
+    const mapped = results.quotes
       .filter((q: Record<string, unknown>) => "symbol" in q && q.symbol)
-      .slice(0, 10)
       .map((q: Record<string, unknown>) => ({
         symbol: (q.symbol as string) || "",
         name: (q.shortname as string) || (q.longname as string) || "",
         exchange: (q.exchange as string) || "",
         type: (q.quoteType as string) || "",
-      }));
+      }))
+      // Drop very low-signal entries: futures contracts, options chains,
+      // and "MONEYMARKET" — almost never what a user typing a company name
+      // is looking for in this app.
+      .filter((q) => !["FUTURE", "OPTION", "MONEYMARKET"].includes(q.type));
+
+    const ranked = mapped
+      .map((q) => ({ q, score: scoreSearchResult(q, queryLower, queryUpper) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 12)
+      .map((r) => r.q);
+
+    return ranked;
   } catch {
     return [];
   }

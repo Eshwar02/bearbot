@@ -33,11 +33,19 @@ const SUBDOMAIN_ROUTES: Record<string, string> = {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApiPath = pathname.startsWith("/api/");
+  const host = request.headers.get("host") || "";
+
+  // Chat app must open from "/" on chat subdomain.
+  // Rewrite root to workspace so existing app shell/chat view works.
+  if (host === "chat.alphasightai.online" && pathname === "/") {
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = "/workspace";
+    return NextResponse.rewrite(rewriteUrl);
+  }
 
   // Host-based root rewrite for marketing subdomains. Only the literal "/" is
   // remapped so that /login, /api/*, and asset paths on those subdomains keep
   // working normally.
-  const host = request.headers.get("host") || "";
   const subdomainTarget = SUBDOMAIN_ROUTES[host];
   if (subdomainTarget && pathname === "/") {
     const rewriteUrl = request.nextUrl.clone();
@@ -99,7 +107,12 @@ export async function middleware(request: NextRequest) {
     console.error("[middleware] auth user check failed", error);
   }
 
-  const isPublicPath = PUBLIC_PATHS.some(
+  const publicPathsForHost =
+    host === "chat.alphasightai.online"
+      ? PUBLIC_PATHS.filter((path) => path !== "/")
+      : PUBLIC_PATHS;
+
+  const isPublicPath = publicPathsForHost.some(
     (path) => pathname === path || pathname.startsWith(path + "/")
   );
 

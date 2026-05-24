@@ -62,8 +62,7 @@
       "Bash(git checkout *)",
       "Bash(git cherry-pick *)",
       "Bash(gh auth *)",
-      "Bash(git check-ignore *)",
-      "Bash(claude mcp *)"
+      "Bash(git check-ignore *)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -977,7 +977,7 @@ export async function POST(request: NextRequest) {
       : shapeDirective;
 
     if (isFirstAssistantTurn) {
-      userMemory = `${userMemory}\n\nFirst-reply instruction: Start with an energetic but short intro line using the user's name like "Sure ${userDisplayName}, I'll do it." then continue normally. Do this only for this first assistant reply in the conversation.`;
+      userMemory = `${userMemory}\n\nFirst-reply instruction: Start with one short, ChatGPT-like warm intro using the user's name, for example: "Sure ${userDisplayName}, I can help with that." Keep it clean and professional, no hype, then continue with the answer. Do this only for this first assistant reply in the conversation.`;
     }
 
     // Composer toggles: append think / canvas instructions when active.

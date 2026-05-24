@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { siteConfig } from '@/lib/seo';
 
 export const runtime = 'edge';
 export const alt = 'AlphaSight AI — AI-Powered Stock Analysis & Market Intelligence';
@@ -23,21 +24,7 @@ export default async function Image() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 16,
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 36,
-              fontWeight: 800,
-            }}
-          >
-            α
-          </div>
+          <img src={`${siteConfig.url}/logo.svg`} alt="AlphaSight AI logo" width={64} height={64} />
           <div style={{ fontSize: 36, fontWeight: 700, letterSpacing: -1 }}>
             AlphaSight AI
           </div>

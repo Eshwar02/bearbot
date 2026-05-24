@@ -1,4 +1,4 @@
-# 🤝 Contributing to AlphaSight AI (BearBot)
+# 🤝 Contributing to AlphaSight AI (bearbot)
 
 Thank you for your interest in contributing!
 We welcome all contributions that improve the project.
@@ -123,7 +123,7 @@ git push origin your-branch-name
 
 ## 💬 Need Help?
 
-- 📧 Email: support@alphasight.ai
+- 📧 Email: support@alphasightai.online
 - 💬 GitHub Discussions
 - 🐛 GitHub Issues
 

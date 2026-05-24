@@ -55,7 +55,8 @@ const readme = readFileSync("README.md", "utf8");
 function replaceSection(content, start, end, replacement) {
   const regex = new RegExp(`(${start}[\\s\\S]*?\\n)([\\s\\S]*?)(\\n${end})`, "m");
   if (!regex.test(content)) {
-    throw new Error(`Missing section markers: ${start} ... ${end}`);
+    console.warn(`Warning: Missing section markers: ${start} ... ${end}`);
+    return content;
   }
   return content.replace(regex, `$1${replacement}$3`);
 }

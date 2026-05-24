@@ -7,7 +7,7 @@ type SetAllCookies = (
   cookies: Array<{ name: string; value: string; options?: CookieOptions }>
 ) => void;
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about", "/privacy", "/terms", "/disclaimer", "/contact"];
+const PUBLIC_PATHS = ["/", "/features", "/pricing", "/docs", "/blog", "/api", "/about", "/contact", "/privacy", "/terms", "/disclaimer", "/info", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes"];
 
 // Search-engine + verification crawlers. When one of these hits a protected
 // page we rewrite to the marketing landing instead of redirecting to /login,
@@ -26,7 +26,7 @@ function isCrawler(request: NextRequest): boolean {
 // otherwise sees the un-rewritten "/" path and bounces unauthenticated users
 // to /login.
 const SUBDOMAIN_ROUTES: Record<string, string> = {
-  "info.alphasightai.online": "/info",
+  "info.alphasightai.online": "/about",
   "about.alphasightai.online": "/about",
 };
 
@@ -106,11 +106,11 @@ export async function middleware(request: NextRequest) {
   // Unauthenticated user trying to access protected route
   if (!user && !isPublicPath) {
     // Crawlers must get crawlable HTML, not a /login redirect — otherwise
-    // verification + indexing fails. Rewrite (200) to /info so Bing/Google
+    // verification + indexing fails. Rewrite (200) to /about so Bing/Google
     // see the marketing page with verification meta tags in <head>.
     if (isCrawler(request)) {
       const rewriteUrl = request.nextUrl.clone();
-      rewriteUrl.pathname = "/info";
+      rewriteUrl.pathname = "/about";
       return NextResponse.rewrite(rewriteUrl);
     }
     const origin = getRequestOrigin(request);

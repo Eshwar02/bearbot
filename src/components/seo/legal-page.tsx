@@ -12,14 +12,14 @@ export function LegalPage({ title, updated, children }: LegalPageProps) {
     <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
       <header className="border-b border-gray-200 dark:border-gray-800">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <Link href="/info" className="flex items-center gap-2 font-semibold">
+          <Link href="/" className="flex items-center gap-2 font-semibold">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 text-white">
               α
             </span>
             {siteConfig.name}
           </Link>
           <nav className="hidden gap-6 text-sm md:flex">
-            <Link href="/info" className="hover:underline">
+            <Link href="/" className="hover:underline">
               Home
             </Link>
             <Link href="/about" className="hover:underline">
@@ -28,7 +28,7 @@ export function LegalPage({ title, updated, children }: LegalPageProps) {
             <Link href="/contact" className="hover:underline">
               Contact
             </Link>
-            <Link href={siteConfig.url} className="hover:underline">
+            <Link href={siteConfig.appUrl} className="hover:underline">
               Open App
             </Link>
           </nav>

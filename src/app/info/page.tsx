@@ -300,6 +300,21 @@ export default function InfoPage() {
             <p className="text-sm text-neutral-400">Connect with me</p>
             <SocialIcons />
           </div>
+
+          <nav
+            aria-label="Footer"
+            className="mt-16 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-neutral-400"
+          >
+            <a href="/about" className="hover:text-white">About</a>
+            <a href="/contact" className="hover:text-white">Contact</a>
+            <a href="/privacy" className="hover:text-white">Privacy</a>
+            <a href="/terms" className="hover:text-white">Terms</a>
+            <a href="/disclaimer" className="hover:text-white">Disclaimer</a>
+            <a href="https://chat.alphasightai.online" className="hover:text-white">Open App</a>
+          </nav>
+          <p className="mt-6 text-center text-xs text-neutral-500">
+            © {new Date().getFullYear()} AlphaSight AI. All rights reserved. AlphaSight AI is not a registered investment adviser. Information provided is for educational purposes only and is not financial advice.
+          </p>
         </div>
       </div>
     </main>

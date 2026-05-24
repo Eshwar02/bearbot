@@ -136,6 +136,41 @@ export const routeSeo = {
     path: '/settings',
     noIndex: true,
   },
+  about: {
+    title: 'About AlphaSight AI — Our Mission & Team',
+    description:
+      'Learn about AlphaSight AI, the team behind the AI-powered stock intelligence platform, our mission to democratize institutional-grade research, and how we build trustworthy AI for investors.',
+    path: '/about',
+    keywords: ['about AlphaSight AI', 'AI fintech company', 'AI investing startup', 'stock AI team'],
+  },
+  privacy: {
+    title: 'Privacy Policy — AlphaSight AI',
+    description:
+      'How AlphaSight AI collects, uses, stores, and protects your data. GDPR, CCPA, and Google AdSense compliant privacy policy.',
+    path: '/privacy',
+    keywords: ['AlphaSight privacy', 'AI stock app privacy policy', 'GDPR CCPA compliant'],
+  },
+  terms: {
+    title: 'Terms of Service — AlphaSight AI',
+    description:
+      'Terms of service and acceptable use for AlphaSight AI — the AI stock intelligence platform.',
+    path: '/terms',
+    keywords: ['AlphaSight terms', 'terms of service AI stock app'],
+  },
+  disclaimer: {
+    title: 'Financial Disclaimer — AlphaSight AI',
+    description:
+      'AlphaSight AI provides research and information for educational purposes only and does not constitute financial, investment, legal, or tax advice.',
+    path: '/disclaimer',
+    keywords: ['financial disclaimer', 'AI stock disclaimer', 'investment risk disclaimer'],
+  },
+  contact: {
+    title: 'Contact Us — AlphaSight AI',
+    description:
+      'Get in touch with the AlphaSight AI team. Support, partnerships, press, and feedback.',
+    path: '/contact',
+    keywords: ['contact AlphaSight AI', 'AI stock app support', 'fintech partnerships'],
+  },
 } satisfies Record<string, RouteSeo>;
 
 export function buildMetadata(route: RouteSeo): Metadata {

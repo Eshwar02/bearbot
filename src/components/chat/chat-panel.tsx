@@ -103,7 +103,7 @@ export function ChatPanel() {
               <div ref={bottomRef} />
             </div>
           ) : (
-            <WelcomeScreen onSendPrompt={sendMessage} />
+            <WelcomeScreen />
           )}
         </div>
         {isStreaming && <GenerationMarker />}

@@ -155,7 +155,7 @@ export function ShaderAnimation() {
   return (
     <div
       ref={containerRef}
-      className="w-full h-full"
+      className="w-full h-full absolute"
     />
   )
 }

@@ -16,12 +16,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { UserPreferences } from '@/types/database';
-import { useTheme } from '@/components/theme-provider';
+import { THEMES, useTheme, type Theme } from '@/components/theme-provider';
+import { createClient } from '@/lib/supabase/client';
 import { publishPrefsUpdate, type Prefs as ClientPrefs } from '@/lib/hooks/use-prefs';
 
 type Prefs = Partial<UserPreferences> & {
   default_market?: 'US' | 'IN';
   theme?: string;
+  currency?: 'INR' | 'USD' | 'EUR' | 'GBP';
   language_mode?: 'auto' | 'english' | 'tanglish';
   show_charts?: boolean;
   show_news_cards?: boolean;
@@ -30,6 +32,23 @@ type Prefs = Partial<UserPreferences> & {
   daily_brief_time?: string;
   daily_brief_tz?: string;
   created_at?: string;
+};
+
+const THEME_CHOICES: Array<Theme | 'system'> = [...THEMES, 'system'];
+const THEME_LABELS: Record<Theme | 'system', string> = {
+  light: 'Light',
+  dark: 'Dark',
+  sandal: 'Sandal',
+  blue: 'Blue',
+  system: 'System',
+};
+
+const CURRENCY_CHOICES: Array<NonNullable<Prefs['currency']>> = ['INR', 'USD', 'EUR', 'GBP'];
+const CURRENCY_LABELS: Record<NonNullable<Prefs['currency']>, string> = {
+  INR: 'INR (₹)',
+  USD: 'USD ($)',
+  EUR: 'EUR (€)',
+  GBP: 'GBP (£)',
 };
 
 function SettingCard({
@@ -85,10 +104,11 @@ const COMMON_TZ = [
 export default function SettingsPage() {
   const [preferences, setPreferences] = useState<Prefs | null>(null);
   const [loading, setLoading] = useState(true);
+  const [memberSince, setMemberSince] = useState<string | null>(null);
   const { setTheme } = useTheme();
 
   const applyThemePreference = useCallback((theme: string) => {
-    if (theme === 'light' || theme === 'dark') {
+    if (theme === 'light' || theme === 'dark' || theme === 'sandal' || theme === 'blue') {
       setTheme(theme);
       return;
     }
@@ -98,23 +118,35 @@ export default function SettingsPage() {
 
   useEffect(() => {
     let mounted = true;
+    const supabase = createClient();
     (async () => {
       try {
-        const response = await fetch('/api/user/preferences');
+        const [prefsResponse, userResponse] = await Promise.all([
+          fetch('/api/user/preferences'),
+          supabase.auth.getUser(),
+        ]);
         if (!mounted) return;
-        if (response.ok) {
-          const data = await response.json();
+        if (prefsResponse.ok) {
+          const data = await prefsResponse.json();
           // Default to Indian Market if not set
           const prefs = {
             ...data.preferences,
             default_market: data.preferences?.default_market || 'IN',
+            currency: data.preferences?.currency || 'INR',
           };
           setPreferences(prefs);
           if (data.preferences?.theme) {
             applyThemePreference(data.preferences.theme);
           }
+          if (data.preferences?.created_at) {
+            setMemberSince(data.preferences.created_at);
+          }
         } else {
           toast.error('Failed to load preferences');
+        }
+
+        if (userResponse.data.user?.created_at) {
+          setMemberSince(userResponse.data.user.created_at);
         }
       } catch {
         if (mounted) {
@@ -158,6 +190,9 @@ export default function SettingsPage() {
           livePatch.language_mode = value;
         }
         if (key === 'notif_in_app' && typeof value === 'boolean') livePatch.notif_in_app = value;
+        if (key === 'currency' && (value === 'INR' || value === 'USD' || value === 'EUR' || value === 'GBP')) {
+          livePatch.currency = value;
+        }
         if (Object.keys(livePatch).length > 0) {
           publishPrefsUpdate(livePatch);
         }
@@ -228,18 +263,36 @@ export default function SettingsPage() {
               <Button variant={p.default_market === 'IN' ? 'primary' : 'secondary'} size="sm" onClick={() => updatePreference('default_market', 'IN')}>Indian Markets</Button>
             </div>
           </div>
+          <div className="mt-5">
+            <label className="block text-sm font-medium text-primary mb-2">Display Currency</label>
+            <div className="flex flex-wrap gap-2">
+              {CURRENCY_CHOICES.map((currency) => (
+                <Button
+                  key={currency}
+                  variant={p.currency === currency ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => updatePreference('currency', currency)}
+                >
+                  {CURRENCY_LABELS[currency]}
+                </Button>
+              ))}
+            </div>
+          </div>
         </SettingCard>
 
         <SettingCard icon={Palette} title="Appearance" description="Customize the look and feel">
           <div>
             <label className="block text-sm font-medium text-primary mb-2">Theme</label>
-            <div className="flex gap-2">
-              {(['dark', 'light', 'system'] as const).map((t) => (
+            <div className="flex flex-wrap gap-2">
+              {THEME_CHOICES.map((t) => (
                 <Button key={t} variant={p.theme === t ? 'primary' : 'secondary'} size="sm" onClick={() => updatePreference('theme', t)}>
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {THEME_LABELS[t]}
                 </Button>
               ))}
             </div>
+            <p className="mt-2 text-xs text-muted">
+              Sandal and Blue are full themes that apply across the app.
+            </p>
           </div>
         </SettingCard>
 
@@ -332,7 +385,7 @@ export default function SettingsPage() {
             <div>
               <label className="block text-sm font-medium text-primary mb-1">Member Since</label>
               <p className="text-sm text-muted">
-                {p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'}
+                {memberSince ? new Date(memberSince).toLocaleDateString() : p.created_at ? new Date(p.created_at).toLocaleDateString() : 'N/A'}
               </p>
             </div>
           </div>

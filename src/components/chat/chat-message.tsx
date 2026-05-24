@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ThumbsUp, ThumbsDown, Share, Check, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { normalizeChatContent } from '@/lib/chat-content';
 import { MarkdownRenderer } from './markdown-renderer';
 import { StockCard } from './stock-card';
 import { ChartWidget } from './chart-widget';
@@ -66,12 +67,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const isStreaming = message.isStreaming;
   
   const normalizedContent = useMemo(
-    () => {
-      if (typeof message.content !== 'string') return '';
-      return message.content
-        .replace(/[\u200B-\u200D\uFEFF]/g, '')
-        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
-    },
+    () => (typeof message.content === 'string' ? normalizeChatContent(message.content) : ''),
     [message.content],
   );
 

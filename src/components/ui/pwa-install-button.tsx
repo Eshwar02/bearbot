@@ -102,8 +102,6 @@ export function PWAInstallButton() {
     localStorage.setItem('pwa-install-button-dismissed', 'true');
   };
 
-  // Don't show if dismissed, or not available (temporarily show on all devices for debugging)
-  console.log('[PWA Debug] isDismissed:', isDismissed, 'isVisible:', isVisible, 'isMobile:', isMobile);
   if (isDismissed || !isVisible) return null;
 
   return (

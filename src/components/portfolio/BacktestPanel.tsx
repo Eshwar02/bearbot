@@ -12,7 +12,8 @@ import {
 } from 'recharts';
 import { FlaskConical, TrendingUp, TrendingDown, Activity, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn, formatPercent } from '@/lib/utils';
+import { cn, formatCurrency, formatPercent } from '@/lib/utils';
+import { usePrefs } from '@/lib/hooks/use-prefs';
 
 // ── Types mirrored from engine output ────────────────────────────────
 
@@ -33,19 +34,8 @@ interface BacktestResult {
   metrics: BacktestMetrics;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────
-
 function fmt(n: number): string {
   return formatPercent(n * 100);
-}
-
-function fmtCurrency(n: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
 }
 
 // ── Metric card ───────────────────────────────────────────────────────
@@ -80,17 +70,19 @@ function CustomTooltip({
   active,
   payload,
   label,
+  currency,
 }: {
   active?: boolean;
   payload?: { value: number }[];
   label?: string;
+  currency: string;
 }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-dark-700 bg-dark-800/95 px-3 py-2 shadow-xl">
       <p className="text-xs text-dark-400">{label}</p>
       <p className="text-sm font-semibold text-gray-100">
-        {fmtCurrency(payload[0].value)}
+        {formatCurrency(payload[0].value, currency, { compact: false })}
       </p>
     </div>
   );
@@ -99,6 +91,7 @@ function CustomTooltip({
 // ── Main Component ────────────────────────────────────────────────────
 
 export function BacktestPanel() {
+  const prefs = usePrefs();
   const today = new Date().toISOString().slice(0, 10);
   const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -315,11 +308,11 @@ export function BacktestPanel() {
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(v: number) =>
-                      v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`
+                      formatCurrency(v, prefs.currency, { compact: true })
                     }
                     width={60}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip currency={prefs.currency} />} />
                   <Line
                     type="monotone"
                     dataKey="value"

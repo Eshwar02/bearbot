@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { setPreferredCurrency } from '@/lib/currency-preference';
 
 export type Prefs = {
   show_charts: boolean;
   show_news_cards: boolean;
   language_mode: 'auto' | 'english' | 'tanglish';
   notif_in_app: boolean;
+  currency: 'INR' | 'USD' | 'EUR' | 'GBP';
 };
 
 const DEFAULTS: Prefs = {
@@ -14,6 +16,7 @@ const DEFAULTS: Prefs = {
   show_news_cards: true,
   language_mode: 'auto',
   notif_in_app: true,
+  currency: 'INR',
 };
 
 let cache: Prefs | null = null;
@@ -28,10 +31,12 @@ async function loadPrefs(): Promise<Prefs> {
     .then((d) => {
       const p = (d.preferences ?? DEFAULTS) as Partial<Prefs>;
       cache = { ...DEFAULTS, ...p };
+      setPreferredCurrency(cache.currency);
       return cache;
     })
     .catch(() => {
       cache = DEFAULTS;
+      setPreferredCurrency(cache.currency);
       return cache;
     })
     .finally(() => {
@@ -42,10 +47,12 @@ async function loadPrefs(): Promise<Prefs> {
 
 export function invalidatePrefs() {
   cache = null;
+  setPreferredCurrency(null);
 }
 
 export function publishPrefsUpdate(updates: Partial<Prefs>) {
   cache = { ...(cache ?? DEFAULTS), ...updates };
+  if (updates.currency) setPreferredCurrency(updates.currency);
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent<Partial<Prefs>>(PREFS_UPDATED_EVENT, { detail: updates }));
 }

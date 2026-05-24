@@ -58,7 +58,11 @@
       "Bash(dig @8.8.8.8 www.alphasightai.online +short)",
       "Bash(npx eslint *)",
       "Bash(git reset *)",
-      "Bash(git pull *)"
+      "Bash(git pull *)",
+      "Bash(git checkout *)",
+      "Bash(git cherry-pick *)",
+      "Bash(gh auth *)",
+      "Bash(git check-ignore *)"
     ]
   },
   "enableAllProjectMcpServers": true,

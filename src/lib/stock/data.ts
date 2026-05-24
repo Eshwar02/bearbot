@@ -331,49 +331,89 @@ export async function fetchQuoteFull(symbol: string): Promise<
     returnOnAssets: null,
   };
 
+  const buildFundamentals = (
+    s: Record<string, NumberField>,
+    k: Record<string, NumberField>,
+    p: Record<string, NumberField>,
+    b: Record<string, NumberField>,
+  ) => ({
+    marketCap: readNum(p.marketCap) ?? readNum(s.marketCap) ?? 0,
+    sharesOutstanding: readNum(k.sharesOutstanding),
+    dividendYield: readNum(s.dividendYield),
+    beta: readNum(s.beta),
+    eps: readNum(k.trailingEps),
+    averageVolume: readNum(s.averageVolume),
+    pe: readNum(s.trailingPE) ?? base.pe,
+    roe: readNum(b.returnOnEquity) ?? readNum(k.returnOnEquity) ?? readNum(s.returnOnEquity),
+    priceToBook: readNum(k.priceToBook) ?? readNum(s.priceToBook),
+    bookValue: readNum(k.bookValue) ?? readNum(s.bookValue),
+    debtToEquity: readNum(b.debtToEquity) ?? readNum(k.debtToEquity) ?? readNum(s.debtToEquity),
+    profitMargins: readNum(b.profitMargins) ?? readNum(k.profitMargins) ?? readNum(s.profitMargins),
+    revenueGrowth: readNum(b.revenueGrowth) ?? readNum(s.revenueGrowth),
+    earningsGrowth: readNum(b.earningsGrowth) ?? readNum(k.earningsGrowth),
+    dividendRate: readNum(s.dividendRate),
+    payoutRatio: readNum(s.payoutRatio),
+    enterpriseValue: readNum(k.enterpriseValue) ?? readNum(s.enterpriseValue),
+    totalCash: readNum(b.totalCash) ?? readNum(s.totalCash),
+    freeCashflow: readNum(b.freeCashflow) ?? readNum(k.freeCashflow) ?? readNum(s.freeCashflow),
+    operatingCashflow: readNum(b.operatingCashflow) ?? readNum(k.operatingCashflow) ?? readNum(s.operatingCashflow),
+    ebitda: readNum(b.ebitda) ?? readNum(k.ebitda) ?? readNum(s.ebitda),
+    revenue: readNum(b.totalRevenue) ?? readNum(s.totalRevenue) ?? readNum(k.revenue),
+    grossProfit: readNum(b.grossProfits) ?? readNum(s.grossProfits) ?? readNum(k.grossProfit),
+    currentRatio: readNum(b.currentRatio) ?? readNum(s.currentRatio) ?? readNum(k.currentRatio),
+    returnOnAssets: readNum(b.returnOnAssets) ?? readNum(k.returnOnAssets) ?? readNum(s.returnOnAssets),
+  });
+
+  const hasValues = (o: Record<string, unknown>) =>
+    Object.values(o).some((v) => v != null && (typeof v === 'number' || typeof v === 'object'));
+
+  // Try crumb-authenticated quoteSummary first
   try {
     const result = (await yahoo.quoteSummary(symbol, {
-      modules: ["summaryDetail", "defaultKeyStatistics", "price"],
+      modules: ["summaryDetail", "defaultKeyStatistics", "price", "financialData"],
     })) as {
       summaryDetail?: Record<string, NumberField>;
       defaultKeyStatistics?: Record<string, NumberField>;
       price?: Record<string, NumberField>;
+      financialData?: Record<string, NumberField>;
     };
+
     const s = result.summaryDetail || {};
     const k = result.defaultKeyStatistics || {};
     const p = result.price || {};
+    const b = result.financialData || {};
 
-    return {
-      ...base,
-      marketCap: readNum(p.marketCap) ?? readNum(s.marketCap) ?? 0,
-      sharesOutstanding: readNum(k.sharesOutstanding),
-      dividendYield: readNum(s.dividendYield),
-      beta: readNum(s.beta),
-      eps: readNum(k.trailingEps),
-      averageVolume: readNum(s.averageVolume),
-      pe: readNum(s.trailingPE) ?? base.pe,
-      roe: readNum(k.returnOnEquity) ?? readNum(s.returnOnEquity),
-      priceToBook: readNum(k.priceToBook) ?? readNum(s.priceToBook),
-      bookValue: readNum(k.bookValue) ?? readNum(s.bookValue),
-      debtToEquity: readNum(k.debtToEquity) ?? readNum(s.debtToEquity),
-      profitMargins: readNum(k.profitMargins) ?? readNum(s.profitMargins),
-      revenueGrowth: readNum(s.revenueGrowth),
-      earningsGrowth: readNum(k.earningsGrowth),
-      dividendRate: readNum(s.dividendRate),
-      payoutRatio: readNum(s.payoutRatio),
-      enterpriseValue: readNum(k.enterpriseValue) ?? readNum(s.enterpriseValue),
-      totalCash: readNum(s.totalCash),
-      freeCashflow: readNum(k.freeCashflow) ?? readNum(s.freeCashflow),
-      operatingCashflow: readNum(k.operatingCashflow) ?? readNum(s.operatingCashflow),
-      ebitda: readNum(k.ebitda) ?? readNum(s.ebitda),
-      revenue: readNum(s.totalRevenue) ?? readNum(k.revenue),
-      grossProfit: readNum(s.grossProfits) ?? readNum(k.grossProfit),
-      currentRatio: readNum(s.currentRatio) ?? readNum(k.currentRatio),
-      returnOnAssets: readNum(k.returnOnAssets) ?? readNum(s.returnOnAssets),
-    };
+    if (hasValues(s) || hasValues(k) || hasValues(b)) {
+      return { ...base, ...buildFundamentals(s, k, p, b) };
+    }
   } catch {
-    return { ...base, ...emptyFundamentals };
+    // fall through
   }
+
+  // Fallback: v7 finance quote endpoint (no crumb needed for basic fields)
+  try {
+    const res = await fetch(
+      `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`,
+      { headers: { "User-Agent": "Mozilla/5.0" } },
+    );
+    if (res.ok) {
+      const body = (await res.json()) as {
+        quoteResponse?: { result?: Array<Record<string, unknown>> };
+      };
+      const quoteResult = body.quoteResponse?.result?.[0];
+      if (quoteResult) {
+        const fields: Record<string, NumberField> = {};
+        for (const [key, val] of Object.entries(quoteResult)) {
+          fields[key] = val as NumberField;
+        }
+        return { ...base, ...buildFundamentals(fields, fields, fields, fields) };
+      }
+    }
+  } catch {
+    // fall through
+  }
+
+  return { ...base, ...emptyFundamentals };
 }
 
 export interface CompanyInfoFull {

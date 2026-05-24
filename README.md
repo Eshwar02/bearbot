@@ -1,7 +1,7 @@
 # AlphaSight AI
 
 <div align="center">
-  <img src="./logos/final_logo.svg" alt="AlphaSight Logo" width="100" />
+  <img src="./public/logo.svg" alt="AlphaSight Logo" width="100" />
   
   ### AI-Powered Market Intelligence Workspace
   

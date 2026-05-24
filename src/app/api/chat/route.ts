@@ -29,6 +29,8 @@ import {
   LANG_INSTRUCTION_TANGLISH,
   LANG_INSTRUCTION_ENGLISH,
   WEB_SEARCH_INSTRUCTION,
+  THINK_MODE_INSTRUCTION,
+  CANVAS_MODE_INSTRUCTION,
 } from "@/lib/ai/prompts";
 import { runDeepResearch, formatResearchBundle } from "@/lib/ai/deep-research";
 import { resolveSymbol } from "@/lib/stock/symbols";
@@ -39,6 +41,7 @@ import { assessMacroRisks, assessRawMaterialRisks } from "@/lib/stock/macro";
 import type { StockAnalysis } from "@/types/stock";
 import Groq from "groq-sdk";
 import * as XLSX from "xlsx";
+import { normalizeChatContent } from "@/lib/chat-content";
 
 const EMPTY_RESPONSE_FALLBACK =
   "Unable to generate analysis right now. Showing available data below.";
@@ -61,7 +64,7 @@ type AIProgressFrame = {
 const TICKER_PATTERN = /\$([A-Z]{1,10}(?:\.[A-Z]{1,2})?)\b/;
 const NOUN_PHRASE_PATTERN =
   /(?:analyze|analysis\s+of|price\s+of|quote\s+for|stock\s+of)\s+([a-zA-Z0-9.&\-\s]{2,40})/i;
-const IMAGE_ANALYSIS_TIMEOUT_MS = 12_000;
+const IMAGE_ANALYSIS_TIMEOUT_MS = 25_000;
 
 // Regex-only stock detection. Returns a high-confidence match (dollar ticker,
 // bare all-caps ticker, or explicit "analyze X" noun phrase) or null.
@@ -250,7 +253,7 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
   if (!apiKey) throw new Error("GROQ_API_KEY environment variable is not set");
 
   const groq = new Groq({ apiKey });
-  const model = process.env.GROQ_VISION_MODEL || "llama-3.2-11b-vision-preview";
+  const model = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
   const buffer = Buffer.from(await file.arrayBuffer());
   const dataUrl = imageDataUrl(file, buffer);
   const response = await groq.chat.completions.create({
@@ -262,7 +265,13 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
           {
             type: "text",
             text:
-              "Describe this uploaded image for a chat assistant. If there is readable text, transcribe the important text. If it is a chart, screenshot, document, or photo, summarize the visible details concisely. Return plain text only.",
+              "Describe this image accurately for a helpful AI assistant. Follow these rules:\n" +
+              "1. If there is readable text (headings, labels, numbers), transcribe it exactly\n" +
+              "2. If it is a chart or graph: identify the chart type (bar, line, pie etc), axes, data points, trends, and notable values\n" +
+              "3. If it is a screenshot or document: extract all visible text content in order\n" +
+              "4. If it is a photo: describe the subject, setting, objects, people, actions, and visible context\n" +
+              "5. If it is a stock chart or financial data: extract prices, timeframes, indicators, and annotations precisely\n" +
+              "Be thorough but concise. Return plain text only, no markdown formatting.",
           },
           {
             type: "image_url",
@@ -273,12 +282,13 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
         ],
       },
     ],
-    temperature: 0.2,
-    max_tokens: 220,
+    temperature: 0.1,
+    max_tokens: 1024,
   });
 
   const text = response.choices[0]?.message?.content;
-  return typeof text === "string" ? text.trim() : "";
+  const result = typeof text === "string" ? text.trim() : "";
+  return result || `[Image uploaded: ${file.name || "attachment"}]`;
 }
 
 async function analyzeImageAttachment(file: File): Promise<string> {
@@ -414,17 +424,35 @@ export async function POST(request: NextRequest) {
     let requestedConversationId: string | null = null;
     let requestedModel = "mistral" as const;
     let forceWebSearch = false;
+    let thinkMode = false;
+    let canvasMode = false;
     let attachmentSummaries: AttachmentSummary[] = [];
+    let hasImageAttachments = false;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       incomingMessage = String(formData.get("message") ?? "").trim();
       requestedConversationId = String(formData.get("conversationId") ?? "").trim() || null;
-      requestedModel = (String(formData.get("model") ?? "mistral") as "mistral") || "mistral";
       forceWebSearch = parseFormBoolean(formData.get("forceWebSearch"));
+      thinkMode = parseFormBoolean(formData.get("thinkMode"));
+      canvasMode = parseFormBoolean(formData.get("canvasMode"));
       const uploadedFiles = formData
         .getAll("attachments")
         .filter((value): value is File => value instanceof File);
+      hasImageAttachments = uploadedFiles.some((f) => isImageFile(f));
+
+      // Model orchestration: when images are present, validate Groq Vision is available.
+      // Use Groq as the text model for image/file conversations (faster, cheaper).
+      if (hasImageAttachments) {
+        const groqKey = process.env.GROQ_API_KEY?.trim();
+        if (!groqKey) {
+          return chatJsonResponse("Image analysis requires GROQ_API_KEY to be configured.", 400, {
+            error: "GROQ_API_KEY not set",
+          });
+        }
+        requestedModel = "mistral";
+      }
+
       try {
         attachmentSummaries = await Promise.all(uploadedFiles.map((file) => extractAttachmentText(file)));
       } catch (error) {
@@ -438,11 +466,15 @@ export async function POST(request: NextRequest) {
         conversationId?: string;
         model?: "mistral";
         forceWebSearch?: boolean;
+        thinkMode?: boolean;
+        canvasMode?: boolean;
       };
       incomingMessage = body.message?.trim() ?? "";
       requestedConversationId = body.conversationId ?? null;
       requestedModel = body.model ?? "mistral";
       forceWebSearch = body.forceWebSearch === true;
+      thinkMode = body.thinkMode === true;
+      canvasMode = body.canvasMode === true;
     }
 
     const attachmentContext = formatAttachmentContext(attachmentSummaries);
@@ -935,6 +967,14 @@ export async function POST(request: NextRequest) {
     userMemory = userMemory
       ? `${userMemory}\n\n${shapeDirective}`
       : shapeDirective;
+
+    // Composer toggles: append think / canvas instructions when active.
+    if (thinkMode) {
+      userMemory = `${userMemory}\n\n${THINK_MODE_INSTRUCTION}`;
+    }
+    if (canvasMode) {
+      userMemory = `${userMemory}\n\n${CANVAS_MODE_INSTRUCTION}`;
+    }
     console.debug("[chat-api] response shape", {
       shape: responseShape,
       chatMode,
@@ -986,6 +1026,7 @@ export async function POST(request: NextRequest) {
       persisted = true;
 
       let fullResponse = chunks.join("");
+      fullResponse = normalizeChatContent(fullResponse);
       if (!hasVisibleText(fullResponse)) {
         fullResponse = EMPTY_RESPONSE_FALLBACK;
       }

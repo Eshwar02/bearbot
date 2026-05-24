@@ -7,7 +7,17 @@ type SetAllCookies = (
   cookies: Array<{ name: string; value: string; options?: CookieOptions }>
 ) => void;
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about"];
+const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about", "/privacy", "/terms", "/disclaimer", "/contact"];
+
+// Search-engine + verification crawlers. When one of these hits a protected
+// page we rewrite to the marketing landing instead of redirecting to /login,
+// so the bot sees crawlable HTML with our verification meta tags in <head>.
+const CRAWLER_UA_REGEX = /bingbot|bingpreview|msnbot|googlebot|google-inspectiontool|duckduckbot|yandexbot|baiduspider|slurp|applebot|facebookexternalhit|twitterbot|linkedinbot|telegrambot|whatsapp|discordbot|pinterestbot|ahrefsbot|semrushbot|mj12bot|petalbot/i;
+
+function isCrawler(request: NextRequest): boolean {
+  const ua = request.headers.get("user-agent") || "";
+  return CRAWLER_UA_REGEX.test(ua);
+}
 
 // Marketing subdomains: when a request lands on info./about./… and asks for
 // the bare root, rewrite to the matching internal route before the auth
@@ -95,6 +105,14 @@ export async function middleware(request: NextRequest) {
 
   // Unauthenticated user trying to access protected route
   if (!user && !isPublicPath) {
+    // Crawlers must get crawlable HTML, not a /login redirect — otherwise
+    // verification + indexing fails. Rewrite (200) to /info so Bing/Google
+    // see the marketing page with verification meta tags in <head>.
+    if (isCrawler(request)) {
+      const rewriteUrl = request.nextUrl.clone();
+      rewriteUrl.pathname = "/info";
+      return NextResponse.rewrite(rewriteUrl);
+    }
     const origin = getRequestOrigin(request);
     const loginUrl = new URL("/login", origin);
     loginUrl.searchParams.set("redirect", pathname);
@@ -118,6 +136,6 @@ export const config = {
      * - favicon.ico (favicon)
      * - public folder assets
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|sw.js|BingSiteAuth.xml|browserconfig.xml|opengraph-image|twitter-image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|xml|txt|ico|woff|woff2|ttf|otf)$).*)",
   ],
 };

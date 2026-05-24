@@ -3,11 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 
-interface WelcomeScreenProps {
-  // Kept for compatibility with chat-panel even though suggestions are gone.
-  onSendPrompt?: (prompt: string) => void;
-}
-
 const phrases = [
   'Ready when you are.',
   'Ask anything.',
@@ -21,7 +16,7 @@ const phrases = [
   'Clarity starts here.',
 ];
 
-export function WelcomeScreen(_props: WelcomeScreenProps) {
+export function WelcomeScreen() {
   const [phrase, setPhrase] = useState(phrases[0]);
 
   useEffect(() => {

@@ -1,9 +1,17 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { Geist_Mono, Fraunces } from 'next/font/google';
 import { Providers } from '@/components/providers';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { PWAInstallPrompt } from '@/components/ui/pwa-install-prompt';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { buildMetadata, routeSeo, siteConfig } from '@/lib/seo';
+import {
+  JsonLd,
+  organizationSchema,
+  websiteSchema,
+  softwareApplicationSchema,
+} from '@/components/seo/json-ld';
 import './globals.css';
 
 const geistMono = Geist_Mono({
@@ -21,14 +29,12 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: 'AlphaSight AI',
-  description:
-    'AI-powered stock analysis assistant. Get real-time insights, portfolio tracking, and market intelligence.',
+  ...buildMetadata(routeSeo.home),
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'AlphaSight AI',
+    title: siteConfig.name,
   },
   icons: {
     icon: [
@@ -39,24 +45,32 @@ export const metadata: Metadata = {
     shortcut: '/logo.svg',
     apple: '/apple-touch-icon.svg',
   },
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   other: {
     'apple-mobile-web-app-capable': 'yes',
     'apple-mobile-web-app-status-bar-style': 'default',
-    'apple-mobile-web-app-title': 'AlphaSight AI',
-    'application-name': 'AlphaSight AI',
-    'msapplication-TileColor': '#1f2937',
+    'apple-mobile-web-app-title': siteConfig.name,
+    'application-name': siteConfig.name,
+    'msapplication-TileColor': siteConfig.themeColor,
     'msapplication-config': '/browserconfig.xml',
   },
 };
 
-export const viewport = {
+export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#1f2937',
+  maximumScale: 5,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: siteConfig.themeColor },
+  ],
+  colorScheme: 'light dark',
 };
 
-// Inline script runs before hydration so the correct `dark` class is on <html>
-// at first paint — prevents a flash of unstyled / wrong-theme content.
 const themeInitScript = `
 (function() {
   try {
@@ -69,14 +83,8 @@ const themeInitScript = `
 })();
 `;
 
-// Service Worker registration script
-const swRegisterScript = `
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/sw.js').catch(function() {});
-  });
-}
-`;
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_ID;
 
 export default function RootLayout({
   children,
@@ -88,8 +96,15 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://query1.finance.yahoo.com" />
+        <link rel="dns-prefetch" href="https://query2.finance.yahoo.com" />
+        <link rel="canonical" href={siteConfig.url} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <script dangerouslySetInnerHTML={{ __html: swRegisterScript }} />
+        <JsonLd data={organizationSchema} />
+        <JsonLd data={websiteSchema} />
+        <JsonLd data={softwareApplicationSchema} />
       </head>
       <body
         suppressHydrationWarning
@@ -100,6 +115,40 @@ export default function RootLayout({
         </ErrorBoundary>
         <PWAInstallPrompt />
         <SpeedInsights />
+        <Script id="sw-register" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function() {});
+              });
+            }
+          `}
+        </Script>
+        {GA_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${GA_ID}', { anonymize_ip: true });
+              `}
+            </Script>
+          </>
+        )}
+        {ADSENSE_ID && (
+          <Script
+            id="adsense"
+            async
+            strategy="afterInteractive"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_ID}`}
+            crossOrigin="anonymous"
+          />
+        )}
       </body>
     </html>
   );

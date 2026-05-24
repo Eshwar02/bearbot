@@ -1,9 +1,9 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { Hero } from '@/components/ui/animated-hero';
 import { Button } from '@/components/ui/button';
-import { ShaderAnimation } from '@/components/ui/shader-lines';
 import {
   Accordion,
   AccordionContent,
@@ -11,12 +11,28 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { SocialIcons } from '@/components/ui/social-icons';
-import { useScreenSize } from '@/hooks/use-screen-size';
-import { PixelTrail } from '@/components/ui/pixel-trail';
-import { GooeyFilter } from '@/components/ui/gooey-filter';
-import RadialOrbitalTimeline from '@/components/ui/radial-orbital-timeline';
-import { PricingSection } from '@/components/ui/pricing';
 import { Calendar, Activity, MessageSquare, Shield, Brain } from 'lucide-react';
+
+const ShaderAnimation = dynamic(
+  () => import('@/components/ui/shader-lines').then((m) => ({ default: m.ShaderAnimation })),
+  { ssr: false }
+);
+const PixelTrail = dynamic(
+  () => import('@/components/ui/pixel-trail').then((m) => ({ default: m.PixelTrail })),
+  { ssr: false }
+);
+const GooeyFilter = dynamic(
+  () => import('@/components/ui/gooey-filter').then((m) => ({ default: m.GooeyFilter })),
+  { ssr: false }
+);
+const RadialOrbitalTimeline = dynamic(
+  () => import('@/components/ui/radial-orbital-timeline'),
+  { ssr: false }
+);
+const PricingSection = dynamic(
+  () => import('@/components/ui/pricing').then((m) => ({ default: m.PricingSection })),
+  { ssr: false }
+);
 
 const timelineData = [
   {
@@ -172,7 +188,6 @@ const pricingPlans = [
 
 export default function InfoPage() {
   const router = useRouter();
-  const screenSize = useScreenSize();
 
   const goToLogin = () => {
     router.push('/login');
@@ -192,7 +207,7 @@ export default function InfoPage() {
           style={{ filter: "url(#pixel-trail-goo)" }}
         >
           <PixelTrail
-            pixelSize={screenSize.lessThan("md") ? 20 : 28}
+            pixelSize={20}
             fadeDuration={500}
             delay={80}
             pixelClassName="bg-white/8"
@@ -221,11 +236,11 @@ export default function InfoPage() {
       </section>
 
       <div className="relative w-full">
-        <div className="w-full">
+        <div className="w-full" style={{ contentVisibility: 'auto' }}>
           <RadialOrbitalTimeline timelineData={timelineData} />
         </div>
 
-        <div className="w-full">
+        <div className="w-full" style={{ contentVisibility: 'auto' }}>
           <PricingSection
             plans={pricingPlans}
             heading="Plans that scale with you"

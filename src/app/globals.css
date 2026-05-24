@@ -245,7 +245,7 @@ html[data-theme='blue'] {
 }
 
 /* ── Base ─────────────────────────────────────────────────────────── */
-* {
+html {
   scroll-behavior: smooth;
 }
 

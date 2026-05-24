@@ -5,7 +5,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import * as THREE from "three";
+import {
+  ShaderMaterial as ThreeShaderMaterial,
+  Mesh,
+  Vector2,
+  Vector3,
+  GLSL3,
+  CustomBlending,
+  SrcAlphaFactor,
+  OneFactor,
+} from "three";
 
 type Uniforms = {
   [key: string]: {
@@ -241,7 +250,7 @@ const ShaderMaterial = ({
   uniforms: Uniforms;
 }) => {
   const { size } = useThree();
-  const ref = useRef<THREE.Mesh>(null);
+  const ref = useRef<Mesh>(null);
   let lastFrameTime = 0;
 
   useFrame(({ clock }) => {
@@ -268,7 +277,7 @@ const ShaderMaterial = ({
           break;
         case "uniform3f":
           preparedUniforms[uniformName] = {
-            value: new THREE.Vector3().fromArray(uniform.value),
+            value: new Vector3().fromArray(uniform.value),
             type: "3f",
           };
           break;
@@ -278,14 +287,14 @@ const ShaderMaterial = ({
         case "uniform3fv":
           preparedUniforms[uniformName] = {
             value: uniform.value.map((v: number[]) =>
-              new THREE.Vector3().fromArray(v)
+              new Vector3().fromArray(v)
             ),
             type: "3fv",
           };
           break;
         case "uniform2f":
           preparedUniforms[uniformName] = {
-            value: new THREE.Vector2().fromArray(uniform.value),
+            value: new Vector2().fromArray(uniform.value),
             type: "2f",
           };
           break;
@@ -297,13 +306,13 @@ const ShaderMaterial = ({
 
     preparedUniforms["u_time"] = { value: 0, type: "1f" };
     preparedUniforms["u_resolution"] = {
-      value: new THREE.Vector2(size.width * 2, size.height * 2),
+      value: new Vector2(size.width * 2, size.height * 2),
     };
     return preparedUniforms;
   };
 
   const material = useMemo(() => {
-    const materialObject = new THREE.ShaderMaterial({
+    const materialObject = new ThreeShaderMaterial({
       vertexShader: `
       precision mediump float;
       in vec2 coordinates;
@@ -319,10 +328,10 @@ const ShaderMaterial = ({
       `,
       fragmentShader: source,
       uniforms: getUniforms(),
-      glslVersion: THREE.GLSL3,
-      blending: THREE.CustomBlending,
-      blendSrc: THREE.SrcAlphaFactor,
-      blendDst: THREE.OneFactor,
+      glslVersion: GLSL3,
+      blending: CustomBlending,
+      blendSrc: SrcAlphaFactor,
+      blendDst: OneFactor,
     });
 
     return materialObject;
@@ -462,6 +471,8 @@ export const SignUpPage = ({
                       <img
                         src="/logo.svg"
                         alt="AlphaSight AI"
+                        width={48}
+                        height={48}
                         className="w-12 h-12 mx-auto rounded-xl"
                       />
                       <h1 className="text-[2.5rem] font-bold leading-[1.1] tracking-tight text-white">Create Account</h1>

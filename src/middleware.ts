@@ -7,7 +7,21 @@ type SetAllCookies = (
   cookies: Array<{ name: string; value: string; options?: CookieOptions }>
 ) => void;
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/auth/callback",
+  "/api/daily-brief",
+  "/api/market-stream",
+  "/api/quotes",
+  "/info",
+  "/about",
+  "/manifest.json",
+  "/sw.js",
+  "/browserconfig.xml",
+  "/offline.html"
+];
 
 // Marketing subdomains: when a request lands on info./about./… and asks for
 // the bare root, rewrite to the matching internal route before the auth
@@ -118,6 +132,6 @@ export const config = {
      * - favicon.ico (favicon)
      * - public folder assets
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest\\.json|sw\\.js|browserconfig\\.xml|offline\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

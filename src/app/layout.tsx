@@ -97,18 +97,42 @@ if ('serviceWorker' in navigator) {
 }
 `;
 
+// Service Worker unregistration script for development mode
+const swUnregisterScript = `
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(registrations) {
+    for (let registration of registrations) {
+      registration.unregister().then(function(success) {
+        if (success) {
+          console.log('[PWA] Unregistered active service worker in development mode');
+          caches.keys().then(function(keys) {
+            keys.forEach(function(key) {
+              caches.delete(key);
+            });
+          });
+        }
+      });
+    }
+  });
+}
+`;
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/logo.svg" type="image/svg+xml" />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-        <script dangerouslySetInnerHTML={{ __html: swRegisterScript }} />
+        {process.env.NODE_ENV === 'production' ? (
+          <script dangerouslySetInnerHTML={{ __html: swRegisterScript }} />
+        ) : (
+          <script dangerouslySetInnerHTML={{ __html: swUnregisterScript }} />
+        )}
       </head>
       <body
         suppressHydrationWarning

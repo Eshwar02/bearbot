@@ -47,7 +47,7 @@ describe('AIProgressIndicator', () => {
     const { container } = render(<AIProgressIndicator />);
     const indicator = container.querySelector('[role="region"]');
 
-    expect(indicator).toHaveClass('fixed', 'bottom-5', 'right-5', 'z-50');
+    expect(indicator).toHaveClass('fixed', 'bottom-20', 'right-4', 'z-40');
   });
 
   it('should have accessibility attributes', () => {

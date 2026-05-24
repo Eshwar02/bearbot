@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Palette, X } from 'lucide-react';
 import { THEMES, THEME_META, useTheme, type Theme } from '@/components/theme-provider';
 import { cn } from '@/lib/utils';
@@ -12,6 +13,12 @@ interface PersonalizationModalProps {
 
 export function PersonalizationModal({ open, onClose }: PersonalizationModalProps) {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   React.useEffect(() => {
     if (!open) return;
@@ -22,9 +29,9 @@ export function PersonalizationModal({ open, onClose }: PersonalizationModalProp
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm"
       onClick={onClose}
@@ -84,7 +91,8 @@ export function PersonalizationModal({ open, onClose }: PersonalizationModalProp
           </button>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

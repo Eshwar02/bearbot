@@ -73,7 +73,7 @@ export function Header() {
   }, [router, setActiveView]);
 
   return (
-    <header className="flex h-12 shrink-0 items-center justify-between overflow-visible border-b border-borderSubtle bg-canvas/80 px-3 backdrop-blur print:hidden">
+    <header className="relative z-30 flex h-12 shrink-0 items-center justify-between overflow-visible border-b border-borderSubtle bg-canvas/80 px-3 backdrop-blur print:hidden">
       <div className="flex items-center gap-1">
         <button
           onClick={toggleSidebar}
@@ -141,7 +141,7 @@ export function Header() {
 
           {menuOpen && (
             <div
-              className="absolute right-0 top-full z-[99999] mt-2 w-60 overflow-visible rounded-xl border border-borderSubtle bg-canvas shadow-lg"
+              className="absolute right-0 top-full z-[99999] mt-2 w-[min(15rem,calc(100vw-1rem))] overflow-visible rounded-xl border border-borderSubtle bg-canvas shadow-lg"
               role="menu"
               onPointerDown={(e) => e.stopPropagation()}
             >

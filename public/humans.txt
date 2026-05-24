@@ -1,0 +1,16 @@
+/* TEAM */
+Team: AlphaSight AI
+Contact: support [at] alphasightai.online
+Site: https://chat.alphasightai.online
+
+/* THANKS */
+Supabase, Vercel, Mistral AI, Groq, Yahoo Finance,
+the Next.js team, the Radix UI team, the Tailwind team.
+
+/* SITE */
+Last update: 2026/05/24
+Language: English
+Doctype: HTML5
+Standards: HTML5, CSS3, ES2022, TypeScript, React 19
+Components: Next.js 16, Tailwind CSS, Radix UI
+Hosting: Vercel Edge

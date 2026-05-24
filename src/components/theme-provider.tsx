@@ -17,7 +17,7 @@ export const THEME_META: Record<
   },
   dark: {
     label: 'Dark',
-    description: 'Pure black canvas, ChatGPT-style white text',
+    description: 'Pure black canvas, professional white text',
     swatch: { bg: '#000000', fg: '#ffffff', accent: '#10a37f' },
   },
   sandal: {

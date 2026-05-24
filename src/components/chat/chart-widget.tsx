@@ -10,35 +10,13 @@ interface ChartWidgetProps {
   height?: number;
 }
 
-/**
- * Convert Yahoo Finance symbol to TradingView format.
- * TradingView requires an exchange prefix for reliable resolution — a bare
- * ticker like "AAPL" often fails to render. We map common Yahoo suffix and
- * exchange codes; when the exchange is unknown but the symbol looks US-listed
- * we default to NASDAQ (TradingView will auto-redirect to NYSE/AMEX if needed).
- */
 function toTradingViewSymbol(yahooSymbol: string, exchange?: string): string {
-  // ── Suffix-based routing (exchange hint embedded in the ticker) ──
   const suffixMap: Record<string, string> = {
-    '.NS': 'NSE',
-    '.BO': 'BSE',
-    '.L': 'LSE',
-    '.TO': 'TSX',
-    '.V': 'TSXV',
-    '.HK': 'HKEX',
-    '.T': 'TSE',
-    '.SS': 'SSE',
-    '.SZ': 'SZSE',
-    '.PA': 'EURONEXT',
-    '.AS': 'EURONEXT',
-    '.BR': 'EURONEXT',
-    '.DE': 'XETR',
-    '.F': 'FWB',
-    '.MI': 'MIL',
-    '.MC': 'BME',
-    '.SW': 'SIX',
-    '.AX': 'ASX',
-    '.NZ': 'NZX',
+    '.NS': 'NSE', '.BO': 'BSE', '.L': 'LSE', '.TO': 'TSX',
+    '.V': 'TSXV', '.HK': 'HKEX', '.T': 'TSE', '.SS': 'SSE',
+    '.SZ': 'SZSE', '.PA': 'EURONEXT', '.AS': 'EURONEXT',
+    '.BR': 'EURONEXT', '.DE': 'XETR', '.F': 'FWB', '.MI': 'MIL',
+    '.MC': 'BME', '.SW': 'SIX', '.AX': 'ASX', '.NZ': 'NZX',
     '.SA': 'BMFBOVESPA',
   };
   for (const [suffix, prefix] of Object.entries(suffixMap)) {
@@ -47,68 +25,16 @@ function toTradingViewSymbol(yahooSymbol: string, exchange?: string): string {
     }
   }
 
-  // Crypto pairs (e.g. BTC-USD) — TradingView uses BINANCE/COINBASE prefixes
   if (/^[A-Z]+-USD$/.test(yahooSymbol)) {
     return `BINANCE:${yahooSymbol.replace('-USD', 'USDT')}`;
   }
 
-  // Forex pairs (e.g. EURUSD=X)
-  if (/^[A-Z]{6}=X$/.test(yahooSymbol)) {
-    return `FX:${yahooSymbol.replace('=X', '')}`;
-  }
-
-  // Major Indices
-  const indicesMap: Record<string, string> = {
-    '^GSPC': 'SP:SPX',
-    '^DJI': 'DJ:DJI',
-    '^IXIC': 'NASDAQ:IXIC',
-    '^RUT': 'RUSSELL:RUT',
-    '^VIX': 'CBOE:VIX',
-    '^FTSE': 'TVC:UKX',
-    '^N225': 'TVC:NI225',
-    '^NSEI': 'NSE:NIFTY',
-    '^BSESN': 'BSE:SENSEX',
-  };
-  if (indicesMap[yahooSymbol]) {
-    return indicesMap[yahooSymbol];
-  }
-
-  // Futures/Commodities
-  const futuresMap: Record<string, string> = {
-    'GC=F': 'COMEX:GC1!', // Gold
-    'SI=F': 'COMEX:SI1!', // Silver
-    'CL=F': 'NYMEX:CL1!', // Crude Oil
-    'NG=F': 'NYMEX:NG1!', // Natural Gas
-    'ZC=F': 'CBOT:ZC1!',  // Corn
-    'ZW=F': 'CBOT:ZW1!',  // Wheat
-    'SB=F': 'ICEUS:SB1!', // Sugar
-    'CT=F': 'ICEUS:CT1!', // Cotton
-  };
-  if (futuresMap[yahooSymbol]) {
-    return futuresMap[yahooSymbol];
-  }
-
-  // ── Exchange-based routing for US tickers ──
   if (exchange) {
     const ex = exchange.toUpperCase();
-    if (
-      ex.includes('NASDAQ') ||
-      ex === 'NMS' ||
-      ex === 'NGM' ||
-      ex === 'NCM' ||
-      ex === 'NAS'
-    ) {
+    if (ex.includes('NASDAQ') || ex === 'NMS' || ex === 'NGM' || ex === 'NCM' || ex === 'NAS') {
       return `NASDAQ:${yahooSymbol}`;
     }
-    if (
-      ex.includes('NYSE') ||
-      ex === 'NYQ' ||
-      ex === 'NYS' ||
-      ex === 'PCX' ||
-      ex === 'ARCA' ||
-      ex === 'NYSEARCA' ||
-      ex === 'BATS'
-    ) {
+    if (ex.includes('NYSE') || ex === 'NYQ' || ex === 'NYS' || ex === 'PCX' || ex === 'ARCA' || ex === 'NYSEARCA' || ex === 'BATS') {
       return `NYSE:${yahooSymbol}`;
     }
     if (ex.includes('AMEX') || ex === 'ASE') {
@@ -116,9 +42,6 @@ function toTradingViewSymbol(yahooSymbol: string, exchange?: string): string {
     }
   }
 
-  // Unknown exchange but looks like a US ticker (no suffix, uppercase letters
-  // only) — default to NASDAQ. TradingView's resolver will surface the
-  // correct listing, and `allow_symbol_change: true` lets users adjust.
   if (/^[A-Z][A-Z0-9.-]{0,9}$/.test(yahooSymbol) && !yahooSymbol.includes('.')) {
     return `NASDAQ:${yahooSymbol}`;
   }
@@ -136,7 +59,6 @@ function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWi
 
     let cancelled = false;
 
-    // Clean up previous widget
     if (scriptRef.current) {
       scriptRef.current.remove();
       scriptRef.current = null;
@@ -145,8 +67,6 @@ function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWi
 
     const tvSymbol = toTradingViewSymbol(symbol, exchange);
 
-    // Use requestAnimationFrame to ensure the container is painted & attached
-    // before injecting the TradingView script (avoids contentWindow errors)
     const rafId = requestAnimationFrame(() => {
       if (cancelled || !containerRef.current) return;
 
@@ -159,16 +79,17 @@ function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWi
       script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
       script.type = 'text/javascript';
       script.async = true;
+      
+      // Removed the hardcoded transparent background to allow TradingView's 
+      // native, highly readable dark/light themes to render properly.
       script.innerHTML = JSON.stringify({
         autosize: true,
         symbol: tvSymbol,
         interval: 'D',
         timezone: 'Etc/UTC',
-        theme: 'dark',
+        theme: 'dark', // Note: Depending on your global state, you might want to dynamically pass 'light' or 'dark' here.
         style: '1',
         locale: 'en',
-        backgroundColor: '#202123',
-        gridColor: '#2a2b36',
         hide_top_toolbar: false,
         hide_legend: false,
         allow_symbol_change: true,
@@ -199,7 +120,8 @@ function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWi
   return (
     <div
       className={cn(
-        'my-4 overflow-hidden rounded-xl border border-dark-700',
+        // Clean, minimal container. Focus is entirely on the chart content.
+        'my-6 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-950',
         className,
       )}
       style={{ height }}

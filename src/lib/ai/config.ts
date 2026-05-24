@@ -18,7 +18,7 @@ export const AGENT_CONFIG = {
   },
   general: {
     temp:           num(process.env.AGENT_GENERAL_TEMP, 0.6),
-    maxTokens:      num(process.env.AGENT_GENERAL_MAX_TOKENS, 2048),
+    maxTokens:      num(process.env.AGENT_GENERAL_MAX_TOKENS, 4096),
     briefTemp:      num(process.env.AGENT_GENERAL_BRIEF_TEMP, 0.8),
     briefMaxTokens: num(process.env.AGENT_GENERAL_BRIEF_MAX_TOKENS, 140),
     streaming:      bool(process.env.AGENT_GENERAL_STREAM, true),

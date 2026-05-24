@@ -5,14 +5,24 @@ import type { Conversation, Message, Json } from '@/types/database';
 import type { StockQuote } from '@/types/stock';
 import type { NewsItem } from '@/types/stock';
 import type { WebSource } from '@/lib/ai/web-search';
+import { normalizeChatContent } from '@/lib/chat-content';
 
 // ── Extended chat message with client-side fields ──────────────────
+
+export type CanvasArtifact = {
+  id: string;
+  type: 'markdown' | 'html' | 'jsx' | 'python' | 'code';
+  title: string;
+  content: string;
+};
 
 export interface ChatMessage extends Message {
   isStreaming?: boolean;
   stockData?: StockQuote[];
   newsData?: NewsItem[];
   sources?: WebSource[];
+  thinkingBlock?: string;
+  artifact?: CanvasArtifact;
 }
 
 export type AppView = 'chat' | 'portfolio' | 'brief' | 'watchlist' | 'settings';
@@ -57,6 +67,10 @@ interface AppState {
   /* ── Model preference (user-selected via composer dropdown) ─────── */
   preferredModel: 'mistral';
   setPreferredModel: (model: 'mistral') => void;
+
+  /* ── Canvas (artifact side panel) ─────────── */
+  canvasArtifact: CanvasArtifact | null;
+  setCanvasArtifact: (artifact: CanvasArtifact | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -113,7 +127,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       const targetIdx = s.messages.findIndex((m) => m.id === id);
       if (targetIdx !== -1) {
         const next = [...s.messages];
-        next[targetIdx] = { ...next[targetIdx], ...partial };
+        next[targetIdx] = {
+          ...next[targetIdx],
+          ...partial,
+          ...(typeof partial.content === 'string'
+            ? { content: normalizeChatContent(partial.content) }
+            : {}),
+        };
         return { messages: next };
       }
 
@@ -136,7 +156,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (fallbackIdx === undefined) return { messages: s.messages };
 
       const next = [...s.messages];
-      next[fallbackIdx] = { ...next[fallbackIdx], ...partial };
+      next[fallbackIdx] = {
+        ...next[fallbackIdx],
+        ...partial,
+        ...(typeof partial.content === 'string'
+          ? { content: normalizeChatContent(partial.content) }
+          : {}),
+      };
       return { messages: next };
     }),
 
@@ -147,7 +173,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const next = [...s.messages];
         next[targetIdx] = {
           ...next[targetIdx],
-          content: next[targetIdx].content + chunk,
+          content: normalizeChatContent(next[targetIdx].content + chunk),
         };
         return { messages: next };
       }
@@ -173,7 +199,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const next = [...s.messages];
       next[fallbackIdx] = {
         ...next[fallbackIdx],
-        content: next[fallbackIdx].content + chunk,
+        content: normalizeChatContent(next[fallbackIdx].content + chunk),
       };
       return { messages: next };
     }),
@@ -182,7 +208,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((s) => {
       const msgs = [...s.messages];
       if (msgs.length > 0) {
-        msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], content };
+        msgs[msgs.length - 1] = {
+          ...msgs[msgs.length - 1],
+          content: normalizeChatContent(content),
+        };
       }
       return { messages: msgs };
     }),
@@ -199,4 +228,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Mistral-only model selection.
   preferredModel: 'mistral',
   setPreferredModel: (model) => set({ preferredModel: model }),
+
+  /* ── Canvas ───────────────────────────────── */
+  canvasArtifact: null,
+  setCanvasArtifact: (artifact) => set({ canvasArtifact: artifact }),
 }));

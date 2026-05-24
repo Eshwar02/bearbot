@@ -21,7 +21,7 @@ type ScheduledReportRow = {
   last_sent_at: string | null;
 };
 
-const SCHEDULE_LOOKBACK_MINUTES = 90;
+const SCHEDULE_LOOKBACK_MINUTES = 30;
 
 function isCronAuthorized(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;

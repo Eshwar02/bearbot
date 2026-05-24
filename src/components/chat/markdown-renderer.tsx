@@ -122,7 +122,7 @@ export function MarkdownRenderer({
   return (
     <div
       className={cn(
-        'prose max-w-none',
+        'prose max-w-none break-words',
         'prose-p:leading-7 prose-p:my-2 prose-p:text-primary',
         'prose-headings:font-bold prose-headings:border-b prose-headings:border-borderSubtle prose-headings:pb-1 prose-headings:text-primary',
         'prose-h1:text-3xl prose-h1:mt-6 prose-h1:mb-4',
@@ -206,7 +206,7 @@ export function MarkdownRenderer({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-accent-green transition-colors hover:text-accent-green/80 hover:underline"
+              className="break-all text-accent-green transition-colors hover:text-accent-green/80 hover:underline"
               {...props}
             >
               {children}

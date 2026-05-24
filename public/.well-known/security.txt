@@ -1,0 +1,6 @@
+Contact: mailto:support@alphasightai.online
+Expires: 2027-05-24T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://chat.alphasightai.online/.well-known/security.txt
+Policy: https://chat.alphasightai.online/terms
+Acknowledgments: https://chat.alphasightai.online/about

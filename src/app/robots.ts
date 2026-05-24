@@ -14,18 +14,25 @@ export default function robots(): MetadataRoute.Robots {
           '/signup',
           '/forgot-password',
           '/reset-password',
-          '/dashboard',
-          '/workspace',
-          '/chat',
-          '/portfolio',
-          '/watchlist',
-          '/daily-brief',
           '/profile',
           '/settings',
         ],
       },
+      {
+        userAgent: 'GPTBot',
+        allow: '/info',
+        disallow: '/',
+      },
+      {
+        userAgent: 'CCBot',
+        allow: '/info',
+        disallow: '/',
+      },
     ],
-    sitemap: `${siteConfig.url}/sitemap.xml`,
+    sitemap: [
+      `${siteConfig.url}/sitemap.xml`,
+      `${siteConfig.marketingUrl}/sitemap.xml`,
+    ],
     host: siteConfig.url,
   };
 }

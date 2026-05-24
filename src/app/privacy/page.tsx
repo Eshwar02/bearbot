@@ -9,7 +9,7 @@ export default function PrivacyPage() {
     <LegalPage title="Privacy Policy" updated="May 24, 2026">
       <p>
         AlphaSight AI (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates {siteConfig.url} and{' '}
-        {siteConfig.url} (the &quot;Service&quot;). This page explains what personal
+        {siteConfig.marketingUrl} (the &quot;Service&quot;). This page explains what personal
         information we collect, how we use it, how we protect it, and the rights you have under
         applicable law including the EU General Data Protection Regulation (GDPR), the California
         Consumer Privacy Act (CCPA/CPRA), India&apos;s Digital Personal Data Protection Act (DPDP),

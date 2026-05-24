@@ -1,28 +1,59 @@
 import type { MetadataRoute } from 'next';
 import { siteConfig } from '@/lib/seo';
-import { blogPosts } from '@/lib/content/blog';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   const base = siteConfig.url;
-  const marketingRoutes: MetadataRoute.Sitemap = [
+  const marketing = siteConfig.marketingUrl;
+
+  return [
+    {
+      url: marketing,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 1.0,
+    },
+    {
+      url: `${marketing}/info`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.95,
+    },
     {
       url: base,
       lastModified: now,
       changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      url: `${base}/features`,
-      lastModified: now,
-      changeFrequency: 'weekly',
       priority: 0.9,
     },
     {
-      url: `${base}/pricing`,
+      url: `${base}/chat`,
       lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.88,
+      changeFrequency: 'daily',
+      priority: 0.8,
+    },
+    {
+      url: `${base}/portfolio`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.7,
+    },
+    {
+      url: `${base}/watchlist`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.7,
+    },
+    {
+      url: `${base}/daily-brief`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.8,
+    },
+    {
+      url: `${base}/signup`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.6,
     },
     {
       url: `${base}/about`,
@@ -31,28 +62,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
-      url: `${base}/docs`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${base}/blog`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.82,
-    },
-    {
       url: `${base}/contact`,
       lastModified: now,
       changeFrequency: 'yearly',
-      priority: 0.7,
-    },
-    {
-      url: `${base}/api`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.75,
+      priority: 0.5,
     },
     {
       url: `${base}/privacy`,
@@ -73,13 +86,4 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.4,
     },
   ];
-
-  const blogRoutes: MetadataRoute.Sitemap = blogPosts.map((post) => ({
-    url: `${base}/blog/${post.slug}`,
-    lastModified: new Date(post.updatedAt ?? post.publishedAt),
-    changeFrequency: 'monthly',
-    priority: 0.72,
-  }));
-
-  return [...marketingRoutes, ...blogRoutes];
 }

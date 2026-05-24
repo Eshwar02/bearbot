@@ -3,32 +3,51 @@ import type { Metadata } from 'next';
 export const siteConfig = {
   name: 'AlphaSight AI',
   shortName: 'AlphaSight',
-  tagline: 'AI Workspace for Research, Automation & Intelligence',
+  tagline: 'AI-Powered Stock Analysis & Market Intelligence',
   description:
-    'AlphaSight AI is an AI workspace for research, automation, and intelligent analysis with AI assistant workflows, collaborative dashboards, and enterprise-ready productivity.',
+    'AlphaSight AI is an AI-first stock intelligence workspace with real-time streaming chat, portfolio tracking, watchlists, daily market briefs, and institutional-grade financial research powered by advanced large language models.',
   longDescription:
-    'AlphaSight AI is an AI productivity platform for modern teams that unifies intelligent AI assistant workflows, deep research, automation pipelines, and AI analysis tools in one secure workspace.',
-  url: 'https://alphasightai.online',
-  appUrl: 'https://chat.alphasightai.online',
-  ogImage: 'https://alphasightai.online/opengraph-image',
+    'AlphaSight AI helps retail and professional investors make data-driven decisions with AI-powered stock analysis, real-time quotes, portfolio analytics, sentiment tracking, and personalized market intelligence. Built on modern LLMs (Mistral, Groq, Llama), Yahoo Finance live data, and a secure Supabase backend.',
+  url: 'https://chat.alphasightai.online',
+  marketingUrl: 'https://info.alphasightai.online',
+  apexUrl: 'https://alphasightai.online',
+  ogImage: 'https://chat.alphasightai.online/opengraph-image',
   locale: 'en_US',
   twitter: '@alphasightai',
   author: 'AlphaSight AI',
   email: 'support@alphasightai.online',
   themeColor: '#1f2937',
   keywords: [
-    'AI workspace',
-    'AI assistant',
-    'AI productivity platform',
-    'AI research platform',
-    'AI automation workspace',
-    'Intelligent AI assistant',
-    'AI analysis tool',
-    'enterprise AI workspace',
-    'AI workflow automation',
-    'AI-native SaaS',
+    'AI stock analysis',
+    'AI stock assistant',
+    'stock market AI',
+    'AI investing platform',
+    'AI trading assistant',
+    'portfolio tracker',
+    'real-time stock quotes',
+    'stock watchlist app',
+    'daily market brief',
+    'AI financial research',
+    'LLM stock analysis',
+    'sentiment analysis stocks',
+    'AI hedge fund tool',
+    'algorithmic trading insights',
     'AlphaSight',
     'AlphaSight AI',
+    'chat with stocks',
+    'AI equity research',
+    'AI portfolio analytics',
+    'NSE BSE NYSE NASDAQ analysis',
+    'fundamental analysis AI',
+    'technical analysis AI',
+    'retail investor AI tools',
+    'stock screener AI',
+    'investment research assistant',
+    'market intelligence platform',
+    'AI for trading',
+    'stock price prediction AI',
+    'financial news summarizer',
+    'earnings call analysis AI',
   ],
 } as const;
 
@@ -38,171 +57,124 @@ type RouteSeo = {
   path: string;
   keywords?: string[];
   noIndex?: boolean;
-  canonicalBase?: 'site' | 'app';
-  ogType?: 'website' | 'article';
 };
 
 export const routeSeo = {
   home: {
-    title: 'AlphaSight AI – AI Workspace for Research & Intelligence',
+    title: 'AlphaSight AI — AI-Powered Stock Analysis & Market Intelligence',
     description: siteConfig.description,
     path: '/',
     keywords: [...siteConfig.keywords],
   },
-  about: {
-    title: 'About AlphaSight AI – Platform, Mission, and Roadmap',
+  info: {
+    title: 'AlphaSight AI — The AI Stock Intelligence Workspace',
     description:
-      'Learn AlphaSight AI mission, product philosophy, and roadmap for AI workspace, automation workflows, and intelligent assistant systems.',
-    path: '/about',
-    keywords: ['about AlphaSight AI', 'AI workspace platform', ...siteConfig.keywords],
-  },
-  features: {
-    title: 'AlphaSight AI Features – AI Assistant and Automation Workflows',
-    description:
-      'Explore AlphaSight AI features for research, AI automation workspace flows, intelligent copilots, analytics, collaboration, and productivity.',
-    path: '/features',
-  },
-  pricing: {
-    title: 'AlphaSight AI Pricing – Plans for Teams and Enterprises',
-    description:
-      'See AlphaSight AI pricing for individuals, startups, and enterprise teams using AI productivity platform workflows, automation, and research tools.',
-    path: '/pricing',
-  },
-  docs: {
-    title: 'AlphaSight AI Docs – Guides, Integrations, and API References',
-    description:
-      'Read AlphaSight AI docs, implementation guides, integrations, and API references for building AI assistant and automation workflows.',
-    path: '/docs',
-  },
-  blog: {
-    title: 'AlphaSight AI Blog – AI Research, Automation, and Insights',
-    description:
-      'AlphaSight AI blog covering AI workspace strategy, automation architecture, assistant design, and practical intelligence workflows.',
-    path: '/blog',
-    ogType: 'article',
-  },
-  apiLanding: {
-    title: 'AlphaSight AI API – AI Workspace Integrations & Endpoints',
-    description:
-      'Integrate with AlphaSight AI APIs to connect AI assistant workflows, intelligence pipelines, automation jobs, and productivity systems.',
-    path: '/api',
-  },
-  contact: {
-    title: 'Contact AlphaSight AI – Support and Business Inquiries',
-    description:
-      'Contact AlphaSight AI for support, partnerships, technical guidance, and business inquiries around our AI workspace and productivity platform.',
-    path: '/contact',
-  },
-  privacy: {
-    title: 'Privacy Policy – AlphaSight AI',
-    description:
-      'Read AlphaSight AI privacy policy for data handling, retention, user controls, and security protections across workspace and assistant features.',
-    path: '/privacy',
-  },
-  terms: {
-    title: 'Terms of Service – AlphaSight AI',
-    description:
-      'AlphaSight AI terms of service for workspace usage, account responsibilities, API usage rules, and platform restrictions.',
-    path: '/terms',
-  },
-  disclaimer: {
-    title: 'Financial Disclaimer – AlphaSight AI',
-    description:
-      'AlphaSight AI provides information for research and productivity. This platform does not provide financial, legal, or tax advice.',
-    path: '/disclaimer',
-  },
-
-  login: {
-    title: 'Login to AlphaSight AI Dashboard',
-    description:
-      'Secure login to AlphaSight AI dashboard for AI automation workspace, research tools, and intelligent assistant workflows.',
-    path: '/login',
-    noIndex: true,
-    canonicalBase: 'app',
-  },
-  signup: {
-    title: 'Sign Up for AlphaSight AI Workspace',
-    description:
-      'Create AlphaSight AI account and start with AI productivity platform workflows, assistants, automation, and research.',
-    path: '/signup',
-    noIndex: true,
-    canonicalBase: 'app',
-  },
-  forgotPassword: {
-    title: 'Reset AlphaSight AI Password',
-    description: 'Reset AlphaSight AI account password to restore secure access to your dashboard.',
-    path: '/forgot-password',
-    noIndex: true,
-    canonicalBase: 'app',
-  },
-  resetPassword: {
-    title: 'Create New Password – AlphaSight AI',
-    description: 'Set a new password for your AlphaSight AI account.',
-    path: '/reset-password',
-    noIndex: true,
-    canonicalBase: 'app',
-  },
-  appHome: {
-    title: 'AlphaSight AI Dashboard Workspace',
-    description: 'Private AlphaSight AI dashboard workspace for authenticated users.',
-    path: '/dashboard',
-    noIndex: true,
-    canonicalBase: 'app',
-  },
-  workspace: {
-    title: 'AlphaSight AI Workspace',
-    description: 'Private AlphaSight AI workspace for AI assistant, automation, and analysis flows.',
-    path: '/workspace',
-    noIndex: true,
-    canonicalBase: 'app',
+      'Meet AlphaSight AI: the AI-first stock intelligence platform with streaming chat, real-time portfolio analytics, daily briefs, and institutional-grade research for every investor.',
+    path: '/info',
+    keywords: ['AI stock intelligence', 'investing platform', ...siteConfig.keywords],
   },
   chat: {
-    title: 'AlphaSight AI Chat Workspace',
-    description: 'Private AI chat workspace for AlphaSight AI users.',
+    title: 'Chat — AI Stock Research & Analysis',
+    description:
+      'Ask anything about markets. Stream institutional-quality stock research, fundamentals, technicals, and live quotes powered by LLMs and Yahoo Finance.',
     path: '/chat',
-    noIndex: true,
-    canonicalBase: 'app',
+    keywords: ['AI chat stocks', 'LLM finance chat', 'stock research chat'],
   },
   portfolio: {
-    title: 'Portfolio Dashboard – AlphaSight AI',
-    description: 'Private AlphaSight AI portfolio dashboard.',
+    title: 'Portfolio Tracker — AlphaSight AI',
+    description:
+      'Track positions, P&L, allocation, and live performance with AI commentary on your holdings.',
     path: '/portfolio',
-    noIndex: true,
-    canonicalBase: 'app',
+    keywords: ['portfolio tracker', 'P&L tracker', 'portfolio analytics AI'],
   },
   watchlist: {
-    title: 'Watchlist Dashboard – AlphaSight AI',
-    description: 'Private AlphaSight AI watchlist dashboard.',
+    title: 'Watchlist — Real-Time Stock Monitoring',
+    description: 'Build a custom watchlist with live quotes, alerts, and AI-generated context.',
     path: '/watchlist',
-    noIndex: true,
-    canonicalBase: 'app',
+    keywords: ['stock watchlist', 'real-time stock alerts'],
   },
   dailyBrief: {
-    title: 'Daily Brief Dashboard – AlphaSight AI',
-    description: 'Private AlphaSight AI daily brief dashboard.',
+    title: 'Daily Market Brief — Personalized AI News',
+    description:
+      'Your personalized morning market brief: macro headlines, your tickers, and AI-summarized catalysts.',
     path: '/daily-brief',
+    keywords: ['daily market brief', 'AI market news', 'morning market summary'],
+  },
+  login: {
+    title: 'Sign In — AlphaSight AI',
+    description: 'Sign in to your AlphaSight AI account.',
+    path: '/login',
     noIndex: true,
-    canonicalBase: 'app',
+  },
+  signup: {
+    title: 'Create Account — AlphaSight AI',
+    description: 'Create a free AlphaSight AI account and start analyzing stocks with AI.',
+    path: '/signup',
+    keywords: ['sign up AI stock app', 'free AI investing account'],
+  },
+  forgotPassword: {
+    title: 'Reset Password — AlphaSight AI',
+    description: 'Reset your AlphaSight AI password.',
+    path: '/forgot-password',
+    noIndex: true,
+  },
+  resetPassword: {
+    title: 'Reset Password — AlphaSight AI',
+    description: 'Choose a new AlphaSight AI password.',
+    path: '/reset-password',
+    noIndex: true,
   },
   profile: {
-    title: 'Profile – AlphaSight AI',
-    description: 'Manage AlphaSight AI profile settings.',
+    title: 'Profile — AlphaSight AI',
+    description: 'Manage your AlphaSight AI profile and preferences.',
     path: '/profile',
     noIndex: true,
-    canonicalBase: 'app',
   },
   settings: {
-    title: 'Settings – AlphaSight AI',
+    title: 'Settings — AlphaSight AI',
     description: 'Configure AlphaSight AI to match your workflow.',
     path: '/settings',
     noIndex: true,
-    canonicalBase: 'app',
+  },
+  about: {
+    title: 'About AlphaSight AI — Our Mission & Team',
+    description:
+      'Learn about AlphaSight AI, the team behind the AI-powered stock intelligence platform, our mission to democratize institutional-grade research, and how we build trustworthy AI for investors.',
+    path: '/about',
+    keywords: ['about AlphaSight AI', 'AI fintech company', 'AI investing startup', 'stock AI team'],
+  },
+  privacy: {
+    title: 'Privacy Policy — AlphaSight AI',
+    description:
+      'How AlphaSight AI collects, uses, stores, and protects your data. GDPR, CCPA, and Google AdSense compliant privacy policy.',
+    path: '/privacy',
+    keywords: ['AlphaSight privacy', 'AI stock app privacy policy', 'GDPR CCPA compliant'],
+  },
+  terms: {
+    title: 'Terms of Service — AlphaSight AI',
+    description:
+      'Terms of service and acceptable use for AlphaSight AI — the AI stock intelligence platform.',
+    path: '/terms',
+    keywords: ['AlphaSight terms', 'terms of service AI stock app'],
+  },
+  disclaimer: {
+    title: 'Financial Disclaimer — AlphaSight AI',
+    description:
+      'AlphaSight AI provides research and information for educational purposes only and does not constitute financial, investment, legal, or tax advice.',
+    path: '/disclaimer',
+    keywords: ['financial disclaimer', 'AI stock disclaimer', 'investment risk disclaimer'],
+  },
+  contact: {
+    title: 'Contact Us — AlphaSight AI',
+    description:
+      'Get in touch with the AlphaSight AI team. Support, partnerships, press, and feedback.',
+    path: '/contact',
+    keywords: ['contact AlphaSight AI', 'AI stock app support', 'fintech partnerships'],
   },
 } satisfies Record<string, RouteSeo>;
 
 export function buildMetadata(route: RouteSeo): Metadata {
-  const baseUrl = route.canonicalBase === 'app' ? siteConfig.appUrl : siteConfig.url;
-  const url = `${baseUrl}${route.path}`;
+  const url = `${siteConfig.url}${route.path}`;
   const keywords = route.keywords ?? siteConfig.keywords;
 
   return {
@@ -213,8 +185,8 @@ export function buildMetadata(route: RouteSeo): Metadata {
     authors: [{ name: siteConfig.author, url: siteConfig.url }],
     creator: siteConfig.author,
     publisher: siteConfig.author,
-    category: 'software',
-    metadataBase: new URL(baseUrl),
+    category: 'finance',
+    metadataBase: new URL(siteConfig.url),
     alternates: {
       canonical: url,
     },
@@ -232,7 +204,7 @@ export function buildMetadata(route: RouteSeo): Metadata {
           },
         },
     openGraph: {
-      type: route.ogType ?? 'website',
+      type: 'website',
       locale: siteConfig.locale,
       url,
       title: route.title,

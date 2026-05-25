@@ -26,6 +26,17 @@ export function Providers({ children }: ProvidersProps) {
   const setActiveView = useAppStore((s) => s.setActiveView);
   const pathname = usePathname();
 
+  const isChatHost = () => {
+    if (typeof window === 'undefined') return false;
+    const host = window.location.hostname;
+    return (
+      host === 'chat.alphasightai.online' ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.endsWith('.local')
+    );
+  };
+
   const hydrateProgressFromMessages = (messages: ChatMessage[]) => {
     const latestWithSources = [...messages]
       .reverse()
@@ -50,6 +61,7 @@ export function Providers({ children }: ProvidersProps) {
 
   useEffect(() => {
     if (!pathname) return;
+    if (!isChatHost()) return;
     const chatPath = pathname.match(/^\/chat\/([^/]+)$/);
     if (chatPath?.[1]) {
       setActiveConversation(chatPath[1]);
@@ -270,6 +282,7 @@ export function Providers({ children }: ProvidersProps) {
   }, [prefs.currency]);
 
   useEffect(() => {
+    if (!isChatHost()) return;
     const isChatRoute = pathname === '/' || pathname.startsWith('/chat/');
     if (!isChatRoute) return;
 

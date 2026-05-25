@@ -2,11 +2,13 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useAppStore } from '@/stores/app-store';
-import { useChat } from '@/lib/hooks/use-chat';
+import { RESPONSE_GENERATED_EVENT, useChat } from '@/lib/hooks/use-chat';
 import { ChatMessage } from './chat-message';
 import { WelcomeScreen } from './welcome-screen';
 import { PromptInputBox } from '@/components/ui/ai-prompt-box';
+import { AIProgressIndicator } from '@/components/ai/ai-progress-indicator';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // Clean, standard productivity skeleton loader
 function LoadingSkeleton() {
@@ -48,20 +50,84 @@ export function ChatPanel() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const [draft, setDraft] = useState('');
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [isLastLineVisible, setIsLastLineVisible] = useState(true);
 
   const hasMessages = messages.length > 0;
 
+  const updateBottomVisibility = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const distanceToBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
+    const lastLineVisible = distanceToBottom <= 24;
+    stickToBottomRef.current = lastLineVisible;
+    setIsLastLineVisible(lastLineVisible);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight;
+      updateBottomVisibility();
+    });
+  }, [updateBottomVisibility]);
+
   useEffect(() => {
-    if (bottomRef.current && scrollRef.current) {
-      const scrollContainer = scrollRef.current;
-      requestAnimationFrame(() => {
-        scrollContainer.scrollTop = scrollContainer.scrollHeight;
-      });
+    if (bottomRef.current && scrollRef.current) scrollToBottom();
+  }, [messages.length, scrollToBottom]);
+
+  useEffect(() => {
+    if (isStreaming && stickToBottomRef.current) {
+      scrollToBottom();
+    } else {
+      updateBottomVisibility();
     }
-  }, [messages.length]);
+  }, [isStreaming, messages, scrollToBottom, updateBottomVisibility]);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const onScroll = () => updateBottomVisibility();
+    const onResize = () => updateBottomVisibility();
+
+    container.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+    updateBottomVisibility();
+
+    return () => {
+      container.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [updateBottomVisibility]);
+
+  useEffect(() => {
+    const onResponseGenerated = () => {
+      const container = scrollRef.current;
+      if (!container) return;
+
+      const distanceToBottom = container.scrollHeight - (container.scrollTop + container.clientHeight);
+      const isNearTop = container.scrollTop <= Math.max(100, container.clientHeight * 0.2);
+      const responseWayDown = distanceToBottom > container.clientHeight * 1.5;
+
+      if (isNearTop && responseWayDown) {
+        toast.success('Response generated successfully.', {
+          description: 'A completed response is ready below.',
+          action: {
+            label: 'Go to latest',
+            onClick: () => scrollToBottom(),
+          },
+        });
+      }
+    };
+
+    window.addEventListener(RESPONSE_GENERATED_EVENT, onResponseGenerated);
+    return () => window.removeEventListener(RESPONSE_GENERATED_EVENT, onResponseGenerated);
+  }, [scrollToBottom]);
 
   const handleSend = useCallback(async () => {
     const content = draft.trim();
@@ -97,6 +163,7 @@ export function ChatPanel() {
             <LoadingSkeleton />
           ) : hasMessages ? (
             <div className="mx-auto max-w-3xl px-4 pb-36 pt-6 sm:px-6">
+              <AIProgressIndicator />
               {messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}
@@ -106,7 +173,7 @@ export function ChatPanel() {
             <WelcomeScreen />
           )}
         </div>
-        {isStreaming && <GenerationMarker />}
+        {isStreaming && !isLastLineVisible && <GenerationMarker />}
       </div>
 
       {/* Composer */}

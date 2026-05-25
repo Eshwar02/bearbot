@@ -2,14 +2,16 @@
 
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, Share, Check, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Share, Check, Copy, Paperclip, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { normalizeChatContent } from '@/lib/chat-content';
 import { MarkdownRenderer } from './markdown-renderer';
 import { StockCard } from './stock-card';
 import { ChartWidget } from './chart-widget';
+import { ConfidenceBadge } from './confidence-badge';
 import { usePrefs } from '@/lib/hooks/use-prefs';
 import type { ChatMessage as ChatMessageType } from '@/stores/app-store';
+import { toast } from 'sonner';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -26,16 +28,33 @@ function AssistantMark() {
   );
 }
 
-function ShareButton({ content }: { content: string }) {
+function ShareButton({ content, messageId }: { content: string; messageId: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
     try {
-      await navigator.clipboard.writeText(content);
+      const res = await fetch('/api/share/response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, content }),
+      });
+      if (!res.ok) {
+        throw new Error('Unable to create share URL');
+      }
+      const data = (await res.json()) as { shareUrl?: string };
+      if (!data.shareUrl) {
+        throw new Error('Missing share URL');
+      }
+      const shareUrl = data.shareUrl.startsWith('http')
+        ? data.shareUrl
+        : `${window.location.origin}${data.shareUrl}`;
+      await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      toast.success('Share link copied');
     } catch (error) {
       console.error('Failed to copy:', error);
+      toast.error('Unable to create share link');
     }
   };
 
@@ -45,7 +64,33 @@ function ShareButton({ content }: { content: string }) {
       className="flex items-center gap-1 rounded px-2 py-1 text-xs text-secondary hover:bg-elevated hover:text-primary transition-colors"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" /> : <Share className="h-3.5 w-3.5" />}
-      {copied ? 'Copied' : 'Share'}
+      {copied ? 'Link Copied' : 'Share'}
+    </button>
+  );
+}
+
+function CopyButton({ content }: { content: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast.success('Response copied');
+    } catch {
+      toast.error('Failed to copy response');
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1 rounded px-2 py-1 text-xs text-secondary hover:bg-elevated hover:text-primary transition-colors"
+      aria-label="Copy full response"
+    >
+      {copied ? <Check className="h-3.5 w-3.5 text-green-600 dark:text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? 'Copied' : 'Copy'}
     </button>
   );
 }
@@ -62,6 +107,7 @@ function StreamingDots() {
 
 export function ChatMessage({ message }: ChatMessageProps) {
   const [feedback, setFeedback] = useState<'good' | 'poor' | null>(null);
+  const [feedbackReply, setFeedbackReply] = useState<string | null>(null);
   const prefs = usePrefs();
   const isUser = message.role === 'user';
   const isStreaming = message.isStreaming;
@@ -86,6 +132,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
       attachments?: Array<{ name?: string; type?: string; size?: number; kind?: string; text?: string }>;
     } | null;
     return Array.isArray(metadata?.attachments) ? metadata.attachments : [];
+  }, [message.metadata]);
+
+  const confidence = useMemo(() => {
+    const metadata = message.metadata as {
+      confidence?: {
+        score: number;
+        label: 'Low' | 'Moderate' | 'High';
+        reliabilityScore: number;
+        reasoning: string[];
+      };
+    } | null;
+    return metadata?.confidence ?? null;
   }, [message.metadata]);
 
   return (
@@ -234,7 +292,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
             {!isUser && !isStreaming && hasContent && (
               <div className="mt-5 flex gap-2">
                 <button
-                  onClick={() => setFeedback('good')}
+                  onClick={() => {
+                    setFeedback('good');
+                    setFeedbackReply('Thanks for the feedback. I appreciate the effort.');
+                    toast.success('Thanks for your feedback.');
+                  }}
                   aria-label="Mark response as helpful"
                   aria-pressed={feedback === 'good'}
                     className={cn(
@@ -247,7 +309,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   <ThumbsUp className="h-3.5 w-3.5" />
                 </button>
                 <button
-                  onClick={() => setFeedback('poor')}
+                  onClick={() => {
+                    setFeedback('poor');
+                    setFeedbackReply('Thanks for the feedback. I will improve the next response.');
+                  }}
                   aria-label="Mark response as unhelpful"
                   aria-pressed={feedback === 'poor'}
                     className={cn(
@@ -260,9 +325,25 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   <ThumbsDown className="h-3.5 w-3.5" />
                 </button>
                 <div className="ml-2 border-l border-gray-200 dark:border-dark-800 pl-2">
-                  <ShareButton content={normalizedContent} />
+                  <CopyButton content={normalizedContent} />
+                </div>
+                <div className="border-l border-gray-200 dark:border-dark-800 pl-2">
+                  <ShareButton content={normalizedContent} messageId={message.id} />
                 </div>
               </div>
+            )}
+            {!isUser && !isStreaming && feedbackReply && (
+              <p className="mt-2 text-xs text-muted">{feedbackReply}</p>
+            )}
+
+            {/* Confidence badge */}
+            {!isUser && !isStreaming && confidence && (
+              <ConfidenceBadge
+                score={confidence.score}
+                label={confidence.label}
+                reliabilityScore={confidence.reliabilityScore}
+                reasoning={confidence.reasoning}
+              />
             )}
 
           </div>

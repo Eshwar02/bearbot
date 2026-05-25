@@ -293,6 +293,41 @@ export type Database = {
         };
         Relationships: [];
       };
+      shared_responses: {
+        Row: {
+          id: string;
+          token: string;
+          user_id: string;
+          source_message_id: string;
+          content: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          token: string;
+          user_id: string;
+          source_message_id: string;
+          content: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          token?: string;
+          user_id?: string;
+          source_message_id?: string;
+          content?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shared_responses_source_message_id_fkey";
+            columns: ["source_message_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;

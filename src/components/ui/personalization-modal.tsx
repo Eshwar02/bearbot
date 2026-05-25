@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { Check, Palette, X } from 'lucide-react';
 import { THEMES, THEME_META, useTheme, type Theme } from '@/components/theme-provider';
 import { cn } from '@/lib/utils';
+import { persistThemePreference } from '@/lib/theme-preference';
+import { publishPrefsUpdate } from '@/lib/hooks/use-prefs';
 
 interface PersonalizationModalProps {
   open: boolean;
@@ -14,6 +16,14 @@ interface PersonalizationModalProps {
 export function PersonalizationModal({ open, onClose }: PersonalizationModalProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
+  const handleThemeSelect = React.useCallback(
+    async (nextTheme: Theme) => {
+      setTheme(nextTheme);
+      publishPrefsUpdate({ theme: nextTheme });
+      await persistThemePreference(nextTheme);
+    },
+    [setTheme],
+  );
 
   React.useEffect(() => {
     setMounted(true);
@@ -75,7 +85,9 @@ export function PersonalizationModal({ open, onClose }: PersonalizationModalProp
                 key={t}
                 themeKey={t}
                 active={theme === t}
-                onSelect={() => setTheme(t)}
+                onSelect={() => {
+                  void handleThemeSelect(t);
+                }}
               />
             ))}
           </div>

@@ -1,6 +1,12 @@
 import type { StockQuote, StockHistory, FundamentalsExtended } from "@/types/stock";
 import { yahoo } from "@/lib/stock/yahoo";
 import { stockCache, CACHE_TTL } from "./cache";
+import {
+  fetchFinnhubProfile,
+  fetchFinnhubMetrics,
+  isFinnhubSupportedSymbol,
+  validateFinnhubSetup,
+} from "./finnhub";
 
 type YahooChartMeta = {
   symbol?: string;
@@ -367,6 +373,40 @@ export async function fetchQuoteFull(symbol: string): Promise<
   const hasValues = (o: Record<string, unknown>) =>
     Object.values(o).some((v) => v != null && (typeof v === 'number' || typeof v === 'object'));
 
+  // For US-listed tickers, prefer Finnhub /stock/metric — Yahoo's
+  // quoteSummary regularly 401s once the crumb expires. Finnhub gives us a
+  // stable PE / marketCap / beta / 52w / dividend block without auth dance.
+  if (isFinnhubSupportedSymbol(symbol) && validateFinnhubSetup().valid) {
+    const metrics = await fetchFinnhubMetrics(symbol);
+    if (metrics) {
+      return {
+        ...base,
+        ...emptyFundamentals,
+        marketCap: metrics.marketCap ?? base.marketCap ?? 0,
+        pe: metrics.peTrailing ?? base.pe,
+        beta: metrics.beta,
+        eps: metrics.eps,
+        dividendYield: metrics.dividendYield,
+        dividendRate: metrics.dividendPerShare,
+        priceToBook: metrics.priceToBook,
+        bookValue: metrics.bookValue,
+        debtToEquity: metrics.debtToEquity,
+        roe: metrics.roeTrailing,
+        returnOnAssets: metrics.roaTrailing,
+        profitMargins: metrics.profitMargin,
+        currentRatio: metrics.currentRatio,
+        payoutRatio: metrics.payoutRatio,
+        ebitda: metrics.ebitda,
+        revenue: metrics.revenue,
+        grossProfit: metrics.grossProfit,
+        freeCashflow: metrics.freeCashflow,
+        // Backfill 52-week range when Yahoo's chart meta didn't carry it.
+        high52: base.high52 || (metrics.high52 ?? 0),
+        low52: base.low52 || (metrics.low52 ?? 0),
+      };
+    }
+  }
+
   // Try crumb-authenticated quoteSummary first
   try {
     const result = (await yahoo.quoteSummary(symbol, {
@@ -508,6 +548,53 @@ export async function fetchCompanyInfo(symbol: string): Promise<CompanyInfoFull>
   type SummaryDetailModule = {
     startDate?: number | { raw?: number };
   };
+
+  // US tickers: try Finnhub /stock/profile2 first. It returns sector
+  // (under finnhubIndustry), country, currency, exchange, IPO, website,
+  // and longName cleanly — no crumb auth required. Non-US tickers go
+  // straight to Yahoo since the Finnhub free tier doesn't carry them.
+  if (isFinnhubSupportedSymbol(symbol) && validateFinnhubSetup().valid) {
+    const profile = await fetchFinnhubProfile(symbol);
+    if (profile && profile.name) {
+      const info: CompanyInfoFull = {
+        ...empty,
+        // Finnhub doesn't separate sector vs industry — reuse finnhubIndustry
+        // for both so downstream UI keeps a value. Yahoo's deeper hierarchy
+        // overrides this in the merge below if available.
+        sector: profile.finnhubIndustry || "",
+        industry: profile.finnhubIndustry || "",
+        description: "",
+        website: profile.weburl || "",
+        country: profile.country || "",
+        exchange: profile.exchange || "",
+        currency: profile.currency || "",
+        longName: profile.name || "",
+        ipoDate: profile.ipo || "",
+      };
+      // Try to enrich with Yahoo's longBusinessSummary + sector hierarchy
+      // (assetProfile splits Tech vs Information Technology Services etc).
+      // Failure here is fine — we already have a usable profile.
+      try {
+        const enrich = (await yahoo.quoteSummary(symbol, {
+          modules: ["assetProfile", "summaryProfile"],
+        })) as { assetProfile?: { sector?: string; industry?: string; longBusinessSummary?: string; companyOfficers?: Array<{ name?: string; title?: string }> }; summaryProfile?: { sector?: string; industry?: string; longBusinessSummary?: string } };
+        const ap = enrich.assetProfile || {};
+        const sp = enrich.summaryProfile || {};
+        if (ap.sector || sp.sector) info.sector = ap.sector || sp.sector || info.sector;
+        if (ap.industry || sp.industry) info.industry = ap.industry || sp.industry || info.industry;
+        if (ap.longBusinessSummary || sp.longBusinessSummary) {
+          info.description = ap.longBusinessSummary || sp.longBusinessSummary || "";
+        }
+        const officers = ap.companyOfficers || [];
+        const ceoEntry = officers.find((o) => /CEO|Chief Executive/i.test(o.title || "")) || officers[0];
+        if (ceoEntry?.name) info.ceo = ceoEntry.name;
+      } catch {
+        // Yahoo enrichment optional.
+      }
+      stockCache.set(cacheKey, info, CACHE_TTL.COMPANY_INFO);
+      return info;
+    }
+  }
 
   // Request a broad set of modules. Each is optional — Yahoo returns
   // whatever it has for that symbol.

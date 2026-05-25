@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Hero } from '@/components/ui/animated-hero';
 import { Button } from '@/components/ui/button';
@@ -216,9 +217,14 @@ export default function InfoPage() {
         </div>
 
         <header className="relative z-20 flex items-center justify-between px-6 py-4 md:px-10 md:py-6">
-          <span className="font-serif text-lg md:text-xl tracking-tightish text-white">
-            AlphaSight AI
-          </span>
+          <Image
+            src="/logo.svg"
+            alt="AlphaSight AI logo"
+            width={124}
+            height={32}
+            className="h-8 w-auto"
+            priority
+          />
           <Button variant="primary" size="sm" onClick={goToLogin} aria-label="Log in to AlphaSight AI">
             Log in
           </Button>

@@ -9,6 +9,7 @@ export type Prefs = {
   language_mode: 'auto' | 'english' | 'tanglish';
   notif_in_app: boolean;
   currency: 'INR' | 'USD' | 'EUR' | 'GBP';
+  theme: 'light' | 'dark' | 'sandal' | 'blue' | 'system';
 };
 
 const DEFAULTS: Prefs = {
@@ -17,6 +18,7 @@ const DEFAULTS: Prefs = {
   language_mode: 'auto',
   notif_in_app: true,
   currency: 'INR',
+  theme: 'system',
 };
 
 let cache: Prefs | null = null;

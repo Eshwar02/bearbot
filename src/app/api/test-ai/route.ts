@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   const mistralKey = process.env.MISTRAL_API_KEY;
   const cerebrasKey = process.env.CEREBRAS_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
+  const finnhubKey = process.env.FINNHUB_API_KEY;
   const shouldProbe = request.nextUrl.searchParams.get("probe") === "1";
 
   const status: Record<string, unknown> = {
@@ -23,6 +24,9 @@ export async function GET(request: NextRequest) {
     },
     groq: {
       configured: !!groqKey,
+    },
+    finnhub: {
+      configured: !!finnhubKey,
     },
   };
 
@@ -72,6 +76,31 @@ export async function GET(request: NextRequest) {
           process.env.CEREBRAS_GENERAL_MODEL || "llama3.1-8b"
         ),
       };
+    }
+    if (finnhubKey) {
+      try {
+        const res = await fetch(
+          `https://finnhub.io/api/v1/stock/profile2?symbol=AAPL&token=${encodeURIComponent(finnhubKey.trim())}`,
+          { headers: { Accept: "application/json" } }
+        );
+        if (res.ok) {
+          const json = (await res.json()) as { name?: string };
+          status.finnhub = {
+            ...(status.finnhub as object),
+            probe: { ok: typeof json.name === "string" && json.name.length > 0, status: res.status },
+          };
+        } else {
+          status.finnhub = {
+            ...(status.finnhub as object),
+            probe: { ok: false, status: res.status },
+          };
+        }
+      } catch (err) {
+        status.finnhub = {
+          ...(status.finnhub as object),
+          probe: { ok: false, error: err instanceof Error ? err.message : String(err) },
+        };
+      }
     }
   }
 

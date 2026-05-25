@@ -5,10 +5,10 @@ import { useAppStore, type ChatMessage } from '@/stores/app-store';
 import { generateId } from '@/lib/utils';
 import { useAIProgress } from '@/lib/hooks/use-ai-progress';
 import { normalizeChatContent } from '@/lib/chat-content';
-import { toast } from 'sonner';
 
 const EMPTY_RESPONSE_FALLBACK =
   'Unable to generate analysis right now. Showing available data below.';
+export const RESPONSE_GENERATED_EVENT = 'alphasight:response-generated';
 
 const AI_PROGRESS_FRAME_PREFIX = '\u001eALPHASIGHT_PROGRESS:';
 const AI_PROGRESS_FRAME_SUFFIX = '\u001e';
@@ -307,7 +307,7 @@ export function useChat() {
           finishAll();
           streamingDone = true;
           clearTimeout(timeoutId);
-          toast.success('Response generation complete.');
+          window.dispatchEvent(new CustomEvent(RESPONSE_GENERATED_EVENT));
           console.debug('[useChat] sendMessage:json-response-applied', {
             hasText: hasVisibleText(text),
           });
@@ -491,7 +491,7 @@ export function useChat() {
             content: normalizeChatContent(fullAssistantText),
           });
         }
-        toast.success('Response generation complete.');
+        window.dispatchEvent(new CustomEvent(RESPONSE_GENERATED_EVENT));
 
         if (effectiveConversationId) {
           console.debug('[useChat] sendMessage:metadata-hydrate', {

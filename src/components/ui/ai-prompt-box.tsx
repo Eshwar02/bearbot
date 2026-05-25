@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // ── Textarea ────────────────────────────────────────────────────────
 interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -358,9 +359,25 @@ export const PromptInputBox = forwardRef<HTMLDivElement, PromptInputBoxProps>(
 
     const processFile = useCallback(
       (file: File) => {
-        if (!isImageFile(file)) return;
-        if (file.size > 10 * 1024 * 1024) return;
-        onAttachmentsChange?.([...attachments, file]);
+        if (!isImageFile(file)) {
+          toast.error('Only image attachments are supported right now.');
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error('Image must be 10MB or smaller.');
+          return;
+        }
+        if (!onAttachmentsChange) return;
+
+        const isDuplicate = attachments.some(
+          (existing) =>
+            existing.name === file.name &&
+            existing.size === file.size &&
+            existing.lastModified === file.lastModified,
+        );
+        if (isDuplicate) return;
+
+        onAttachmentsChange([...attachments, file]);
       },
       [attachments, onAttachmentsChange],
     );
@@ -558,7 +575,7 @@ export const PromptInputBox = forwardRef<HTMLDivElement, PromptInputBoxProps>(
                     />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Upload image</TooltipContent>
+                <TooltipContent side="top">Attachments in development</TooltipContent>
               </Tooltip>
 
               <div className="flex items-center">
@@ -667,8 +684,7 @@ export const PromptInputBox = forwardRef<HTMLDivElement, PromptInputBoxProps>(
                     <button
                       type="button"
                       onClick={() => {
-                        setShowCanvas((p) => !p);
-                        setShowThink(false);
+                        toast.info('Canvas mode is in development right now.');
                       }}
                       className={cn(
                         'rounded-full transition-all flex items-center gap-1 px-2 py-1 border h-8',

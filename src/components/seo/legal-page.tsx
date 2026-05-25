@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { siteConfig } from '@/lib/seo';
 
 type LegalPageProps = {
@@ -13,9 +14,7 @@ export function LegalPage({ title, updated, children }: LegalPageProps) {
       <header className="border-b border-gray-200 dark:border-gray-800">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <Link href="/info" className="flex items-center gap-2 font-semibold">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 text-white">
-              α
-            </span>
+            <Image src="/logo.svg" alt={`${siteConfig.name} logo`} width={32} height={32} />
             {siteConfig.name}
           </Link>
           <nav className="hidden gap-6 text-sm md:flex">

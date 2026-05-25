@@ -562,7 +562,7 @@ export async function POST(request: NextRequest) {
         }),
         supabase
           .from("user_preferences")
-          .select("language_mode")
+          .select("language_mode, default_market, currency, theme")
           .eq("user_id", user.id)
           .maybeSingle(),
         wantsMemoryAnswer
@@ -625,6 +625,20 @@ export async function POST(request: NextRequest) {
       ? LANG_INSTRUCTION_TANGLISH
       : LANG_INSTRUCTION_ENGLISH;
 
+    const userDisplayName =
+      (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
+      (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
+      (user.email?.split("@")[0] ?? "").trim() ||
+      "there";
+    const userProfileContext = [
+      userDisplayName && userDisplayName !== "there" ? `User profile name: ${userDisplayName}` : "",
+      prefsResponse.data?.default_market ? `Preferred market: ${prefsResponse.data.default_market}` : "",
+      prefsResponse.data?.currency ? `Preferred currency: ${prefsResponse.data.currency}` : "",
+      prefsResponse.data?.theme ? `Preferred theme: ${prefsResponse.data.theme}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     const semanticMemoryBlock = formatMemoriesForPrompt(semanticMemoryRows);
     console.debug("[chat-api] semantic memory recall", {
       hits: semanticMemoryRows.length,
@@ -651,6 +665,8 @@ export async function POST(request: NextRequest) {
             : "";
         return { role: metadata.role, content: `${metadata.content ?? ""}${fileContext}` };
       });
+    const isFirstAssistantTurn =
+      !conversationHistory.some((entry) => entry.role === "assistant");
 
     let stockAnalysis: StockAnalysis | null = null;
     let llmMessage = composedMessage;
@@ -851,19 +867,24 @@ export async function POST(request: NextRequest) {
     //     the old "hi" -> portfolio dump bug.
     //   - everything else: full context, as before.
     if (earlySmallTalk && !wantsMemoryAnswer) {
-      userMemory = [semanticMemoryBlock, languageInstruction]
+      userMemory = [semanticMemoryBlock, userProfileContext, languageInstruction]
         .filter((s) => s && s.length > 0)
         .join("\n\n");
     } else {
-      userMemory = [semanticMemoryBlock, userMemoryBase, languageInstruction]
+      userMemory = [semanticMemoryBlock, userProfileContext, userMemoryBase, languageInstruction]
         .filter((s) => s && s.length > 0)
         .join("\n\n");
     }
 
     if (wantsMemoryAnswer) {
+      const askingForName = /\b(what(?:'s| is)\s+my\s+name|do you know my name|remember my name)\b/i.test(
+        composedMessage
+      );
       userMemory = [
         userMemory,
-        "Memory-answer instruction: The user is asking about saved memory. Answer directly from the memory/context blocks above. Do not say you lack memory. If there are no saved facts or holdings/watchlist above, say you do not see any saved memories yet.",
+        askingForName && userDisplayName !== "there"
+          ? `Memory-answer instruction: The user asked about their name. You already have it in context. Answer directly with "${userDisplayName}" first, then continue naturally.`
+          : "Memory-answer instruction: The user is asking about saved memory. Answer directly from the memory/context blocks above. Do not say you lack memory. If there are no saved facts or holdings/watchlist above, say you do not see any saved memories yet.",
       ]
         .filter(Boolean)
         .join("\n\n");
@@ -967,6 +988,10 @@ export async function POST(request: NextRequest) {
     userMemory = userMemory
       ? `${userMemory}\n\n${shapeDirective}`
       : shapeDirective;
+
+    if (isFirstAssistantTurn) {
+      userMemory = `${userMemory}\n\nFirst-reply instruction: Start with a natural, engaging opener using the user's name (not the same sentence every time). Use 1-2 short lines max, friendly and confident, then continue with the answer. Example styles: "Sure ${userDisplayName}, let's dig in.", "Great question ${userDisplayName} — here's how I'd approach it.", "Absolutely ${userDisplayName}, we can work through this together." Do this only for this first assistant reply in the conversation.`;
+    }
 
     // Composer toggles: append think / canvas instructions when active.
     if (thinkMode) {

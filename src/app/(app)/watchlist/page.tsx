@@ -376,7 +376,7 @@ export default function WatchlistPage() {
             <BarChart3 className="h-5 w-5 text-accent-blue" />
             {selectedSymbol} Interactive Chart
           </h2>
-          <ChartWidget symbol={selectedSymbol} height={500} />
+          <ChartWidget symbol={selectedSymbol} height={500} expandable />
         </div>
       )}
 

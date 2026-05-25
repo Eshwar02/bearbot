@@ -277,6 +277,7 @@ function AIIntelligencePanel({ intelligence }: { intelligence: PortfolioIntellig
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [isChartExpanded, setIsChartExpanded] = useState(false);
   const [intelligence, setIntelligence] = useState<PortfolioIntelligence | null>(null);
   const [loading, setLoading] = useState(true);
   const [intelLoading, setIntelLoading] = useState(true);
@@ -462,17 +463,6 @@ export default function PortfolioPage() {
         </div>
       )}
 
-      {selectedSymbol && (
-        <div className="mb-8 mt-4">
-          <h2 className="text-xl font-bold text-primary mb-4 flex items-center gap-2">
-            <BarChart3 className="h-5 w-5 text-accent-blue" />
-            {selectedSymbol} Interactive Chart
-          </h2>
-          <ChartWidget symbol={selectedSymbol} height={500} />
-        </div>
-      )}
-      {enriched.length > 0 && <BacktestPanel />}
-
       {enriched.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="mb-4 rounded-full bg-elevated p-6">
@@ -487,16 +477,62 @@ export default function PortfolioPage() {
             Add Your First Asset
           </Button>
         </div>
+      ) : selectedSymbol ? (
+        <div
+          className={cn(
+            'mb-8 mt-4 grid grid-cols-1 gap-6',
+            isChartExpanded ? 'lg:grid-cols-1' : 'lg:grid-cols-2'
+          )}
+        >
+          <div>
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-primary">
+              <BarChart3 className="h-5 w-5 text-accent-blue" />
+              {selectedSymbol} Interactive Chart
+            </h2>
+            <ChartWidget
+              symbol={selectedSymbol}
+              height={500}
+              expandable
+              className="w-full lg:w-full"
+              onExpandedChange={setIsChartExpanded}
+            />
+          </div>
+
+          <div
+            className={cn(
+              'grid grid-cols-1 gap-6',
+              isChartExpanded ? 'md:grid-cols-2 lg:grid-cols-3' : 'xl:grid-cols-2'
+            )}
+          >
+            {enriched.map((holding) => (
+              <PortfolioCard
+                key={holding.id}
+                holding={holding}
+                onClick={() => {
+                  setSelectedSymbol(holding.symbol);
+                  setIsChartExpanded(false);
+                }}
+              />
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {enriched.map((holding) => (
             <PortfolioCard 
               key={holding.id} 
               holding={holding} 
-              onClick={() => setSelectedSymbol(holding.symbol)} 
+              onClick={() => {
+                setSelectedSymbol(holding.symbol);
+                setIsChartExpanded(false);
+              }} 
             />
           ))}
         </div>
+      )}
+
+      {enriched.length > 0 && <BacktestPanel />}
+      {enriched.length > 0 && (
         <PortfolioTable
           holdings={enriched}
           sparklines={sparklines}

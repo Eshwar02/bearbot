@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, memo } from 'react';
+import React, { useEffect, useRef, memo, useState } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ChartWidgetProps {
@@ -8,6 +9,9 @@ interface ChartWidgetProps {
   exchange?: string;
   className?: string;
   height?: number;
+  compactHeight?: number;
+  expandable?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
 function toTradingViewSymbol(yahooSymbol: string, exchange?: string): string {
@@ -86,9 +90,25 @@ function toTradingViewSymbol(yahooSymbol: string, exchange?: string): string {
   return yahooSymbol;
 }
 
-function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWidgetProps) {
+function ChartWidgetInner({
+  symbol,
+  exchange,
+  className,
+  height = 400,
+  compactHeight,
+  expandable = false,
+  onExpandedChange,
+}: ChartWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const chartHeight = expandable ? compactHeight ?? Math.round(height / 2) : height;
+
+  useEffect(() => {
+    if (!expandable) return;
+    setIsExpanded(false);
+    onExpandedChange?.(false);
+  }, [symbol, exchange, expandable, onExpandedChange]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -158,11 +178,29 @@ function ChartWidgetInner({ symbol, exchange, className, height = 400 }: ChartWi
     <div
       className={cn(
         // Clean, minimal container. Focus is entirely on the chart content.
-        'my-6 overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-dark-800 dark:bg-dark-950',
+        'relative my-6 overflow-hidden rounded-xl border border-gray-200 bg-white transition-all duration-300 dark:border-dark-800 dark:bg-dark-950',
+        expandable && (isExpanded ? 'w-full' : 'w-full lg:w-1/2'),
         className,
       )}
-      style={{ height }}
+      style={{ height: chartHeight }}
     >
+      {expandable && (
+        <button
+          type="button"
+          onClick={() => {
+            setIsExpanded(current => {
+              const next = !current;
+              onExpandedChange?.(next);
+              return next;
+            });
+          }}
+          aria-label={isExpanded ? 'Collapse chart width' : 'Expand chart width'}
+          title={isExpanded ? 'Collapse chart width' : 'Expand chart width'}
+          className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border border-borderSubtle bg-canvas/90 text-primary shadow-sm backdrop-blur transition hover:bg-elevated"
+        >
+          {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+        </button>
+      )}
       <div
         ref={containerRef}
         className="tradingview-widget-container"

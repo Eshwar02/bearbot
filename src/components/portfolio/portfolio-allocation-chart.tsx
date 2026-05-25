@@ -70,6 +70,10 @@ export function PortfolioAllocationChart({ data }: PortfolioAllocationChartProps
     },
     legend: {
       position: 'right',
+      horizontalAlign: 'center',
+      itemMargin: {
+        vertical: 4,
+      },
       labels: {
         colors: '#a1a1aa',
       },
@@ -85,8 +89,8 @@ export function PortfolioAllocationChart({ data }: PortfolioAllocationChartProps
               fontSize: '14px',
             },
             value: {
-              color: '#f4f4f5',
-              fontSize: '24px',
+              color: '#3b82f6',
+              fontSize: '20px',
               fontWeight: 700,
               formatter: function (val: string) {
                 return formatCurrency(Number(val));
@@ -95,8 +99,9 @@ export function PortfolioAllocationChart({ data }: PortfolioAllocationChartProps
             total: {
               show: true,
               label: 'Total Value',
-              color: '#a1a1aa',
+              color: '#3b82f6',
               fontSize: '14px',
+              fontWeight: 700,
               formatter: function (w: any) {
                 const total = w.globals.seriesTotals.reduce((a: number, b: number) => a + b, 0);
                 return formatCurrency(total);
@@ -105,17 +110,38 @@ export function PortfolioAllocationChart({ data }: PortfolioAllocationChartProps
           }
         }
       }
-    }
+    },
+    responsive: [
+      {
+        breakpoint: 768,
+        options: {
+          legend: {
+            position: 'bottom',
+          },
+          plotOptions: {
+            pie: {
+              donut: {
+                labels: {
+                  value: {
+                    fontSize: '18px',
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
   };
 
   return (
-    <div className="mb-8 rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
-      <h2 className="text-xl font-bold text-primary mb-6 flex items-center gap-2">
-        <PieChart className="h-5 w-5 text-accent-blue" />
+    <div className="mx-auto mb-6 w-full max-w-3xl rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4 sm:p-5">
+      <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-primary">
+        <PieChart className="h-4 w-4 text-accent-blue" />
         Portfolio Allocation
       </h2>
-      <div className="flex justify-center" style={{ minHeight: '350px' }}>
-        <Chart options={options as any} series={series} type="donut" width="100%" height={350} />
+      <div className="mx-auto flex min-h-[200px] w-full max-w-[500px] items-center justify-center sm:min-h-[230px]">
+        <Chart options={options as any} series={series} type="donut" width="100%" height={230} />
       </div>
     </div>
   );

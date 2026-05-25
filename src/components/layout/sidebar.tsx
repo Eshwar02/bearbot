@@ -141,7 +141,7 @@ export function Sidebar() {
   );
 
   const sidebarContent = (
-    <div className="flex h-full flex-col bg-sidebar text-sm">
+    <div className="flex h-full flex-col bg-sidebar text-sm font-sans">
       <div className="flex items-center justify-between px-3 pt-3 pb-2">
         <button
           onClick={() => {
@@ -182,7 +182,7 @@ export function Sidebar() {
           )}
         >
           <Plus size={16} strokeWidth={2} className="text-gray-500 dark:text-gray-400" />
-          <span>New chat</span>
+          <span className="leading-relaxed tracking-tightish">New chat</span>
         </button>
       </div>
 
@@ -206,9 +206,7 @@ export function Sidebar() {
                   className={cn(
                     'group relative flex cursor-pointer items-center rounded-lg px-3 py-1.5',
                     'transition-colors duration-100',
-                    isActive
-                      ? 'bg-elevated text-primary'
-                      : 'text-secondary hover:bg-elevated hover:text-primary',
+                    isActive ? 'bg-elevated text-primary' : 'text-secondary',
                   )}
                   onClick={() => handleSelectChat(conv.id)}
                 >
@@ -222,7 +220,9 @@ export function Sidebar() {
                       isActive ? 'text-accent-brand' : 'text-muted',
                     )}
                   />
-                  <span className="flex-1 truncate text-[13px]">{conv.title}</span>
+                  <span className="flex-1 truncate text-[13px] leading-relaxed tracking-tightish">
+                    {conv.title}
+                  </span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -263,7 +263,7 @@ export function Sidebar() {
                 size={15}
                 className={isActive ? 'text-accent-brand' : undefined}
               />
-              <span>{link.label}</span>
+              <span className="leading-relaxed tracking-tightish">{link.label}</span>
             </button>
           );
         })}

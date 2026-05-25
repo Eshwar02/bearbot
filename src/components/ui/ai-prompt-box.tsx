@@ -554,7 +554,9 @@ export const PromptInputBox = forwardRef<HTMLDivElement, PromptInputBoxProps>(
                 <TooltipTrigger asChild disabled={disabled}>
                   <button
                     type="button"
-                    onClick={() => uploadInputRef.current?.click()}
+                    onClick={() => {
+                      toast.info('Attachments are in development right now.');
+                    }}
                     className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-elevated-hover hover:text-primary"
                     disabled={isRecording || disabled}
                     aria-label="Attach image"

@@ -172,6 +172,7 @@ Theme, chart/news visibility, and notification toggles apply **instantly** to UI
 - **npm** or **yarn**
 - Supabase project (free tier available)
 - Mistral API key
+- Cerebras API key (recommended for low-latency routing + fallback)
 
 ### 1. Clone & Install
 
@@ -192,8 +193,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# AI Provider (required)
+# AI Providers (required: at least one; recommended: both)
 MISTRAL_API_KEY=your-mistral-key
+CEREBRAS_API_KEY=your-cerebras-key
 
 # News Providers (optional, but recommended)
 MARKETAUX_API_KEY=your-marketaux-key

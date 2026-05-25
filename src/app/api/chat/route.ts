@@ -423,7 +423,7 @@ export async function POST(request: NextRequest) {
     const contentType = request.headers.get("content-type") || "";
     let incomingMessage = "";
     let requestedConversationId: string | null = null;
-    let requestedModel = "mistral" as const;
+    let requestedModel: "mistral" | "cerebras" | undefined;
     let forceWebSearch = false;
     let thinkMode = false;
     let canvasMode = false;
@@ -437,13 +437,19 @@ export async function POST(request: NextRequest) {
       forceWebSearch = parseFormBoolean(formData.get("forceWebSearch"));
       thinkMode = parseFormBoolean(formData.get("thinkMode"));
       canvasMode = parseFormBoolean(formData.get("canvasMode"));
+      const formModel = String(formData.get("model") ?? "").trim();
+      if (formModel === "mistral" || formModel === "cerebras") {
+        requestedModel = formModel;
+      }
       const uploadedFiles = formData
         .getAll("attachments")
         .filter((value): value is File => value instanceof File);
       hasImageAttachments = uploadedFiles.some((f) => isImageFile(f));
 
       // Model orchestration: when images are present, validate Groq Vision is available.
-      // Use Groq as the text model for image/file conversations (faster, cheaper).
+      // Image analysis is done by Groq Vision separately; the text follow-up
+      // model is decided by the router below (defaults to Mistral for complex
+      // multimodal conversations unless the user picked a model explicitly).
       if (hasImageAttachments) {
         const groqKey = process.env.GROQ_API_KEY?.trim();
         if (!groqKey) {
@@ -451,7 +457,7 @@ export async function POST(request: NextRequest) {
             error: "GROQ_API_KEY not set",
           });
         }
-        requestedModel = "mistral";
+        if (!requestedModel) requestedModel = "mistral";
       }
 
       try {
@@ -465,14 +471,16 @@ export async function POST(request: NextRequest) {
       const body = (await request.json()) as {
         message?: string;
         conversationId?: string;
-        model?: "mistral";
+        model?: "mistral" | "cerebras";
         forceWebSearch?: boolean;
         thinkMode?: boolean;
         canvasMode?: boolean;
       };
       incomingMessage = body.message?.trim() ?? "";
       requestedConversationId = body.conversationId ?? null;
-      requestedModel = body.model ?? "mistral";
+      if (body.model === "cerebras" || body.model === "mistral") {
+        requestedModel = body.model;
+      }
       forceWebSearch = body.forceWebSearch === true;
       thinkMode = body.thinkMode === true;
       canvasMode = body.canvasMode === true;
@@ -1012,6 +1020,7 @@ export async function POST(request: NextRequest) {
     try {
       recordProgress(`Opening ${chatMode === "stock" ? "stock analysis" : "general chat"} LLM stream`, 80);
       console.debug("[chat-api] opening LLM stream", { mode: chatMode });
+      const hasWebSearch = Boolean(webSearch && webSearch.sources.length > 0);
       const result = await withTimeout(
         streamChat({
           mode: chatMode,
@@ -1021,6 +1030,16 @@ export async function POST(request: NextRequest) {
           kind: generalKind,
           model: requestedModel,
           userMemory: userMemory || undefined,
+          routing: {
+            kind: wantsMemoryAnswer ? "general_other" : llmIntent.kind,
+            depth: wantsMemoryAnswer ? "short" : llmIntent.depth,
+            chatMode,
+            isDetailedStockRequest: isFullStockAnalysis,
+            hasWebSearch,
+            thinkMode,
+            canvasMode,
+            generalKind,
+          },
         }),
         90_000,
         "streamChat"

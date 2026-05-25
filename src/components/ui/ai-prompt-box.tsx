@@ -359,11 +359,27 @@ export const PromptInputBox = forwardRef<HTMLDivElement, PromptInputBoxProps>(
 
     const processFile = useCallback(
       (file: File) => {
-        if (!isImageFile(file)) return;
-        if (file.size > 10 * 1024 * 1024) return;
-        toast.info('File attachments are in development right now.');
+        if (!isImageFile(file)) {
+          toast.error('Only image attachments are supported right now.');
+          return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error('Image must be 10MB or smaller.');
+          return;
+        }
+        if (!onAttachmentsChange) return;
+
+        const isDuplicate = attachments.some(
+          (existing) =>
+            existing.name === file.name &&
+            existing.size === file.size &&
+            existing.lastModified === file.lastModified,
+        );
+        if (isDuplicate) return;
+
+        onAttachmentsChange([...attachments, file]);
       },
-      [],
+      [attachments, onAttachmentsChange],
     );
 
     const handleDragOver = useCallback((e: React.DragEvent) => {

@@ -8,6 +8,7 @@ import { normalizeChatContent } from '@/lib/chat-content';
 import { MarkdownRenderer } from './markdown-renderer';
 import { StockCard } from './stock-card';
 import { ChartWidget } from './chart-widget';
+import { ConfidenceBadge } from './confidence-badge';
 import { usePrefs } from '@/lib/hooks/use-prefs';
 import type { ChatMessage as ChatMessageType } from '@/stores/app-store';
 import { toast } from 'sonner';
@@ -118,6 +119,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
       attachments?: Array<{ name?: string; type?: string; size?: number; kind?: string; text?: string }>;
     } | null;
     return Array.isArray(metadata?.attachments) ? metadata.attachments : [];
+  }, [message.metadata]);
+
+  const confidence = useMemo(() => {
+    const metadata = message.metadata as {
+      confidence?: {
+        score: number;
+        label: 'Low' | 'Moderate' | 'High';
+        reliabilityScore: number;
+        reasoning: string[];
+      };
+    } | null;
+    return metadata?.confidence ?? null;
   }, [message.metadata]);
 
   return (
@@ -308,6 +321,16 @@ export function ChatMessage({ message }: ChatMessageProps) {
             )}
             {!isUser && !isStreaming && feedbackReply && (
               <p className="mt-2 text-xs text-muted">{feedbackReply}</p>
+            )}
+
+            {/* Confidence badge */}
+            {!isUser && !isStreaming && confidence && (
+              <ConfidenceBadge
+                score={confidence.score}
+                label={confidence.label}
+                reliabilityScore={confidence.reliabilityScore}
+                reasoning={confidence.reasoning}
+              />
             )}
 
           </div>

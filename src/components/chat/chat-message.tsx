@@ -27,13 +27,26 @@ function AssistantMark() {
   );
 }
 
-function ShareButton({ content }: { content: string }) {
+function ShareButton({ content, messageId }: { content: string; messageId: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
     try {
-      const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(content))));
-      const shareUrl = `${window.location.origin}/share/response?r=${encoded}`;
+      const res = await fetch('/api/share/response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, content }),
+      });
+      if (!res.ok) {
+        throw new Error('Unable to create share URL');
+      }
+      const data = (await res.json()) as { shareUrl?: string };
+      if (!data.shareUrl) {
+        throw new Error('Missing share URL');
+      }
+      const shareUrl = data.shareUrl.startsWith('http')
+        ? data.shareUrl
+        : `${window.location.origin}${data.shareUrl}`;
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -302,7 +315,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   <CopyButton content={normalizedContent} />
                 </div>
                 <div className="border-l border-gray-200 dark:border-dark-800 pl-2">
-                  <ShareButton content={normalizedContent} />
+                  <ShareButton content={normalizedContent} messageId={message.id} />
                 </div>
               </div>
             )}

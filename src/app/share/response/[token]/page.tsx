@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
   title: 'Shared AlphaSight Response',
@@ -9,22 +10,28 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function decodeResponse(encoded: string): string {
-  try {
-    const raw = Buffer.from(decodeURIComponent(encoded), 'base64').toString('utf-8');
-    return raw;
-  } catch {
-    return '';
-  }
+export const dynamic = 'force-dynamic';
+
+const TOKEN_RE = /^[a-z]{16}$/;
+
+async function getSharedContentByToken(token: string): Promise<string> {
+  if (!TOKEN_RE.test(token)) return '';
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('shared_responses')
+    .select('content')
+    .eq('token', token)
+    .maybeSingle();
+  return data?.content ?? '';
 }
 
-export default async function SharedResponsePage({
-  searchParams,
+export default async function SharedResponseTokenPage({
+  params,
 }: {
-  searchParams: Promise<{ r?: string }>;
+  params: Promise<{ token: string }>;
 }) {
-  const params = await searchParams;
-  const content = params.r ? decodeResponse(params.r) : '';
+  const { token } = await params;
+  const content = await getSharedContentByToken(token);
 
   return (
     <main className="min-h-screen bg-canvas text-primary">

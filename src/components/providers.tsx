@@ -18,6 +18,7 @@ export function Providers({ children }: ProvidersProps) {
   const prefs = usePrefs();
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const setConversations = useAppStore((s) => s.setConversations);
+  const conversations = useAppStore((s) => s.conversations);
   const activeConversationId = useAppStore((s) => s.activeConversationId);
   const setMessages = useAppStore((s) => s.setMessages);
   const setIsLoadingConversation = useAppStore((s) => s.setIsLoadingConversation);
@@ -267,6 +268,16 @@ export function Providers({ children }: ProvidersProps) {
   useEffect(() => {
     setPreferredCurrency(prefs.currency);
   }, [prefs.currency]);
+
+  useEffect(() => {
+    const isChatRoute = pathname === '/' || pathname.startsWith('/chat/');
+    if (!isChatRoute) return;
+
+    const activeTitle = activeConversationId
+      ? conversations.find((conversation) => conversation.id === activeConversationId)?.title
+      : null;
+    document.title = activeTitle?.trim() || 'New chat';
+  }, [activeConversationId, conversations, pathname]);
 
   return <ThemeProvider>{children}</ThemeProvider>;
 }

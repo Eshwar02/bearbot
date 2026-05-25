@@ -6,6 +6,7 @@ import { RESPONSE_GENERATED_EVENT, useChat } from '@/lib/hooks/use-chat';
 import { ChatMessage } from './chat-message';
 import { WelcomeScreen } from './welcome-screen';
 import { PromptInputBox } from '@/components/ui/ai-prompt-box';
+import { AIProgressIndicator } from '@/components/ai/ai-progress-indicator';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -162,6 +163,7 @@ export function ChatPanel() {
             <LoadingSkeleton />
           ) : hasMessages ? (
             <div className="mx-auto max-w-3xl px-4 pb-36 pt-6 sm:px-6">
+              <AIProgressIndicator />
               {messages.map((msg) => (
                 <ChatMessage key={msg.id} message={msg} />
               ))}

@@ -3,7 +3,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
 import rehypeHighlight from 'rehype-highlight';
 import { Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -16,21 +15,52 @@ interface MarkdownRendererProps {
   sources?: WebSource[];
 }
 
-function injectCitations(content: string, count: number): string {
-  if (count === 0) return content;
-  const parts = content.split(/(```[\s\S]*?```|`[^`]+`)/g);
-  return parts
+function countToken(input: string, token: string): number {
+  if (!input || !token) return 0;
+  let count = 0;
+  let cursor = 0;
+  while (cursor < input.length) {
+    const idx = input.indexOf(token, cursor);
+    if (idx === -1) break;
+    count += 1;
+    cursor = idx + token.length;
+  }
+  return count;
+}
+
+function stabilizeMarkdownForRender(content: string): string {
+  if (!content.trim()) return content;
+
+  let safe = content;
+
+  // Close unfinished fenced code blocks to prevent style bleed in the rest.
+  if (countToken(safe, '```') % 2 !== 0) {
+    safe = `${safe}\n\`\`\``;
+  }
+
+  // Close unbalanced bold delimiters outside fenced/inline code.
+  const fencedParts = safe.split(/(```[\s\S]*?```)/g);
+  const balanced = fencedParts
     .map((part) => {
-      if (part.startsWith('```') || (part.startsWith('`') && part.endsWith('`'))) {
-        return part;
-      }
-      return part.replace(/\[(\d+)\]/g, (match, n: string) => {
-        const idx = parseInt(n, 10);
-        if (idx < 1 || idx > count) return match;
-        return `<sup data-cite="${idx}">${idx}</sup>`;
+      if (part.startsWith('```') && part.endsWith('```')) return part;
+      const inlineParts = part.split(/(`[^`\n]*`)/g);
+      let textTokenCount = 0;
+      inlineParts.forEach((inline) => {
+        if (inline.startsWith('`') && inline.endsWith('`')) return;
+        textTokenCount += countToken(inline, '**');
       });
+      return textTokenCount % 2 === 0 ? part : `${part}**`;
     })
     .join('');
+
+  return balanced;
+}
+
+function stripDuplicateSourcesSection(content: string, hasSourcesBox: boolean): string {
+  if (!hasSourcesBox) return content;
+  const match = content.match(/(^|\n)\s{0,3}#{1,6}\s*sources?\s*$/im);
+  if (!match || match.index === undefined) return content;
+  return content.slice(0, match.index).trimEnd();
 }
 
 function CodeBlock({
@@ -98,26 +128,17 @@ export function MarkdownRenderer({
   streaming = false,
   sources,
 }: MarkdownRendererProps) {
-  const sourceCount = sources?.length ?? 0;
+  const hasSourcesBox = (sources?.length ?? 0) > 0;
   const processedContent = useMemo(
-    () => (sourceCount > 0 ? injectCitations(content, sourceCount) : content),
-    [content, sourceCount],
+    () => (streaming ? content : stabilizeMarkdownForRender(stripDuplicateSourcesSection(content, hasSourcesBox))),
+    [content, hasSourcesBox, streaming],
   );
 
   const rehypePlugins = useMemo(() => {
     const plugins: unknown[] = [];
-    if (sourceCount > 0) plugins.push(rehypeRaw);
     if (!streaming) plugins.push([rehypeHighlight, { ignoreMissing: true, detect: true }]);
     return plugins;
-  }, [streaming, sourceCount]);
-
-  const handleCiteClick = useCallback(
-    (n: number) => {
-      const src = sources?.[n - 1];
-      if (src?.url) window.open(src.url, '_blank', 'noopener,noreferrer');
-    },
-    [sources],
-  );
+  }, [streaming]);
 
   return (
     <div
@@ -140,28 +161,9 @@ export function MarkdownRenderer({
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        rehypePlugins={rehypePlugins as any}
+        rehypePlugins={rehypePlugins as never}
         components={{
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          sup: ({ children, ...props }: any) => {
-            const cite = props['data-cite'];
-            const n = typeof cite === 'string' ? parseInt(cite, 10) : NaN;
-            if (!Number.isFinite(n) || n < 1) {
-              return <sup {...props}>{children}</sup>;
-            }
-            const src = sources?.[n - 1];
-            return (
-              <sup
-                onClick={() => handleCiteClick(n)}
-                title={src ? `${src.title} — ${src.source}` : `Source ${n}`}
-                className="ml-0.5 inline-flex h-4 min-w-[16px] cursor-pointer items-center justify-center rounded-[4px] bg-accent-green/15 px-1 text-[10px] font-semibold text-accent-green hover:bg-accent-green/25"
-              >
-                {n}
-              </sup>
-            );
-          },
-          code: CodeBlock as any,
+          code: CodeBlock as never,
           table: ({ children, ...props }) => (
             <div className="my-4 overflow-x-auto rounded-lg border border-borderSubtle dark:border-borderStrong">
               <table

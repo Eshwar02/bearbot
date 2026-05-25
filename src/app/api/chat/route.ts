@@ -25,6 +25,7 @@ import {
   getResponseShapeDirective,
 } from "@/lib/ai/response-shape";
 import { detectTanglish } from "@/lib/ai/lang-detect";
+import { calculateConfidenceScore } from "@/lib/ai/confidence";
 import {
   LANG_INSTRUCTION_TANGLISH,
   LANG_INSTRUCTION_ENGLISH,
@@ -1068,9 +1069,26 @@ export async function POST(request: NextRequest) {
         ? buildStockMetadata(stockAnalysis)
         : ({} as Record<string, unknown>);
       metadata.provider = usedProvider;
+
+      // Calculate confidence score
+      let confidenceSources: Array<{ url: string; publishedAt?: string }> = [];
       if (webSearch && webSearch.sources.length > 0) {
         metadata.sources = webSearch.sources;
+        confidenceSources = webSearch.sources;
       }
+
+      const confidenceResult = calculateConfidenceScore({
+        responseText: fullResponse,
+        sources: confidenceSources,
+        marketData: userExplicitlyAskedAboutStock && stockAnalysis !== null,
+      });
+
+      metadata.confidence = {
+        score: confidenceResult.score,
+        label: confidenceResult.label,
+        reliabilityScore: confidenceResult.reliabilityScore,
+        reasoning: confidenceResult.reasoning,
+      };
 
       await supabase.from("messages").insert({
         conversation_id: conversationId,

@@ -8,6 +8,7 @@ import { normalizeChatContent } from '@/lib/chat-content';
 import { MarkdownRenderer } from './markdown-renderer';
 import { StockCard } from './stock-card';
 import { ChartWidget } from './chart-widget';
+import { ConfidenceBadge } from './confidence-badge';
 import { usePrefs } from '@/lib/hooks/use-prefs';
 import type { ChatMessage as ChatMessageType } from '@/stores/app-store';
 import { toast } from 'sonner';
@@ -27,13 +28,26 @@ function AssistantMark() {
   );
 }
 
-function ShareButton({ content }: { content: string }) {
+function ShareButton({ content, messageId }: { content: string; messageId: string }) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
     try {
-      const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(content))));
-      const shareUrl = `${window.location.origin}/share/response?r=${encoded}`;
+      const res = await fetch('/api/share/response', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, content }),
+      });
+      if (!res.ok) {
+        throw new Error('Unable to create share URL');
+      }
+      const data = (await res.json()) as { shareUrl?: string };
+      if (!data.shareUrl) {
+        throw new Error('Missing share URL');
+      }
+      const shareUrl = data.shareUrl.startsWith('http')
+        ? data.shareUrl
+        : `${window.location.origin}${data.shareUrl}`;
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -118,6 +132,18 @@ export function ChatMessage({ message }: ChatMessageProps) {
       attachments?: Array<{ name?: string; type?: string; size?: number; kind?: string; text?: string }>;
     } | null;
     return Array.isArray(metadata?.attachments) ? metadata.attachments : [];
+  }, [message.metadata]);
+
+  const confidence = useMemo(() => {
+    const metadata = message.metadata as {
+      confidence?: {
+        score: number;
+        label: 'Low' | 'Moderate' | 'High';
+        reliabilityScore: number;
+        reasoning: string[];
+      };
+    } | null;
+    return metadata?.confidence ?? null;
   }, [message.metadata]);
 
   return (
@@ -302,12 +328,22 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   <CopyButton content={normalizedContent} />
                 </div>
                 <div className="border-l border-gray-200 dark:border-dark-800 pl-2">
-                  <ShareButton content={normalizedContent} />
+                  <ShareButton content={normalizedContent} messageId={message.id} />
                 </div>
               </div>
             )}
             {!isUser && !isStreaming && feedbackReply && (
               <p className="mt-2 text-xs text-muted">{feedbackReply}</p>
+            )}
+
+            {/* Confidence badge */}
+            {!isUser && !isStreaming && confidence && (
+              <ConfidenceBadge
+                score={confidence.score}
+                label={confidence.label}
+                reliabilityScore={confidence.reliabilityScore}
+                reasoning={confidence.reasoning}
+              />
             )}
 
           </div>

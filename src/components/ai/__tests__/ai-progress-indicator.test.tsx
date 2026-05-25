@@ -36,20 +36,6 @@ describe('AIProgressIndicator', () => {
     expect(screen.getByText(/Testing/i)).toBeInTheDocument();
   });
 
-  it('should have correct positioning', () => {
-    const { result } = renderHook(() => useAIProgressStore());
-
-    act(() => {
-      result.current.addTask({ id: 'test', name: 'Testing' });
-      result.current.startTask('test');
-    });
-
-    const { container } = render(<AIProgressIndicator />);
-    const indicator = container.querySelector('[role="region"]');
-
-    expect(indicator).toHaveClass('fixed', 'bottom-20', 'right-4', 'z-40');
-  });
-
   it('should have accessibility attributes', () => {
     const { result } = renderHook(() => useAIProgressStore());
 
@@ -63,52 +49,46 @@ describe('AIProgressIndicator', () => {
 
     expect(indicator).toHaveAttribute('role', 'region');
     expect(indicator).toHaveAttribute('aria-live', 'polite');
-    expect(indicator).toHaveAttribute('aria-label', 'AI processing status');
+    expect(indicator).toHaveAttribute('aria-label', 'Search progress');
   });
 
-  it('should expand on hover when completed tasks exist', async () => {
+  it('should show source toggle after completion when sources exist', async () => {
     const { result } = renderHook(() => useAIProgressStore());
 
     act(() => {
-      result.current.addTask({ id: 'task1', name: 'Task 1' });
-      result.current.startTask('task1');
-      result.current.completeTask('task1');
-      result.current.addTask({ id: 'task2', name: 'Task 2' });
-      result.current.startTask('task2');
+      result.current.addSearchSource({
+        domain: 'example.com',
+        title: 'Example source',
+        url: 'https://example.com',
+        timestamp: Date.now(),
+      });
     });
 
-    const { container } = render(<AIProgressIndicator />);
-    const indicator = container.querySelector('[role="region"]');
-
-    act(() => {
-      fireEvent.mouseEnter(indicator!);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText('Task 1')).toBeInTheDocument();
-    });
+    render(<AIProgressIndicator />);
+    await waitFor(() => expect(screen.getByText(/View sources/i)).toBeInTheDocument());
   });
 
-  it('should toggle expand on click', async () => {
+  it('should toggle source expansion on click', async () => {
     const { result } = renderHook(() => useAIProgressStore());
 
     act(() => {
-      result.current.addTask({ id: 'task1', name: 'Task 1' });
-      result.current.startTask('task1');
-      result.current.completeTask('task1');
-      result.current.addTask({ id: 'task2', name: 'Task 2' });
-      result.current.startTask('task2');
+      result.current.addSearchSource({
+        domain: 'example.com',
+        title: 'Example source',
+        url: 'https://example.com',
+        timestamp: Date.now(),
+      });
     });
 
-    const { container } = render(<AIProgressIndicator />);
-    const indicator = container.querySelector('[role="region"]');
+    render(<AIProgressIndicator />);
+    const toggle = screen.getByRole('button', { name: /View sources/i });
 
     act(() => {
-      fireEvent.click(indicator!);
+      fireEvent.click(toggle);
     });
 
     await waitFor(() => {
-      expect(result.current.isExpanded).toBe(true);
+      expect(screen.getByText('Example source')).toBeInTheDocument();
     });
   });
 

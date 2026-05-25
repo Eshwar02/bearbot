@@ -18,12 +18,24 @@ export function Providers({ children }: ProvidersProps) {
   const prefs = usePrefs();
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
   const setConversations = useAppStore((s) => s.setConversations);
+  const conversations = useAppStore((s) => s.conversations);
   const activeConversationId = useAppStore((s) => s.activeConversationId);
   const setMessages = useAppStore((s) => s.setMessages);
   const setIsLoadingConversation = useAppStore((s) => s.setIsLoadingConversation);
   const setActiveConversation = useAppStore((s) => s.setActiveConversation);
   const setActiveView = useAppStore((s) => s.setActiveView);
   const pathname = usePathname();
+
+  const isChatHost = () => {
+    if (typeof window === 'undefined') return false;
+    const host = window.location.hostname;
+    return (
+      host === 'chat.alphasightai.online' ||
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.endsWith('.local')
+    );
+  };
 
   const hydrateProgressFromMessages = (messages: ChatMessage[]) => {
     const latestWithSources = [...messages]
@@ -49,6 +61,7 @@ export function Providers({ children }: ProvidersProps) {
 
   useEffect(() => {
     if (!pathname) return;
+    if (!isChatHost()) return;
     const chatPath = pathname.match(/^\/chat\/([^/]+)$/);
     if (chatPath?.[1]) {
       setActiveConversation(chatPath[1]);
@@ -267,6 +280,17 @@ export function Providers({ children }: ProvidersProps) {
   useEffect(() => {
     setPreferredCurrency(prefs.currency);
   }, [prefs.currency]);
+
+  useEffect(() => {
+    if (!isChatHost()) return;
+    const isChatRoute = pathname === '/' || pathname.startsWith('/chat/');
+    if (!isChatRoute) return;
+
+    const activeTitle = activeConversationId
+      ? conversations.find((conversation) => conversation.id === activeConversationId)?.title
+      : null;
+    document.title = activeTitle?.trim() || 'New chat';
+  }, [activeConversationId, conversations, pathname]);
 
   return <ThemeProvider>{children}</ThemeProvider>;
 }

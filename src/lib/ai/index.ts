@@ -3,21 +3,21 @@ import {
   streamStockAnalysis as mistralStockStream,
   streamGeneralChat as mistralGeneralStream,
   validateMistralSetup,
-  friendlyMistralError,
   generateDailyBrief as mistralGenerateDailyBrief,
 } from "./mistral";
 import {
-  streamStockAnalysis as groqStockStream,
-  streamGeneralChat as groqGeneralStream,
-  validateGroqSetup,
-  friendlyGroqError,
-  generateDailyBrief as groqGenerateDailyBrief,
-} from "./groq";
+  streamStockAnalysis as cerebrasStockStream,
+  streamGeneralChat as cerebrasGeneralStream,
+  validateCerebrasSetup,
+  generateDailyBrief as cerebrasGenerateDailyBrief,
+  normalizeApiKey as normalizeCerebrasApiKey,
+} from "./cerebras";
 
 type ChatRole = "user" | "assistant";
 type ChatHistory = Array<{ role: ChatRole; content: string }>;
 
 export type ChatMode = "stock" | "general";
+type LlmProvider = "mistral" | "cerebras";
 
 interface StreamChatArgs {
   mode: ChatMode;
@@ -25,25 +25,41 @@ interface StreamChatArgs {
   history: ChatHistory;
   analysis?: StockAnalysis;
   kind?: "brief" | "normal";
-  model?: "mistral";
+  model?: LlmProvider;
   userMemory?: string;
+  routing?: Omit<ProviderRoutingSignal, "userRequestedModel">;
 }
 
 export function validateAiSetup(): {
   valid: boolean;
   error?: string;
-  stockPrimary: "mistral" | "groq" | "none";
-  generalPrimary: "groq" | "mistral" | "none";
-  fallback: "groq" | "mistral" | "none";
+  stockPrimary: LlmProvider | "none";
+  generalPrimary: LlmProvider | "none";
+  fallback: LlmProvider | "none";
+  stockProviders: LlmProvider[];
+  generalProviders: LlmProvider[];
+  classifierProviders: LlmProvider[];
 } {
   const mistral = validateMistralSetup();
-  const groq = validateGroqSetup();
+  const cerebras = validateCerebrasSetup();
 
-  const stockPrimary = mistral.valid ? "mistral" : groq.valid ? "groq" : "none";
-  const generalPrimary = mistral.valid ? "mistral" : groq.valid ? "groq" : "none";
-  const fallback = groq.valid ? "groq" : mistral.valid ? "mistral" : "none";
+  const stockProviders: LlmProvider[] = [];
+  if (mistral.valid) stockProviders.push("mistral");
+  if (cerebras.valid) stockProviders.push("cerebras");
 
-  const valid = stockPrimary !== "none" && generalPrimary !== "none";
+  const generalProviders: LlmProvider[] = [];
+  if (cerebras.valid) generalProviders.push("cerebras");
+  if (mistral.valid) generalProviders.push("mistral");
+
+  const classifierProviders: LlmProvider[] = [];
+  if (cerebras.valid) classifierProviders.push("cerebras");
+  if (mistral.valid) classifierProviders.push("mistral");
+
+  const stockPrimary = stockProviders[0] ?? "none";
+  const generalPrimary = generalProviders[0] ?? "none";
+  const fallback = generalProviders[1] ?? stockProviders[1] ?? "none";
+
+  const valid = stockProviders.length > 0 && generalProviders.length > 0;
 
   if (!valid) {
     return {
@@ -51,7 +67,10 @@ export function validateAiSetup(): {
       stockPrimary: "none",
       generalPrimary: "none",
       fallback: "none",
-      error: `No LLM configured. Mistral: ${mistral.error}, Groq: ${groq.error}`,
+      stockProviders: [],
+      generalProviders: [],
+      classifierProviders: [],
+      error: `No LLM configured. Mistral: ${mistral.error}, Cerebras: ${cerebras.error}`,
     };
   }
 
@@ -60,7 +79,70 @@ export function validateAiSetup(): {
     stockPrimary,
     generalPrimary,
     fallback,
+    stockProviders,
+    generalProviders,
+    classifierProviders,
   };
+}
+
+function applyModelPreference(
+  providers: LlmProvider[],
+  preferred?: LlmProvider
+): LlmProvider[] {
+  if (!preferred || !providers.includes(preferred)) return providers;
+  return [preferred, ...providers.filter((provider) => provider !== preferred)];
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Provider routing
+// ────────────────────────────────────────────────────────────────────────
+// Cerebras → fast lane: small_talk, brief replies, simple price quote,
+//            classifier-style short answers.
+// Mistral  → heavy lane: full stock analysis, web-search synthesis,
+//            think/canvas modes, long-form finance, deep research.
+//
+// Falls back to the other provider if the chosen one is unavailable.
+
+export type IntentKind = "small_talk" | "stock" | "general_finance" | "general_other";
+export type IntentDepth = "tiny" | "short" | "medium" | "long";
+
+export interface ProviderRoutingSignal {
+  kind: IntentKind;
+  depth: IntentDepth;
+  chatMode: ChatMode;
+  isDetailedStockRequest: boolean;
+  hasWebSearch: boolean;
+  thinkMode: boolean;
+  canvasMode: boolean;
+  generalKind: "brief" | "normal";
+  userRequestedModel?: LlmProvider;
+}
+
+const DEPTH_RANK: Record<IntentDepth, number> = {
+  tiny: 0,
+  short: 1,
+  medium: 2,
+  long: 3,
+};
+
+export function selectProvider(signal: ProviderRoutingSignal): LlmProvider {
+  // Explicit user override wins.
+  if (signal.userRequestedModel) return signal.userRequestedModel;
+
+  // Heavy-lane triggers → Mistral.
+  if (signal.hasWebSearch) return "mistral";
+  if (signal.thinkMode || signal.canvasMode) return "mistral";
+  if (signal.isDetailedStockRequest) return "mistral";
+  if (signal.depth === "long") return "mistral";
+  if (signal.kind === "general_finance" && DEPTH_RANK[signal.depth] >= DEPTH_RANK.medium) {
+    return "mistral";
+  }
+  if (signal.kind === "stock" && DEPTH_RANK[signal.depth] >= DEPTH_RANK.medium) {
+    return "mistral";
+  }
+
+  // Fast-lane default → Cerebras.
+  return "cerebras";
 }
 
 export async function streamChat(
@@ -71,9 +153,18 @@ export async function streamChat(
     throw new Error("No LLM provider is configured");
   }
 
-  const providers = args.mode === "stock"
-    ? [setup.stockPrimary, setup.fallback].filter(p => p !== "none")
-    : [setup.generalPrimary, setup.fallback].filter(p => p !== "none");
+  const availableProviders =
+    args.mode === "stock" ? setup.stockProviders : setup.generalProviders;
+
+  // Decide preferred provider: explicit user override > intent-based router.
+  let preferred: LlmProvider | undefined = args.model;
+  if (!preferred && args.routing) {
+    preferred = selectProvider({ ...args.routing, userRequestedModel: undefined });
+  }
+  const providers = applyModelPreference(availableProviders, preferred);
+  console.log(
+    `[AI] Routing → preferred=${preferred ?? "default"} order=${providers.join(",")}`
+  );
 
   for (const provider of providers) {
     try {
@@ -87,8 +178,8 @@ export async function streamChat(
             args.history,
             args.userMemory
           );
-        } else if (provider === "groq") {
-          stream = await groqStockStream(
+        } else if (provider === "cerebras") {
+          stream = await cerebrasStockStream(
             args.message,
             args.analysis,
             args.history,
@@ -98,8 +189,8 @@ export async function streamChat(
           continue;
         }
       } else {
-        if (provider === "groq") {
-          stream = await groqGeneralStream(
+        if (provider === "cerebras") {
+          stream = await cerebrasGeneralStream(
             args.message,
             args.history,
             args.kind ?? "normal",
@@ -135,12 +226,12 @@ export async function generateDailyBrief(prompt: string): Promise<string> {
     return `Unable to generate brief. ${setup.error ?? "No AI provider configured."}`;
   }
 
-  const providers = [setup.generalPrimary, setup.fallback].filter(p => p !== "none");
+  const providers = setup.generalProviders;
 
   for (const provider of providers) {
     try {
-      const text = provider === "groq"
-        ? await groqGenerateDailyBrief(prompt)
+      const text = provider === "cerebras"
+        ? await cerebrasGenerateDailyBrief(prompt)
         : await mistralGenerateDailyBrief(prompt);
       if (text && !/^Unable to generate brief/i.test(text)) {
         return text;
@@ -218,7 +309,10 @@ export interface MessageClassification {
 }
 
 const CLASSIFIER_MODEL = "mistral-small-latest";
-const CLASSIFIER_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
+const CLASSIFIER_CEREBRAS_MODEL =
+  process.env.CEREBRAS_CLASSIFIER_MODEL || process.env.CEREBRAS_GENERAL_MODEL || "llama3.1-8b";
+const CLASSIFIER_MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
+const CLASSIFIER_CEREBRAS_ENDPOINT = "https://api.cerebras.ai/v1/chat/completions";
 
 const CLASSIFIER_SYSTEM_PROMPT = `You are an intent classifier for a personal finance chatbot. For each user message, return STRICT JSON with this shape:
 
@@ -247,13 +341,8 @@ depth:
 
 Return JSON only. No prose. No code fences.`;
 
-function readMistralKey(): string {
-  const raw = process.env.MISTRAL_API_KEY?.trim() ?? "";
-  if (!raw) return "";
-  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
-    return raw.slice(1, -1).trim();
-  }
-  return raw;
+function readApiKey(envName: "MISTRAL_API_KEY" | "CEREBRAS_API_KEY"): string {
+  return normalizeCerebrasApiKey(process.env[envName]);
 }
 
 function fallbackClassification(message: string): MessageClassification {
@@ -285,8 +374,9 @@ export async function classifyMessage(
   const trimmed = message.trim();
   if (!trimmed) return fallbackClassification("");
 
-  const apiKey = readMistralKey();
-  if (!apiKey) return fallbackClassification(trimmed);
+  const setup = validateAiSetup();
+  const providers = setup.classifierProviders;
+  if (providers.length === 0) return fallbackClassification(trimmed);
 
   // Give the classifier the last 2 turns for coreference (e.g. "and what
   // about its dividend?"). Keep it tiny — this is a fast/cheap call.
@@ -295,75 +385,85 @@ export async function classifyMessage(
     content: m.content.slice(0, 240),
   }));
 
-  const payload = {
-    model: CLASSIFIER_MODEL,
-    temperature: 0.0,
-    max_tokens: 200,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: CLASSIFIER_SYSTEM_PROMPT },
-      ...historyTail,
-      { role: "user", content: trimmed },
-    ],
-  };
+  for (const provider of providers) {
+    const apiKey = readApiKey(provider === "cerebras" ? "CEREBRAS_API_KEY" : "MISTRAL_API_KEY");
+    if (!apiKey) continue;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 3500);
-  try {
-    const res = await fetch(CLASSIFIER_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        Accept: "application/json",
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      console.warn("[classifyMessage] HTTP", res.status);
-      return fallbackClassification(trimmed);
-    }
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
+    const payload = {
+      model: provider === "cerebras" ? CLASSIFIER_CEREBRAS_MODEL : CLASSIFIER_MODEL,
+      temperature: 0.0,
+      max_tokens: 200,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: CLASSIFIER_SYSTEM_PROMPT },
+        ...historyTail,
+        { role: "user", content: trimmed },
+      ],
     };
-    const raw = data.choices?.[0]?.message?.content ?? "";
-    const cleaned = raw
-      .trim()
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/```\s*$/i, "")
-      .trim();
-    const parsed = JSON.parse(cleaned) as Partial<MessageClassification>;
 
-    const kind: MessageClassification["kind"] =
-      parsed.kind === "small_talk" ||
-      parsed.kind === "stock" ||
-      parsed.kind === "general_finance" ||
-      parsed.kind === "general_other"
-        ? parsed.kind
-        : "general_other";
-    const depth: MessageClassification["depth"] =
-      parsed.depth === "tiny" ||
-      parsed.depth === "short" ||
-      parsed.depth === "medium" ||
-      parsed.depth === "long"
-        ? parsed.depth
-        : "short";
-    const needs_web_search =
-      kind === "small_talk" ? false : Boolean(parsed.needs_web_search);
-    const company_or_topic =
-      typeof parsed.company_or_topic === "string" && parsed.company_or_topic.trim().length > 0
-        ? parsed.company_or_topic.trim()
-        : null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1700);
+    try {
+      const res = await fetch(
+        provider === "cerebras" ? CLASSIFIER_CEREBRAS_ENDPOINT : CLASSIFIER_MISTRAL_ENDPOINT,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+            Accept: "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        }
+      );
+      if (!res.ok) {
+        console.warn(`[classifyMessage] ${provider} HTTP`, res.status);
+        continue;
+      }
 
-    return { kind, needs_web_search, company_or_topic, depth };
-  } catch (err) {
-    console.warn(
-      "[classifyMessage] failed, using fallback:",
-      err instanceof Error ? err.message : err
-    );
-    return fallbackClassification(trimmed);
-  } finally {
-    clearTimeout(timer);
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const raw = data.choices?.[0]?.message?.content ?? "";
+      const cleaned = raw
+        .trim()
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/```\s*$/i, "")
+        .trim();
+      const parsed = JSON.parse(cleaned) as Partial<MessageClassification>;
+
+      const kind: MessageClassification["kind"] =
+        parsed.kind === "small_talk" ||
+        parsed.kind === "stock" ||
+        parsed.kind === "general_finance" ||
+        parsed.kind === "general_other"
+          ? parsed.kind
+          : "general_other";
+      const depth: MessageClassification["depth"] =
+        parsed.depth === "tiny" ||
+        parsed.depth === "short" ||
+        parsed.depth === "medium" ||
+        parsed.depth === "long"
+          ? parsed.depth
+          : "short";
+      const needs_web_search =
+        kind === "small_talk" ? false : Boolean(parsed.needs_web_search);
+      const company_or_topic =
+        typeof parsed.company_or_topic === "string" && parsed.company_or_topic.trim().length > 0
+          ? parsed.company_or_topic.trim()
+          : null;
+
+      return { kind, needs_web_search, company_or_topic, depth };
+    } catch (err) {
+      console.warn(
+        `[classifyMessage] ${provider} failed, trying next provider:`,
+        err instanceof Error ? err.message : err
+      );
+    } finally {
+      clearTimeout(timer);
+    }
   }
+
+  return fallbackClassification(trimmed);
 }

@@ -11,7 +11,9 @@ import {
   organizationSchema,
   websiteSchema,
   softwareApplicationSchema,
+  faqSchema,
 } from '@/components/seo/json-ld';
+import { SeoContent } from '@/components/seo/seo-content';
 import './globals.css';
 
 const geistMono = Geist_Mono({
@@ -105,11 +107,13 @@ export default function RootLayout({
         <JsonLd data={organizationSchema} />
         <JsonLd data={websiteSchema} />
         <JsonLd data={softwareApplicationSchema} />
+        <JsonLd data={faqSchema} />
       </head>
       <body
         suppressHydrationWarning
         className={`${geistMono.variable} ${fraunces.variable} font-sans antialiased transition-colors duration-200`}
       >
+        <SeoContent />
         <ErrorBoundary>
           <Providers>{children}</Providers>
         </ErrorBoundary>

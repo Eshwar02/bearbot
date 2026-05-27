@@ -28,7 +28,15 @@ function AssistantMark() {
   );
 }
 
-function ShareButton({ content, messageId }: { content: string; messageId: string }) {
+function ShareButton({
+  content,
+  messageId,
+  conversationId,
+}: {
+  content: string;
+  messageId: string;
+  conversationId?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleShare = async () => {
@@ -36,7 +44,7 @@ function ShareButton({ content, messageId }: { content: string; messageId: strin
       const res = await fetch('/api/share/response', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messageId, content }),
+        body: JSON.stringify({ messageId, conversationId, content }),
       });
       if (!res.ok) {
         throw new Error('Unable to create share URL');
@@ -328,7 +336,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   <CopyButton content={normalizedContent} />
                 </div>
                 <div className="border-l border-gray-200 dark:border-dark-800 pl-2">
-                  <ShareButton content={normalizedContent} messageId={message.id} />
+                  <ShareButton
+                    content={normalizedContent}
+                    messageId={message.id}
+                    conversationId={message.conversation_id}
+                  />
                 </div>
               </div>
             )}

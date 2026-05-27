@@ -32,14 +32,32 @@ const SUBDOMAIN_ROUTES: Record<string, string> = {
   "about.alphasightai.online": "/about",
 };
 
+const PROD_APP_HOST = "chat.alphasightai.online";
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApiPath = pathname.startsWith("/api/");
+  const host = request.headers.get("host") || "";
+
+  // If the production deployment is hit on its raw vercel.app URL, bounce to
+  // the canonical custom domain BEFORE any auth/cookie work happens. Otherwise
+  // OAuth callbacks land on vercel.app, Supabase writes session cookies there,
+  // and when the user returns to chat.alphasightai.online they have no cookie
+  // and the chat falls back to guest mode (the "5 free prompts" banner).
+  if (
+    process.env.NODE_ENV === "production" &&
+    host.endsWith(".vercel.app")
+  ) {
+    const target = new URL(request.nextUrl.toString());
+    target.host = PROD_APP_HOST;
+    target.protocol = "https:";
+    target.port = "";
+    return NextResponse.redirect(target, 308);
+  }
 
   // Host-based root rewrite for marketing subdomains. Only the literal "/" is
   // remapped so that /login, /api/*, and asset paths on those subdomains keep
   // working normally.
-  const host = request.headers.get("host") || "";
   const subdomainTarget = SUBDOMAIN_ROUTES[host];
   if (subdomainTarget) {
     const appOrigin =

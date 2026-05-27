@@ -9,7 +9,7 @@ export const siteConfig = {
   longDescription:
     'AlphaSight AI helps retail and professional investors make data-driven decisions with AI-powered stock analysis, real-time quotes, portfolio analytics, sentiment tracking, and personalized market intelligence. Built on modern LLMs (Mistral, Groq, Llama), Yahoo Finance live data, and a secure Supabase backend.',
   url: 'https://chat.alphasightai.online',
-  marketingUrl: 'https://info.alphasightai.online',
+  marketingUrl: 'https://chat.alphasightai.online/info',
   apexUrl: 'https://alphasightai.online',
   ogImage: 'https://chat.alphasightai.online/opengraph-image',
   locale: 'en_US',

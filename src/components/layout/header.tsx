@@ -1,10 +1,16 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { Menu, LogOut, User, ArrowLeft, Palette } from 'lucide-react';
 import Image from 'next/image';
 import { useAppStore } from '@/stores/app-store';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/hooks/use-auth';
+import {
+  GUEST_PROMPT_LIMIT,
+  useGuestPromptCount,
+} from '@/lib/guest/limit';
 import { logger } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { PWAInstallButton } from '@/components/ui/pwa-install-button';
@@ -17,6 +23,10 @@ export function Header() {
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const setActiveView = useAppStore((s) => s.setActiveView);
+  const { user, loading: authLoading } = useAuth();
+  const guestCount = useGuestPromptCount();
+  const isGuest = !user;
+  const guestAtLimit = isGuest && guestCount >= GUEST_PROMPT_LIMIT;
   const [menuOpen, setMenuOpen] = useState(false);
   const [personalizationOpen, setPersonalizationOpen] = useState(false);
   const [initial, setInitial] = useState('A');
@@ -35,21 +45,14 @@ export function Header() {
   }, [menuOpen]);
 
   useEffect(() => {
-    let isMounted = true;
-    const supabase = createClient();
-
-    supabase.auth.getUser().then(({ data }) => {
-      if (!isMounted) return;
-      const user = data.user;
-      const source = user?.user_metadata?.full_name || user?.email || 'A';
-      const first = source.trim().charAt(0).toUpperCase();
-      if (first) setInitial(first);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (!user) return;
+    const source =
+      (typeof user.user_metadata?.full_name === 'string' && user.user_metadata.full_name) ||
+      user.email ||
+      'A';
+    const first = source.trim().charAt(0).toUpperCase();
+    if (first) setInitial(first);
+  }, [user]);
 
   const handleSignOut = useCallback(async () => {
     setMenuOpen(false);
@@ -99,6 +102,21 @@ export function Header() {
 
       <div className="flex items-center gap-2">
         <PWAInstallButton />
+        {!authLoading && isGuest ? (
+          <Link
+            href="/login?redirect=/"
+            className={cn(
+              'relative inline-flex items-center justify-center rounded-full bg-accent-brand px-4 py-1.5 text-sm font-semibold text-inverse ring-1 ring-accent-brand/60 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand',
+              guestAtLimit
+                ? 'animate-pulse shadow-[0_0_0_4px_rgba(45,212,191,0.28),0_0_28px_8px_rgba(59,130,246,0.55)]'
+                : 'shadow-[0_0_0_2px_rgba(45,212,191,0.18),0_0_14px_2px_rgba(59,130,246,0.30)] hover:shadow-[0_0_0_3px_rgba(45,212,191,0.26),0_0_22px_4px_rgba(59,130,246,0.45)]'
+            )}
+            aria-label="Log in to AlphaSight"
+          >
+            Log in
+          </Link>
+        ) : null}
+        {!authLoading && !isGuest ? (
         <div ref={menuRef} className="relative">
           <button
             type="button"
@@ -196,6 +214,7 @@ export function Header() {
             </div>
           )}
         </div>
+        ) : null}
       </div>
 
       <PersonalizationModal

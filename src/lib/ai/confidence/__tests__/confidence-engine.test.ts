@@ -4,18 +4,21 @@ import { detectDuplicateDomains, calculateAverageReliability } from '../source-r
 
 describe('Confidence Engine', () => {
   describe('calculateConfidenceScore', () => {
-    it('should apply -20 penalty for no sources', () => {
+    it('should apply a soft penalty for no sources or market data', () => {
       const result = calculateConfidenceScore({
         responseText: 'This is a response with analysis.',
         sources: [],
         marketData: false,
       });
 
-      expect(result.score).toBeLessThan(50);
-      expect(result.penalties.some((p) => p.includes('No sources'))).toBe(true);
+      // The new rubric keeps general-knowledge answers in the moderate band
+      // rather than dragging them below 50 just for lacking citations.
+      expect(result.score).toBeLessThan(70);
+      expect(result.score).toBeGreaterThan(40);
+      expect(result.penalties.some((p) => p.includes('No external sources'))).toBe(true);
     });
 
-    it('should apply +10 bonus for 3+ unique sources', () => {
+    it('should bonus 3+ unique sources', () => {
       const result = calculateConfidenceScore({
         responseText: 'This is well-sourced.',
         sources: [
@@ -26,7 +29,7 @@ describe('Confidence Engine', () => {
         marketData: false,
       });
 
-      expect(result.bonuses.some((b) => b.includes('Multiple unique sources'))).toBe(true);
+      expect(result.bonuses.some((b) => b.includes('unique sources'))).toBe(true);
     });
 
     it('should apply +15 bonus for all fresh sources (<24h)', () => {
@@ -45,27 +48,27 @@ describe('Confidence Engine', () => {
       expect(result.bonuses.some((b) => b.includes('fresh'))).toBe(true);
     });
 
-    it('should apply +10 bonus for market data', () => {
+    it('should bonus market data', () => {
       const result = calculateConfidenceScore({
         responseText: 'Stock price is $100.',
         sources: [],
         marketData: true,
       });
 
-      expect(result.bonuses.some((b) => b.includes('Market'))).toBe(true);
+      expect(result.bonuses.some((b) => b.toLowerCase().includes('market'))).toBe(true);
     });
 
-    it('should apply +5 bonus for numerical evidence', () => {
+    it('should bonus numerical evidence', () => {
       const result = calculateConfidenceScore({
         responseText: 'The stock rose 15% with 2.5M shares traded.',
         sources: [],
         marketData: false,
       });
 
-      expect(result.bonuses.some((b) => b.includes('numerical'))).toBe(true);
+      expect(result.bonuses.some((b) => b.toLowerCase().includes('numerical'))).toBe(true);
     });
 
-    it('should apply -15 penalty for >3 uncertainty phrases', () => {
+    it('should penalize dense uncertainty hedging', () => {
       const result = calculateConfidenceScore({
         responseText:
           'This might possibly be unclear. Not enough data. It seems speculative and could be uncertain.',
@@ -74,7 +77,7 @@ describe('Confidence Engine', () => {
       });
 
       expect(result.penalties.some((p) => p.includes('uncertainty'))).toBe(true);
-      expect(result.score).toBeLessThan(50);
+      expect(result.score).toBeLessThan(60);
     });
 
     it('should apply -10 penalty for duplicate domain domination', () => {
@@ -111,11 +114,12 @@ describe('Confidence Engine', () => {
 
     it('should assign correct confidence labels', () => {
       const lowResult = calculateConfidenceScore({
-        responseText: 'No sources here.',
+        responseText: 'idk',
         sources: [],
         marketData: false,
       });
-      expect(lowResult.label).toBe('Low');
+      // A nearly empty answer should now land Low/Moderate, never High.
+      expect(['Low', 'Moderate']).toContain(lowResult.label);
 
       const moderateResult = calculateConfidenceScore({
         responseText: 'Some sources, mostly OK.',

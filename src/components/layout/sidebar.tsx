@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import {
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore, type AppView } from '@/stores/app-store';
+import { useAuth } from '@/lib/hooks/use-auth';
 import type { Conversation } from '@/types/database';
 
 function startOfDay(date: Date): number {
@@ -84,6 +86,8 @@ export function Sidebar() {
   const setActiveView = useAppStore((s) => s.setActiveView);
   const createNewChat = useAppStore((s) => s.createNewChat);
   const deleteConversation = useAppStore((s) => s.deleteConversation);
+  const { user } = useAuth();
+  const isGuest = !user;
 
   const grouped = useMemo(() => groupConversations(conversations), [conversations]);
 
@@ -187,13 +191,28 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-borderStrong">
-        {grouped.length === 0 && (
+        {isGuest && (
+          <div className="mx-1 mt-2 rounded-lg border border-borderSubtle bg-canvas px-3 py-3 text-[12px] leading-relaxed text-secondary">
+            <p className="mb-2 text-primary">You&apos;re using AlphaSight as a guest.</p>
+            <p className="mb-3 text-muted">
+              Log in to save chats and unlock Portfolio, Watchlist, and the
+              Daily Brief.
+            </p>
+            <Link
+              href="/login?redirect=/"
+              className="inline-flex w-full items-center justify-center rounded-md bg-accent-brand px-3 py-1.5 text-[12px] font-semibold text-inverse transition-shadow hover:shadow-[0_0_18px_2px_rgba(59,130,246,0.45)]"
+            >
+              Log in
+            </Link>
+          </div>
+        )}
+        {!isGuest && grouped.length === 0 && (
           <p className="px-3 py-8 text-center text-xs text-muted">
             No conversations yet
           </p>
         )}
-        
-        {grouped.map((group) => (
+
+        {!isGuest && grouped.map((group) => (
           <div key={group.label} className="mb-4">
               <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
                 {group.label}
@@ -240,7 +259,7 @@ export function Sidebar() {
         ))}
       </div>
 
-      <div className="border-t border-borderSubtle p-2">
+      <div className={cn('border-t border-borderSubtle p-2', isGuest && 'hidden')}>
         {navLinks.map((link) => {
           const isActive = activeView === link.view;
           return (

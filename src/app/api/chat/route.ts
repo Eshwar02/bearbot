@@ -414,10 +414,13 @@ export async function POST(request: NextRequest) {
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      return chatJsonResponse("Your session expired. Please log in again.", 401, {
-        error: "Unauthorized",
-      });
+    // Guests are allowed to try the chat without an account. Their turns are
+    // never persisted, no conversation row is created, no memory is read or
+    // written. The 5-prompt cap that nudges them to sign up lives client-side
+    // in use-chat.ts. authError is treated as "no session" rather than failure.
+    const isGuest = !user;
+    if (authError) {
+      console.warn("[chat-api] auth.getUser returned error; treating as guest:", authError.message);
     }
 
     const contentType = request.headers.get("content-type") || "";
@@ -506,7 +509,8 @@ export async function POST(request: NextRequest) {
       });
     }
     console.debug("[chat-api] validated request", {
-      userId: user.id,
+      userId: user?.id ?? "guest",
+      isGuest,
       messageLength: incomingMessage.length,
       attachments: attachmentSummaries.length,
       hasConversationId: Boolean(requestedConversationId),
@@ -522,14 +526,18 @@ export async function POST(request: NextRequest) {
     }
 
     let activeConversationId = requestedConversationId;
-    if (!activeConversationId) {
+    if (isGuest) {
+      // Guest turns are not persisted; the client never gets a conversation id
+      // back, so follow-ups stay in the same in-memory thread until they log in.
+      activeConversationId = null;
+    } else if (!activeConversationId) {
       recordProgress("Creating a new conversation", 12);
       const titleSeed = incomingMessage || attachmentSummaries[0]?.name || "New chat";
       const title =
         titleSeed.length > 60 ? `${titleSeed.substring(0, 60)}...` : titleSeed;
       const { data: conversation, error } = await supabase
         .from("conversations")
-        .insert({ user_id: user.id, title })
+        .insert({ user_id: user!.id, title })
         .select("id")
         .single();
       if (error || !conversation) {
@@ -545,7 +553,7 @@ export async function POST(request: NextRequest) {
         .from("conversations")
         .select("id")
         .eq("id", activeConversationId)
-        .eq("user_id", user.id)
+        .eq("user_id", user!.id)
         .single();
       if (error || !existing) {
         return chatJsonResponse("Conversation not found.", 404, {
@@ -557,31 +565,41 @@ export async function POST(request: NextRequest) {
     recordProgress("Loading conversation history and preferences", 18);
     const wantsMemoryAnswer = isMemoryQuery(composedMessage);
 
-    const [historyResponse, userMemoryBase, prefsResponse, semanticMemoryRows] =
-      await Promise.all([
-        supabase
-          .from("messages")
-          .select("role, content, metadata")
-          .eq("conversation_id", activeConversationId)
-          .order("created_at", { ascending: false })
-          .limit(12),
-        buildUserContext(supabase, user.id).catch((err) => {
-          console.warn("[chat-api] buildUserContext failed", err);
-          return "";
-        }),
-        supabase
-          .from("user_preferences")
-          .select("language_mode, default_market, currency, theme")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-        wantsMemoryAnswer
-          ? listRecentMemories(supabase, user.id, { limit: 10 })
-          : searchMemories(supabase, user.id, composedMessage),
-      ]);
+    type HistoryRow = { role: string; content: string; metadata: unknown };
+    type PrefsRow = { language_mode?: string; default_market?: string; currency?: string; theme?: string };
+    const [historyResponse, userMemoryBase, prefsResponse, semanticMemoryRows] = isGuest
+      ? ([
+          { data: [] as HistoryRow[], error: null },
+          "",
+          { data: null as PrefsRow | null, error: null },
+          [] as Awaited<ReturnType<typeof searchMemories>>,
+        ] as const)
+      : await Promise.all([
+          supabase
+            .from("messages")
+            .select("role, content, metadata")
+            .eq("conversation_id", activeConversationId!)
+            .order("created_at", { ascending: false })
+            .limit(12),
+          buildUserContext(supabase, user!.id).catch((err) => {
+            console.warn("[chat-api] buildUserContext failed", err);
+            return "";
+          }),
+          supabase
+            .from("user_preferences")
+            .select("language_mode, default_market, currency, theme")
+            .eq("user_id", user!.id)
+            .maybeSingle(),
+          wantsMemoryAnswer
+            ? listRecentMemories(supabase, user!.id, { limit: 10 })
+            : searchMemories(supabase, user!.id, composedMessage),
+        ]);
 
     recordProgress("Saving your message", 22);
     // Insert user message after fetching history to avoid duplicating it in the LLM context
-    const { error: userMessageError } = await supabase.from("messages").insert({
+    const { error: userMessageError } = isGuest
+      ? ({ error: null as { message: string } | null })
+      : await supabase.from("messages").insert({
       conversation_id: activeConversationId,
       role: "user",
       content: incomingMessage || composedMessage,
@@ -612,13 +630,13 @@ export async function POST(request: NextRequest) {
     const nameMatch = incomingMessage.match(
       /(?:my name is|call me)\s+([a-zA-Z][a-zA-Z\s]{0,40})(?:[.!?]|$)/i
     );
-    if (nameMatch) {
+    if (nameMatch && !isGuest) {
       recordProgress("Updating user memory", 24);
       const name = nameMatch[1].trim();
       console.log("[chat-api] Saving name:", name);
       const { error } = await supabase
         .from("user_memory")
-        .upsert({ user_id: user.id, key: "name", value: name }, { onConflict: "user_id,key" });
+        .upsert({ user_id: user!.id, key: "name", value: name }, { onConflict: "user_id,key" });
       if (error) console.error("[chat-api] Save name error:", error);
     }
 
@@ -634,11 +652,12 @@ export async function POST(request: NextRequest) {
       ? LANG_INSTRUCTION_TANGLISH
       : LANG_INSTRUCTION_ENGLISH;
 
-    const userDisplayName =
-      (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
-      (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
-      (user.email?.split("@")[0] ?? "").trim() ||
-      "there";
+    const userDisplayName = isGuest
+      ? "there"
+      : (typeof user!.user_metadata?.full_name === "string" && user!.user_metadata.full_name.trim()) ||
+        (typeof user!.user_metadata?.name === "string" && user!.user_metadata.name.trim()) ||
+        (user!.email?.split("@")[0] ?? "").trim() ||
+        "there";
     const userProfileContext = [
       userDisplayName && userDisplayName !== "there" ? `User profile name: ${userDisplayName}` : "",
       prefsResponse.data?.default_market ? `Preferred market: ${prefsResponse.data.default_market}` : "",
@@ -960,7 +979,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const conversationId = activeConversationId as string;
+    const conversationId = (activeConversationId ?? "") as string;
 
     // Whether the user explicitly asked about a stock in THIS message. Used
     // to gate the stock-chart UI: a coreference rewrite could otherwise
@@ -1109,6 +1128,10 @@ export async function POST(request: NextRequest) {
         reasoning: confidenceResult.reasoning,
       };
 
+      // Guest turns never touch the DB or memory store — the conversation
+      // exists only in the streaming response and the browser.
+      if (isGuest) return;
+
       await supabase.from("messages").insert({
         conversation_id: conversationId,
         role: "assistant",
@@ -1126,7 +1149,7 @@ export async function POST(request: NextRequest) {
       // Vercel serverless after the response is sent (Next.js 15.1+).
       // Failures are logged inside addMemories() — never throws.
       after(
-        addMemories(supabase, user.id, {
+        addMemories(supabase, user!.id, {
           userMessage: composedMessage,
           assistantResponse: fullResponse,
           conversationId,
@@ -1228,12 +1251,17 @@ export async function POST(request: NextRequest) {
     const responseHeaders: Record<string, string> = {
       "Content-Type": "text/plain; charset=utf-8",
       "Transfer-Encoding": "chunked",
-      "X-Conversation-Id": conversationId,
       "X-Has-Stock-Data": userExplicitlyAskedAboutStock ? "true" : "false",
       "X-Has-Web-Sources": hasWebSources ? "true" : "false",
       "Access-Control-Expose-Headers":
-        "X-Conversation-Id, X-Has-Stock-Data, X-Stock-Symbol, X-Stock-Exchange, X-Has-Web-Sources",
+        "X-Conversation-Id, X-Has-Stock-Data, X-Stock-Symbol, X-Stock-Exchange, X-Has-Web-Sources, X-Guest",
     };
+    if (conversationId) {
+      responseHeaders["X-Conversation-Id"] = conversationId;
+    }
+    if (isGuest) {
+      responseHeaders["X-Guest"] = "true";
+    }
     if (stockAnalysis && userExplicitlyAskedAboutStock) {
       responseHeaders["X-Stock-Symbol"] = stockAnalysis.quote.symbol;
       responseHeaders["X-Stock-Exchange"] = stockAnalysis.quote.exchange || "";

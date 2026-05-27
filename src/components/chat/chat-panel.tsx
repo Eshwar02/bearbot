@@ -1,8 +1,15 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import Link from 'next/link';
+import { Lock } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { RESPONSE_GENERATED_EVENT, useChat } from '@/lib/hooks/use-chat';
+import { useAuth } from '@/lib/hooks/use-auth';
+import {
+  GUEST_PROMPT_LIMIT,
+  useGuestPromptCount,
+} from '@/lib/guest/limit';
 import { ChatMessage } from './chat-message';
 import { WelcomeScreen } from './welcome-screen';
 import { PromptInputBox } from '@/components/ui/ai-prompt-box';
@@ -47,6 +54,11 @@ function GenerationMarker() {
 export function ChatPanel() {
   const { messages, isLoadingConversation, isStreaming } = useAppStore();
   const { sendMessage, stopStreaming } = useChat();
+  const { user } = useAuth();
+  const guestCount = useGuestPromptCount();
+  const isGuest = !user;
+  const guestAtLimit = isGuest && guestCount >= GUEST_PROMPT_LIMIT;
+  const guestRemaining = isGuest ? Math.max(0, GUEST_PROMPT_LIMIT - guestCount) : null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -179,21 +191,48 @@ export function ChatPanel() {
       {/* Composer */}
       <div className="bg-canvas px-4 pb-5 pt-2 sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <PromptInputBox
-            value={draft}
-            onChange={setDraft}
-            onSend={handleSend}
-            onStop={stopStreaming}
-            isStreaming={isStreaming}
-            placeholder="Ask about any stock, market, or portfolio…"
-            webSearchEnabled={webSearchEnabled}
-            onWebSearchToggle={setWebSearchEnabled}
-            attachments={attachments}
-            onAttachmentsChange={setAttachments}
-            onAttachmentRemove={handleAttachmentRemove}
-          />
+          {guestAtLimit ? (
+            <div
+              role="region"
+              aria-label="Guest limit reached"
+              className="flex flex-col items-center gap-3 rounded-2xl border border-borderStrong bg-elevated/70 px-5 py-5 text-center backdrop-blur"
+            >
+              <div className="flex items-center gap-2 text-primary">
+                <Lock size={16} className="text-accent-brand" aria-hidden="true" />
+                <span className="text-sm font-medium">
+                  You&apos;ve used your free limit.
+                </span>
+              </div>
+              <p className="max-w-md text-sm text-secondary">
+                Continue to AlphaSight by logging in to keep chatting, save your
+                conversations, and unlock portfolio, watchlist, and daily brief.
+              </p>
+              <Link
+                href="/login?redirect=/"
+                className="relative inline-flex items-center justify-center rounded-full bg-accent-brand px-5 py-2 text-sm font-semibold text-inverse shadow-[0_0_0_4px_rgba(45,212,191,0.22),0_0_24px_4px_rgba(59,130,246,0.45)] ring-1 ring-accent-brand/70 transition-shadow hover:shadow-[0_0_0_4px_rgba(45,212,191,0.32),0_0_32px_8px_rgba(59,130,246,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+              >
+                Log in to continue
+              </Link>
+            </div>
+          ) : (
+            <PromptInputBox
+              value={draft}
+              onChange={setDraft}
+              onSend={handleSend}
+              onStop={stopStreaming}
+              isStreaming={isStreaming}
+              placeholder="Ask about any stock, market, or portfolio…"
+              webSearchEnabled={webSearchEnabled}
+              onWebSearchToggle={setWebSearchEnabled}
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              onAttachmentRemove={handleAttachmentRemove}
+            />
+          )}
           <p className="mt-2 text-center text-[11px] text-muted">
-            AlphaSight can make mistakes. Verify critical financial decisions.
+            {isGuest && !guestAtLimit && guestRemaining !== null
+              ? `${guestRemaining} free ${guestRemaining === 1 ? 'prompt' : 'prompts'} remaining. AlphaSight can make mistakes. Verify critical financial decisions.`
+              : 'AlphaSight can make mistakes. Verify critical financial decisions.'}
           </p>
         </div>
       </div>

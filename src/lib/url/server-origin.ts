@@ -18,5 +18,14 @@ export function getRequestOrigin(request: NextRequest): string {
     return normalizeOrigin(`${forwardedProto}://${forwardedHost}`);
   }
 
+  // On Vercel, request.nextUrl.origin may return the internal deployment URL
+  // (e.g. bearbot.vercel.app) instead of the custom domain. The Host header
+  // always reflects what the browser actually sent, so prefer it as fallback.
+  const host = request.headers.get("host");
+  if (host) {
+    const proto = forwardedProto || "https";
+    return normalizeOrigin(`${proto}://${host}`);
+  }
+
   return normalizeOrigin(request.nextUrl.origin);
 }

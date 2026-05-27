@@ -96,6 +96,127 @@ function isMemoryQuery(message: string): boolean {
   );
 }
 
+const FOLLOWUP_CONFIRMATION_PATTERN =
+  /^\s*(yes+|yeah+|yep+|yup+|sure|ok+|okay+|alright|fine|cool|great|do it|go ahead|go for it|please do|yes do|yes do that|do that|do this|proceed|continue|carry on|keep going|that works|sounds good|lets do it|let's do it|make it happen)\b[!.?\s]*$/i;
+const ASSISTANT_ACTION_PROMPT_PATTERN =
+  /\b(do you want me to|want me to|should i|shall i|can i|would you like me to|i can (?:also|do|help)|if you want,? i can)\b/i;
+
+function normalizeNoisyEnglish(message: string): string {
+  let out = message
+    .replace(/\bu\b/gi, "you")
+    .replace(/\bur\b/gi, "your")
+    .replace(/\burs\b/gi, "yours")
+    .replace(/\bwht\b/gi, "what")
+    .replace(/\bwat\b/gi, "what")
+    .replace(/\babt\b/gi, "about")
+    .replace(/\bbcz\b/gi, "because")
+    .replace(/\bcoz\b/gi, "because")
+    .replace(/\bcuz\b/gi, "because")
+    .replace(/\bpls\b/gi, "please")
+    .replace(/\bplz\b/gi, "please")
+    .replace(/\bmsg\b/gi, "message")
+    .replace(/\bqn\b/gi, "question")
+    .replace(/\bans\b/gi, "answer")
+    .replace(/\bthx\b/gi, "thanks")
+    .replace(/\btho\b/gi, "though")
+    .replace(/\bidk\b/gi, "I don't know")
+    .replace(/\bim\b/gi, "I'm")
+    .replace(/\bive\b/gi, "I've")
+    .replace(/\bcant\b/gi, "can't")
+    .replace(/\bwont\b/gi, "won't")
+    .replace(/\bdont\b/gi, "don't")
+    .replace(/\bdoesnt\b/gi, "doesn't")
+    .replace(/\bhasnt\b/gi, "hasn't")
+    .replace(/\bhavent\b/gi, "haven't")
+    .replace(/([a-zA-Z])\1{2,}/g, "$1$1")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!out) out = message.trim();
+  return out;
+}
+
+function isLikelyAffirmativeFollowup(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed) return false;
+  if (FOLLOWUP_CONFIRMATION_PATTERN.test(trimmed)) return true;
+  if (trimmed.length > 80) return false;
+
+  const normalized = normalizeNoisyEnglish(trimmed).toLowerCase();
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const positiveWords = new Set([
+    "yes",
+    "yeah",
+    "yep",
+    "yup",
+    "sure",
+    "okay",
+    "ok",
+    "alright",
+    "fine",
+    "great",
+    "cool",
+    "please",
+    "do",
+    "go",
+    "proceed",
+    "continue",
+    "carry",
+    "keep",
+    "works",
+    "done",
+  ]);
+  const actionWords = new Set(["do", "go", "proceed", "continue", "carry", "keep", "start"]);
+
+  const hasPositive = tokens.some((t) => positiveWords.has(t));
+  const hasAction = tokens.some((t) => actionWords.has(t));
+  const hasNegation = /\b(no|not|don't|dont|stop|cancel|wait)\b/i.test(normalized);
+  if (hasNegation) return false;
+  return hasPositive && (hasAction || tokens.length <= 4);
+}
+
+function extractLastAssistantTurn(
+  history: Array<{ role: "user" | "assistant"; content: string }>
+): string | null {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role === "assistant") {
+      const c = history[i].content.trim();
+      return c ? c : null;
+    }
+  }
+  return null;
+}
+
+function looksLikeAssistantActionPrompt(text: string): boolean {
+  return ASSISTANT_ACTION_PROMPT_PATTERN.test(text) || /\?\s*$/.test(text.trim());
+}
+
+function buildConversationAnchorBlock(
+  early: Array<{ role: "user" | "assistant"; content: string }>,
+  recent: Array<{ role: "user" | "assistant"; content: string }>
+): string {
+  const clip = (value: string, max = 220) =>
+    value.replace(/\s+/g, " ").trim().slice(0, max);
+  const render = (rows: Array<{ role: "user" | "assistant"; content: string }>) =>
+    rows
+      .filter((row) => row.content.trim().length > 0)
+      .map((row) => `- ${row.role === "user" ? "User" : "Assistant"}: ${clip(row.content)}`)
+      .join("\n");
+
+  const earlyBlock = render(early);
+  const recentBlock = render(recent);
+  if (!earlyBlock && !recentBlock) return "";
+
+  return [
+    "Conversation continuity anchors (thread start and latest context):",
+    earlyBlock ? `Thread start:\n${earlyBlock}` : "",
+    recentBlock ? `Latest context:\n${recentBlock}` : "",
+    "Use this to maintain continuity across the whole chat. If the user says 'yes/do that', continue the most recent assistant proposal instead of restarting from scratch.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
@@ -512,6 +633,7 @@ export async function POST(request: NextRequest) {
 
     const attachmentContext = formatAttachmentContext(attachmentSummaries);
     const composedMessage = [incomingMessage, attachmentContext].filter(Boolean).join("\n\n").trim();
+    const normalizedMessage = normalizeNoisyEnglish(composedMessage);
 
     if (!composedMessage) {
       return chatJsonResponse("Please enter a message.", 400, {
@@ -584,13 +706,16 @@ export async function POST(request: NextRequest) {
     }
 
     recordProgress("Loading conversation history and preferences", 18);
-    const wantsMemoryAnswer = isMemoryQuery(composedMessage);
+    const wantsMemoryAnswer = isMemoryQuery(composedMessage) || isMemoryQuery(normalizedMessage);
 
-    type HistoryRow = { role: string; content: string; metadata: unknown };
+    type HistoryRow = { id?: string; role: string; content: string; metadata: unknown };
+    type AnchorRow = { id: string; role: "user" | "assistant"; content: string };
     type PrefsRow = { language_mode?: string; default_market?: string; currency?: string; theme?: string };
-    const [historyResponse, userMemoryBase, prefsResponse, semanticMemoryRows] = isGuest
+    const [historyResponse, anchorStartResponse, anchorEndResponse, userMemoryBase, prefsResponse, semanticMemoryRows] = isGuest
       ? ([
           { data: [] as HistoryRow[], error: null },
+          { data: [] as AnchorRow[], error: null },
+          { data: [] as AnchorRow[], error: null },
           "",
           { data: null as PrefsRow | null, error: null },
           [] as Awaited<ReturnType<typeof searchMemories>>,
@@ -598,10 +723,24 @@ export async function POST(request: NextRequest) {
       : await Promise.all([
           supabase
             .from("messages")
-            .select("role, content, metadata")
+            .select("id, role, content, metadata")
             .eq("conversation_id", activeConversationId!)
             .order("created_at", { ascending: false })
-            .limit(12),
+            .limit(20),
+          supabase
+            .from("messages")
+            .select("id, role, content")
+            .eq("conversation_id", activeConversationId!)
+            .in("role", ["user", "assistant"])
+            .order("created_at", { ascending: true })
+            .limit(14),
+          supabase
+            .from("messages")
+            .select("id, role, content")
+            .eq("conversation_id", activeConversationId!)
+            .in("role", ["user", "assistant"])
+            .order("created_at", { ascending: false })
+            .limit(14),
           buildUserContext(supabase, user!.id).catch((err) => {
             console.warn("[chat-api] buildUserContext failed", err);
             return "";
@@ -613,7 +752,7 @@ export async function POST(request: NextRequest) {
             .maybeSingle(),
           wantsMemoryAnswer
             ? listRecentMemories(supabase, user!.id, { limit: 10 })
-            : searchMemories(supabase, user!.id, composedMessage),
+            : searchMemories(supabase, user!.id, normalizedMessage || composedMessage),
         ]);
 
     recordProgress("Saving your message", 22);
@@ -714,6 +853,9 @@ export async function POST(request: NextRequest) {
             : "";
         return { role: metadata.role, content: `${metadata.content ?? ""}${fileContext}` };
       });
+    const anchorStartRows = (anchorStartResponse.data ?? []) as AnchorRow[];
+    const anchorEndRows = ((anchorEndResponse.data ?? []) as AnchorRow[]).reverse();
+    const conversationAnchorBlock = buildConversationAnchorBlock(anchorStartRows, anchorEndRows);
     const isFirstAssistantTurn =
       !conversationHistory.some((entry) => entry.role === "assistant");
 
@@ -722,6 +864,17 @@ export async function POST(request: NextRequest) {
     let chatMode: "stock" | "general" = "general";
     let generalKind: "brief" | "normal" = "normal";
     let isDetailedStockRequest = false;
+    const isConfirmationFollowup = isLikelyAffirmativeFollowup(composedMessage);
+    const lastAssistantTurn = extractLastAssistantTurn(conversationHistory);
+    if (
+      isConfirmationFollowup &&
+      lastAssistantTurn &&
+      looksLikeAssistantActionPrompt(lastAssistantTurn)
+    ) {
+      llmMessage = `${composedMessage}
+
+(Conversation instruction: The user is confirming your immediately previous proposal/request. Continue by doing what you just offered in the previous assistant turn. Do not restart the topic. Previous assistant turn: "${lastAssistantTurn.slice(0, 1200)}")`;
+    }
 
     // Coreference resolution: if the user said "tell me about that" / "what
     // about its dividend?", rewrite into a standalone query naming the entity
@@ -738,7 +891,7 @@ export async function POST(request: NextRequest) {
     let llmIntent: MessageClassification;
     try {
       llmIntent = await withTimeout(
-        classifyMessage(composedMessage, conversationHistory),
+        classifyMessage(normalizedMessage || composedMessage, conversationHistory),
         4000,
         "classifyMessage"
       );
@@ -784,12 +937,15 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    let routingMessage = composedMessage;
-    if (!earlySmallTalk && needsRewrite(composedMessage, conversationHistory.length > 0)) {
+    let routingMessage = normalizedMessage || composedMessage;
+    if (
+      !earlySmallTalk &&
+      needsRewrite(normalizedMessage || composedMessage, conversationHistory.length > 0)
+    ) {
       recordProgress("Resolving references from previous turns", 26);
       try {
         routingMessage = await withTimeout(
-          rewriteFollowupQuery(composedMessage, conversationHistory),
+          rewriteFollowupQuery(normalizedMessage || composedMessage, conversationHistory),
           4500,
           "rewriteFollowupQuery"
         );
@@ -800,7 +956,7 @@ export async function POST(request: NextRequest) {
         );
         routingMessage = composedMessage;
       }
-      if (routingMessage !== composedMessage) {
+      if (routingMessage !== (normalizedMessage || composedMessage)) {
         // Give the LLM both: the explicit standalone query (for accuracy) and
         // the user's original phrasing (for natural reply tone).
         llmMessage = `${composedMessage}\n\n(Resolved standalone form for your reasoning, do not echo verbatim: "${routingMessage}")`;
@@ -943,11 +1099,17 @@ export async function POST(request: NextRequest) {
     //     the old "hi" -> portfolio dump bug.
     //   - everything else: full context, as before.
     if (earlySmallTalk && !wantsMemoryAnswer) {
-      userMemory = [semanticMemoryBlock, userProfileContext, languageInstruction]
+      userMemory = [semanticMemoryBlock, conversationAnchorBlock, userProfileContext, languageInstruction]
         .filter((s) => s && s.length > 0)
         .join("\n\n");
     } else {
-      userMemory = [semanticMemoryBlock, userProfileContext, userMemoryBase, languageInstruction]
+      userMemory = [
+        semanticMemoryBlock,
+        conversationAnchorBlock,
+        userProfileContext,
+        userMemoryBase,
+        languageInstruction,
+      ]
         .filter((s) => s && s.length > 0)
         .join("\n\n");
     }

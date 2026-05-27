@@ -4,8 +4,12 @@ import {
   classifyMessage,
   streamChat,
   validateAiSetup,
+  generatePlan,
+  shouldUsePlanner,
   type MessageClassification,
+  type ChatPlan,
 } from "@/lib/ai";
+import { validateCerebrasSetup } from "@/lib/ai/cerebras";
 import {
   searchWeb,
   validateSerpApiSetup,
@@ -736,6 +740,33 @@ export async function POST(request: NextRequest) {
     const earlySmallTalk = !wantsMemoryAnswer && llmIntent.kind === "small_talk";
     console.debug("[chat-api] llm classifier", llmIntent);
 
+    // Plan-then-execute gate: only complex authenticated queries get the
+    // planner. Guests, small-talk, and short/tiny intents stay on the
+    // single-model fast path so latency does not regress. When triggered,
+    // the planner call is kicked off here so it overlaps with rewrite +
+    // symbol/quote/web-search work that the route already awaits below.
+    const useAgentPath = shouldUsePlanner({
+      isGuest,
+      earlySmallTalk,
+      wantsMemoryAnswer,
+      cerebrasValid: validateCerebrasSetup().valid,
+      thinkMode,
+      hasImageAttachments,
+      depth: llmIntent.depth,
+      kind: llmIntent.kind,
+    });
+    const planPromise: Promise<ChatPlan | null> = useAgentPath
+      ? generatePlan(composedMessage, conversationHistory, { timeoutMs: 2500 }).catch(() => null)
+      : Promise.resolve(null);
+    if (useAgentPath) {
+      console.debug("[chat-api] agent path armed", {
+        depth: llmIntent.depth,
+        kind: llmIntent.kind,
+        thinkMode,
+        hasImageAttachments,
+      });
+    }
+
     let routingMessage = composedMessage;
     if (!earlySmallTalk && needsRewrite(composedMessage, conversationHistory.length > 0)) {
       recordProgress("Resolving references from previous turns", 26);
@@ -1036,10 +1067,16 @@ export async function POST(request: NextRequest) {
 
     let llmStream: ReadableStream<Uint8Array>;
     let usedProvider = "unknown";
+    let resolvedPlan: ChatPlan | null = null;
     try {
       recordProgress(`Opening ${chatMode === "stock" ? "stock analysis" : "general chat"} LLM stream`, 80);
       console.debug("[chat-api] opening LLM stream", { mode: chatMode });
       const hasWebSearch = Boolean(webSearch && webSearch.sources.length > 0);
+      // Planner ran in parallel with data fetches; await it here. On a deep
+      // stock query the symbol+quote+history+news work already burned the
+      // planner's budget, so this await is effectively free. The promise
+      // never rejects (generatePlan swallows errors and returns null).
+      resolvedPlan = await planPromise;
       const result = await withTimeout(
         streamChat({
           mode: chatMode,
@@ -1049,6 +1086,7 @@ export async function POST(request: NextRequest) {
           kind: generalKind,
           model: requestedModel,
           userMemory: userMemory || undefined,
+          plan: resolvedPlan,
           routing: {
             kind: wantsMemoryAnswer ? "general_other" : llmIntent.kind,
             depth: wantsMemoryAnswer ? "short" : llmIntent.depth,
@@ -1254,8 +1292,11 @@ export async function POST(request: NextRequest) {
       "X-Has-Stock-Data": userExplicitlyAskedAboutStock ? "true" : "false",
       "X-Has-Web-Sources": hasWebSources ? "true" : "false",
       "Access-Control-Expose-Headers":
-        "X-Conversation-Id, X-Has-Stock-Data, X-Stock-Symbol, X-Stock-Exchange, X-Has-Web-Sources, X-Guest",
+        "X-Conversation-Id, X-Has-Stock-Data, X-Stock-Symbol, X-Stock-Exchange, X-Has-Web-Sources, X-Guest, X-Agent-Mode",
     };
+    if (resolvedPlan) {
+      responseHeaders["X-Agent-Mode"] = "plan-execute";
+    }
     if (conversationId) {
       responseHeaders["X-Conversation-Id"] = conversationId;
     }

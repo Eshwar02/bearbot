@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import {
@@ -195,15 +194,9 @@ export function Sidebar() {
           <div className="mx-1 mt-2 rounded-lg border border-borderSubtle bg-canvas px-3 py-3 text-[12px] leading-relaxed text-secondary">
             <p className="mb-2 text-primary">You&apos;re using AlphaSight as a guest.</p>
             <p className="mb-3 text-muted">
-              Log in to save chats and unlock Portfolio, Watchlist, and the
+              Use the top-right Log in button to save chats and unlock Portfolio, Watchlist, and the
               Daily Brief.
             </p>
-            <Link
-              href="/login?redirect=/"
-              className="inline-flex w-full items-center justify-center rounded-md bg-accent-brand px-3 py-1.5 text-[12px] font-semibold text-inverse transition-shadow hover:shadow-[0_0_18px_2px_rgba(59,130,246,0.45)]"
-            >
-              Log in
-            </Link>
           </div>
         )}
         {!isGuest && grouped.length === 0 && (

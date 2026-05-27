@@ -56,7 +56,7 @@ function readStoredTheme(): Theme {
     if (isTheme(attr)) return attr;
     return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
   }
-  return 'dark';
+  return 'light';
 }
 
 function applyTheme(theme: Theme) {
@@ -74,7 +74,7 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>('dark');
+  const [theme, setThemeState] = React.useState<Theme>('light');
 
   React.useEffect(() => {
     const initial = readStoredTheme();
@@ -109,7 +109,7 @@ export function useTheme(): ThemeContextValue {
   const ctx = React.useContext(ThemeContext);
   if (!ctx) {
     return {
-      theme: 'dark',
+      theme: 'light',
       setTheme: () => {},
       toggleTheme: () => {},
     };

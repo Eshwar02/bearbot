@@ -14,6 +14,10 @@ interface ProvidersProps {
   children: ReactNode;
 }
 
+function contentText(content: unknown): string {
+  return typeof content === 'string' ? content : '';
+}
+
 export function Providers({ children }: ProvidersProps) {
   const prefs = usePrefs();
   const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
@@ -139,7 +143,7 @@ export function Providers({ children }: ProvidersProps) {
           (m) =>
             m.conversation_id === conversationId &&
             m.role === 'assistant' &&
-            (m.isStreaming || !m.content.trim()),
+            (m.isStreaming || !contentText(m.content).trim()),
         );
       if (!isActiveStream) {
         setIsLoadingConversation(true);
@@ -198,6 +202,7 @@ export function Providers({ children }: ProvidersProps) {
 
               return {
                 ...message,
+                content: contentText(message.content),
                 ...(stockData ? { stockData: stockData as ChatMessage['stockData'] } : {}),
                 ...(newsData ? { newsData: newsData as ChatMessage['newsData'] } : {}),
                 ...(sources ? { sources: sources as ChatMessage['sources'] } : {}),
@@ -212,7 +217,7 @@ export function Providers({ children }: ProvidersProps) {
             (m) =>
               m.conversation_id === conversationId &&
               m.role === 'assistant' &&
-              (m.isStreaming || !m.content.trim()),
+              (m.isStreaming || !contentText(m.content).trim()),
           );
           if (hasPendingAssistant || state.isStreaming) {
             console.debug('[providers] skipped overwrite due pending assistant', conversationId);
@@ -228,18 +233,18 @@ export function Providers({ children }: ProvidersProps) {
           const localAssistantWithText = state.messages.some(
             (m) =>
               m.role === 'assistant' &&
-              m.content.trim().length > 0 &&
+              contentText(m.content).trim().length > 0 &&
               // optimistic assistant can briefly have empty conversation_id
               (m.conversation_id === conversationId || !m.conversation_id),
           );
           const mappedAssistantWithText = mappedMessages.some(
-            (m) => m.role === 'assistant' && m.content.trim().length > 0,
+            (m) => m.role === 'assistant' && contentText(m.content).trim().length > 0,
           );
           const mappedIds = new Set(mappedMessages.map((m) => m.id));
           const hasUnpersistedLocalAssistant = state.messages.some(
             (m) =>
               m.role === 'assistant' &&
-              m.content.trim().length > 0 &&
+              contentText(m.content).trim().length > 0 &&
               (m.conversation_id === conversationId || !m.conversation_id) &&
               !mappedIds.has(m.id),
           );
@@ -253,7 +258,7 @@ export function Providers({ children }: ProvidersProps) {
           // If local has more rows than DB (persist delay), keep local.
           if (
             localForConv.length > mappedMessages.length &&
-            localForConv.some((m) => m.role === 'assistant' && m.content.trim().length > 0)
+            localForConv.some((m) => m.role === 'assistant' && contentText(m.content).trim().length > 0)
           ) {
             console.debug('[providers] keeping local — DB read stale', conversationId);
             return;

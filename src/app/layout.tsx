@@ -77,8 +77,19 @@ const themeInitScript = `
 (function() {
   try {
     var stored = localStorage.getItem('theme');
+    var hasAuthSession = false;
+    for (var i = 0; i < localStorage.length; i++) {
+      var key = localStorage.key(i) || '';
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        var token = localStorage.getItem(key);
+        if (token && token !== 'null') {
+          hasAuthSession = true;
+          break;
+        }
+      }
+    }
     var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var theme = stored || (prefersDark ? 'dark' : 'light');
+    var theme = stored || (hasAuthSession && prefersDark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.classList.toggle('dark', theme === 'dark' || theme === 'blue');
   } catch (e) {}

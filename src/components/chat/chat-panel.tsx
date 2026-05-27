@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { RESPONSE_GENERATED_EVENT, useChat } from '@/lib/hooks/use-chat';
@@ -204,15 +203,9 @@ export function ChatPanel() {
                 </span>
               </div>
               <p className="max-w-md text-sm text-secondary">
-                Continue to AlphaSight by logging in to keep chatting, save your
+                Continue to AlphaSight by using the top-right Log in button to keep chatting, save your
                 conversations, and unlock portfolio, watchlist, and daily brief.
               </p>
-              <Link
-                href="/login?redirect=/"
-                className="relative inline-flex items-center justify-center rounded-full bg-accent-brand px-5 py-2 text-sm font-semibold text-inverse shadow-[0_0_0_4px_rgba(45,212,191,0.22),0_0_24px_4px_rgba(59,130,246,0.45)] ring-1 ring-accent-brand/70 transition-shadow hover:shadow-[0_0_0_4px_rgba(45,212,191,0.32),0_0_32px_8px_rgba(59,130,246,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
-              >
-                Log in to continue
-              </Link>
             </div>
           ) : (
             <PromptInputBox

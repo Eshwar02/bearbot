@@ -72,7 +72,7 @@ AlphaSight AI implements the following security measures:
 
 For any security related concerns, reach out to us at:
 
-📧 **support@alphasight.ai**
+📧 **support@alphasightai.online**
 💬 GitHub Discussions
 
 ---

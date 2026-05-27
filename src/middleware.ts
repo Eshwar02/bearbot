@@ -24,11 +24,9 @@ function isCrawler(request: NextRequest): boolean {
 }
 
 // Marketing subdomains: when a request lands on info./about./… and asks for
-// the bare root, rewrite to the matching internal route before the auth
-// gate runs. Doing this in the proxy (not next.config.ts rewrites) avoids two
-// problems: (1) Turbopack's spottier rewrite support, and (2) the proxy
-// otherwise sees the un-rewritten "/" path and bounces unauthenticated users
-// to /login.
+// the bare root, redirect to the matching route on the main app origin before
+// the auth gate runs. This avoids serving any page on the broken subdomain
+// host and keeps auth/session state on the same origin as the chat app.
 const SUBDOMAIN_ROUTES: Record<string, string> = {
   "info.alphasightai.online": "/info",
   "about.alphasightai.online": "/about",
@@ -43,10 +41,14 @@ export async function middleware(request: NextRequest) {
   // working normally.
   const host = request.headers.get("host") || "";
   const subdomainTarget = SUBDOMAIN_ROUTES[host];
-  if (subdomainTarget && pathname === "/") {
-    const rewriteUrl = request.nextUrl.clone();
-    rewriteUrl.pathname = subdomainTarget;
-    return NextResponse.rewrite(rewriteUrl);
+  if (subdomainTarget) {
+    const appOrigin =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      request.nextUrl.origin;
+    const redirectUrl = new URL(pathname === "/" ? subdomainTarget : pathname, appOrigin);
+    redirectUrl.search = request.nextUrl.search;
+    return NextResponse.redirect(redirectUrl);
   }
 
   let response: NextResponse;

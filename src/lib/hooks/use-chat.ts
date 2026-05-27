@@ -5,6 +5,13 @@ import { useAppStore, type ChatMessage } from '@/stores/app-store';
 import { generateId } from '@/lib/utils';
 import { useAIProgress } from '@/lib/hooks/use-ai-progress';
 import { normalizeChatContent } from '@/lib/chat-content';
+import { useAuth } from '@/lib/hooks/use-auth';
+import {
+  GUEST_PROMPT_LIMIT,
+  getGuestPromptCount,
+  incrementGuestPromptCount,
+  resetGuestPromptCount,
+} from '@/lib/guest/limit';
 
 const EMPTY_RESPONSE_FALLBACK =
   'Unable to generate analysis right now. Showing available data below.';
@@ -64,6 +71,13 @@ export function useChat() {
 
   const { beginPrompt, startStep, updateProgress, finishAll, updatePhase, trackSearchSource, completeCurrentTask } =
     useAIProgress();
+  const { user } = useAuth();
+  const isGuest = !user;
+  // Wipe the guest counter the moment a user is authenticated so their old
+  // pre-login tries don't carry into the signed-in experience.
+  useEffect(() => {
+    if (user) resetGuestPromptCount();
+  }, [user]);
   const abortRef = useRef<AbortController | null>(null);
   const frameBatchRef = useRef<AIProgressFrame[]>([]);
   const frameFlushTimerRef = useRef<number | null>(null);
@@ -180,6 +194,12 @@ export function useChat() {
       },
     ): Promise<boolean> => {
       if (isStreaming) return false;
+
+      // Guest hard-stop: drop the send once they've used their free turns.
+      // The UI shows a banner + glowing Log in button instead.
+      if (isGuest && getGuestPromptCount() >= GUEST_PROMPT_LIMIT) {
+        return false;
+      }
 
       const attachments = opts?.attachments ?? [];
       const trimmedContent = content.trim();
@@ -352,6 +372,9 @@ export function useChat() {
 
         const newConvId = res.headers.get('x-conversation-id');
         const effectiveConversationId = newConvId || activeConversationId;
+        if (isGuest) {
+          incrementGuestPromptCount();
+        }
         let shouldReplaceUrlAfterStream = false;
         if (newConvId && !activeConversationId) {
           // Stamp local messages with the new conversation_id FIRST so the

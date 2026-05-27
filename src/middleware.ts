@@ -7,7 +7,11 @@ type SetAllCookies = (
   cookies: Array<{ name: string; value: string; options?: CookieOptions }>
 ) => void;
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about", "/privacy", "/terms", "/disclaimer", "/contact"];
+// Guests are allowed on the chat page ("/") so they can try the product. The
+// chat API enforces its own 5-prompt cap for unauthenticated callers. Every
+// other in-app surface (portfolio, watchlist, brief, settings, profile) still
+// gates on auth and bounces to /login.
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about", "/privacy", "/terms", "/disclaimer", "/contact"];
 
 // Search-engine + verification crawlers. When one of these hits a protected
 // page we rewrite to the marketing landing instead of redirecting to /login,

@@ -14,11 +14,23 @@ export function JsonLd({ data }: JsonLdProps) {
 export const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
+  '@id': `${siteConfig.url}/#organization`,
   name: siteConfig.name,
+  alternateName: siteConfig.shortName,
   url: siteConfig.url,
-  logo: `${siteConfig.url}/icon-512.svg`,
+  logo: {
+    '@type': 'ImageObject',
+    url: `${siteConfig.url}/icon-512.svg`,
+    width: 512,
+    height: 512,
+  },
+  image: `${siteConfig.url}/icon-512.svg`,
+  description: siteConfig.longDescription,
+  slogan: siteConfig.tagline,
+  email: siteConfig.email,
   sameAs: [
     'https://twitter.com/alphasightai',
+    'https://x.com/alphasightai',
     'https://www.linkedin.com/company/alphasightai',
     'https://github.com/alphasightai',
   ],
@@ -27,6 +39,11 @@ export const organizationSchema = {
     email: siteConfig.email,
     contactType: 'customer support',
     availableLanguage: ['en'],
+    url: `${siteConfig.url}/contact`,
+  },
+  address: {
+    '@type': 'PostalAddress',
+    addressCountry: 'IN',
   },
 } as const;
 

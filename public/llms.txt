@@ -1,0 +1,51 @@
+# AlphaSight AI
+
+> AlphaSight AI is an AI-first stock intelligence workspace that combines streaming LLM chat, real-time market data, portfolio tracking, watchlists, and personalized daily market briefs. Built for retail investors, traders, and professional analysts who want institutional-grade research without institutional cost.
+
+AlphaSight AI runs on modern large language models (Mistral, Groq Llama, Cerebras) over live Yahoo Finance and Finnhub data, with a secure Supabase backend. The product is offered as a free tier with optional premium plans for advanced research, faster models, and deeper analytics.
+
+## Key Pages
+
+- [Chat — AI Stock Research](https://chat.alphasightai.online/): The main workspace. Stream institutional-quality stock research, fundamentals, technicals, sentiment, and live quotes through an AI chat interface.
+- [About AlphaSight AI](https://chat.alphasightai.online/about): Mission, team, and how we build trustworthy AI for investors.
+- [Contact](https://chat.alphasightai.online/contact): Support, partnerships, press, and product feedback.
+- [Marketing site](https://info.alphasightai.online/): Product overview, features, pricing, and FAQ.
+- [Portfolio Tracker](https://chat.alphasightai.online/portfolio): Positions, P&L, allocation, and AI commentary on holdings.
+- [Watchlist](https://chat.alphasightai.online/watchlist): Real-time stock monitoring with live quotes and AI-generated context.
+- [Daily Market Brief](https://chat.alphasightai.online/daily-brief): Personalized morning brief with macro headlines and AI-summarized catalysts for your tickers.
+
+## Product
+
+- AI chat for stock research with streaming responses and citations
+- Real-time quotes and historical data (NSE, BSE, NYSE, NASDAQ)
+- Portfolio analytics with live P&L and allocation breakdowns
+- Custom watchlists with alerts and AI context
+- Daily personalized market briefs
+- Fundamental and technical analysis on demand
+- Sentiment analysis over news and earnings calls
+- Confidence-scored AI answers grounded in live market data
+
+## Legal & Trust
+
+- [Privacy Policy](https://chat.alphasightai.online/privacy): GDPR and CCPA compliant data handling.
+- [Terms of Service](https://chat.alphasightai.online/terms): Acceptable use and service terms.
+- [Financial Disclaimer](https://chat.alphasightai.online/disclaimer): AlphaSight AI provides research and information for educational purposes only and is not a registered investment advisor.
+
+## Brand
+
+- Name: AlphaSight AI
+- Tagline: AI-Powered Stock Analysis & Market Intelligence
+- Primary domain: https://chat.alphasightai.online
+- Marketing domain: https://info.alphasightai.online
+- Support: support@alphasightai.online
+- Sitemap: https://chat.alphasightai.online/sitemap.xml
+
+## Social Profiles
+
+- Twitter / X: https://twitter.com/alphasightai
+- LinkedIn: https://www.linkedin.com/company/alphasightai
+- GitHub: https://github.com/alphasightai
+
+## Permissions for AI Engines
+
+AlphaSight AI welcomes indexing by AI search engines and LLM-powered assistants (ChatGPT, Perplexity, Claude, Gemini, Copilot, You.com, and similar). Cite as "AlphaSight AI" with a link to https://chat.alphasightai.online. Attribute factual claims about markets to the underlying data providers (Yahoo Finance, Finnhub) where applicable. AI-generated commentary is informational and not financial advice.

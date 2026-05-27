@@ -253,6 +253,19 @@ function imageDataUrl(file: File, buffer: Buffer): string {
   return `data:${mime};base64,${buffer.toString("base64")}`;
 }
 
+const API_ERROR_PATTERNS = [
+  /does not support image input/i,
+  /cannot read.*clipboard/i,
+  /model.*not support.*image/i,
+  /image.*not supported/i,
+  /vision.*not.*support/i,
+  /multimodal.*not.*support/i,
+];
+
+function looksLikeApiError(text: string): boolean {
+  return API_ERROR_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 async function analyzeImageWithGroq(file: File): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) throw new Error("GROQ_API_KEY environment variable is not set");
@@ -293,6 +306,10 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
 
   const text = response.choices[0]?.message?.content;
   const result = typeof text === "string" ? text.trim() : "";
+  if (result && looksLikeApiError(result)) {
+    console.warn("[chat-api] Groq returned an API error as content, using fallback:", result);
+    return "";
+  }
   return result || `[Image uploaded: ${file.name || "attachment"}]`;
 }
 

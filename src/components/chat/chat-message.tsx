@@ -245,7 +245,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
             </div>
 
             {/* Web sources footer - Clean, flat borders */}
-            {!isStreaming && message.sources && message.sources.length > 0 && (
+            {!isStreaming && Array.isArray(message.sources) && message.sources.length > 0 && (
               <div className="mt-4 rounded-lg border border-borderSubtle dark:border-borderStrong bg-elevated p-3">
                 <div className="mb-2 text-[11px] uppercase tracking-wide text-muted">
                   Sources

@@ -85,8 +85,8 @@
 | **Backend** | Next.js Route Handlers | Serverless API functions |
 | **Database** | Supabase (PostgreSQL) | RLS-enforced data isolation |
 | **Auth** | Supabase Auth (PKCE OAuth) | Secure passwordless & email flows |
-| **LLM** | Mistral (Large, Small) | Context-aware AI responses & embeddings |
-| **Market Data** | Yahoo Finance API | Real-time quotes & historical data |
+| **LLM** | Mistral + Cerebras | Context-aware AI responses, embeddings & low-latency routing |
+| **Market Data** | Yahoo Finance + Finnhub | Real-time quotes, profiles, fundamentals & historical data |
 | **News** | MarketAux, NewsData, Yahoo RSS | Multi-source news aggregation |
 | **Deployment** | Vercel | Serverless, edge-optimized hosting |
 
@@ -162,6 +162,12 @@ Theme, chart/news visibility, and notification toggles apply **instantly** to UI
 - pgvector embeddings for semantic facts ("prefers dividend stocks")
 - Top-K retrieval with similarity thresholding
 - Auto-extraction & deduplication on every chat turn
+
+### 7. **Confidence Scoring**
+- Source reliability scoring surfaces a response confidence meter directly in chat.
+
+### 8. **Shareable Responses**
+- Public share links preserve rendered chat output and improve markdown-safe message display.
 
 ---
 
@@ -299,6 +305,11 @@ vercel deploy
 - ✅ **Branding** - Unified brand icons across the app and public assets.
 - ✅ **Auth Reliability** - Wrote OAuth session cookies before redirecting to chat.
 - ✅ **SEO** - Improved crawler access with `llms.txt` and semantic HTML.
+- ✅ **Confidence Meter** - Added source reliability scoring and a visible confidence badge in chat.
+- ✅ **Response Sharing** - Added shareable response pages with safer chat rendering.
+- ✅ **Provider Upgrades** - Added the Cerebras provider and Finnhub fundamentals/profile data.
+- ✅ **UI Polish** - Refined sidebar chat typography and hover behavior, plus attachment-click feedback.
+- ✅ **Subdomain UX** - Fixed the info subdomain tab title.
 
 ### Recent Commits
 ```
@@ -314,6 +325,13 @@ e7aeb2c - fix: keep marketing pages on the working origin
 1daccea - feat: open chat to guests, enforce 5-prompt cap, unify brand icons
 fc4ab94 - fix(auth): write OAuth session cookies before redirecting to chat
 677fe8e - feat: improve GEO/SEO with AI crawler access, llms.txt, semantic HTML
+0942c39 - feat: add AI confidence meter with source reliability scoring
+63ddb6d - Fix shared response links and chat rendering
+8f3ef64 - Add Cerebras provider with intent-based routing
+0e73fe9 - Add Finnhub for US profile and fundamentals
+75d22b4 - Refine sidebar chat typography and hover behavior
+04fde8a - Add attachment click development notification
+50ba188 - Fix info subdomain tab title
 ```
 
 ---

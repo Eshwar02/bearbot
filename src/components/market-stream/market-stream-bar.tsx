@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Activity, Loader2 } from "lucide-react";
 import { TickerItem } from "./ticker-item";
 import type { MarketStreamItem } from "./types";
@@ -185,25 +185,33 @@ function ScrollingStream({
   paused: boolean;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const copyRef = useRef<HTMLDivElement>(null);
   const xRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number>(0);
-  const trackWidthRef = useRef(0);
+  const copyWidthRef = useRef(0);
 
-  // Re-measure ONLY when the set of tickers changes (add/remove/reorder),
-  // not on every price refresh. When the half-width changes we keep the
-  // visible offset stable by scaling xRef proportionally so the strip does
-  // not visually jump.
-  useEffect(() => {
-    const el = trackRef.current;
+  // Measure one full copy's width via a ref on the first replica. Using
+  // scrollWidth/N is brittle because if any copy fails to render at full
+  // width the modulo jumps the strip back too early and leaves blank space
+  // on the right. A single direct measurement is unambiguous.
+  useLayoutEffect(() => {
+    const el = copyRef.current;
     if (!el) return;
-    const newHalf = el.scrollWidth / 2;
-    const oldHalf = trackWidthRef.current;
-    if (oldHalf > 0 && newHalf > 0 && oldHalf !== newHalf) {
-      const progress = (-xRef.current) / oldHalf; // 0..1 within the loop
-      xRef.current = -progress * newHalf;
-    }
-    trackWidthRef.current = newHalf;
+    const measure = () => {
+      const w = el.scrollWidth;
+      if (w <= 0) return;
+      const prev = copyWidthRef.current;
+      if (prev > 0 && w !== prev) {
+        const progress = (-xRef.current) / prev;
+        xRef.current = -progress * w;
+      }
+      copyWidthRef.current = w;
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [keyset]);
 
   useEffect(() => {
@@ -211,15 +219,15 @@ function ScrollingStream({
       if (!lastTsRef.current) lastTsRef.current = ts;
       const rawDt = (ts - lastTsRef.current) / 1000;
       lastTsRef.current = ts;
-      // Cap dt so a backgrounded tab returning doesn't snap the strip
-      // forward by tens of pixels at once.
       const dt = rawDt > 0.05 ? 0.05 : rawDt;
 
       if (!paused) {
-        xRef.current -= SCROLL_SPEED * dt;
-        const half = trackWidthRef.current;
-        if (half > 0 && -xRef.current >= half) {
-          xRef.current += half;
+        const w = copyWidthRef.current;
+        if (w > 0) {
+          xRef.current -= SCROLL_SPEED * dt;
+          if (-xRef.current >= w) {
+            xRef.current += w;
+          }
         }
         if (trackRef.current) {
           trackRef.current.style.transform = `translate3d(${xRef.current}px,0,0)`;
@@ -238,15 +246,24 @@ function ScrollingStream({
   return (
     <div
       ref={trackRef}
-      className="flex h-full items-center will-change-transform"
+      className="flex h-full w-max items-center will-change-transform"
       style={{ contain: 'layout paint' }}
     >
-      {items.map((it) => (
-        <TickerItem key={`a-${it.key}`} item={it} />
-      ))}
-      {items.map((it) => (
-        <TickerItem key={`b-${it.key}`} item={it} />
-      ))}
+      <div ref={copyRef} className="flex h-full items-center">
+        {items.map((it) => (
+          <TickerItem key={`a-${it.key}`} item={it} />
+        ))}
+      </div>
+      <div className="flex h-full items-center" aria-hidden="true">
+        {items.map((it) => (
+          <TickerItem key={`b-${it.key}`} item={it} />
+        ))}
+      </div>
+      <div className="flex h-full items-center" aria-hidden="true">
+        {items.map((it) => (
+          <TickerItem key={`c-${it.key}`} item={it} />
+        ))}
+      </div>
     </div>
   );
 }

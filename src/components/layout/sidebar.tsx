@@ -14,8 +14,10 @@ import {
   ChevronLeft,
   Trash2,
   Newspaper,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getInsightsOrigin } from '@/lib/url/client-origin';
 import { useAppStore, type AppView } from '@/stores/app-store';
 import { useAuth } from '@/lib/hooks/use-auth';
 import type { Conversation } from '@/types/database';
@@ -258,6 +260,20 @@ export function Sidebar() {
       </div>
 
       <div className={cn('border-t border-borderSubtle p-2', isGuest && 'hidden')}>
+        {/* Insights lives on a separate subdomain in production. Rendered as a
+            real anchor so the browser cross-origin navigates and the wildcard
+            session cookie carries over. */}
+        <a
+          href={getInsightsOrigin()}
+          className={cn(
+            'relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px]',
+            'transition-colors duration-100',
+            'text-secondary hover:bg-elevated hover:text-primary',
+          )}
+        >
+          <TrendingUp size={15} />
+          <span className="leading-relaxed tracking-tightish">Insights</span>
+        </a>
         {navLinks.map((link) => {
           const isActive = activeView === link.view;
           return (

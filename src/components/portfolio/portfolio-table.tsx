@@ -1,8 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { Plus } from 'lucide-react';
 import { cn, formatCurrency, formatPercent } from '@/lib/utils';
+import { getInsightsCompanyUrl } from '@/lib/url/client-origin';
 import { Sparkline } from './sparkline';
 import type { PortfolioHolding } from '@/types/stock';
 
@@ -57,14 +57,17 @@ function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps
           const dayUp = dayChange >= 0;
           const returnsUp = h.livePnlPct >= 0;
           const invested = h.quantity * h.avg_buy_price;
-          const detailHref = `/portfolio/${encodeURIComponent(h.symbol)}`;
+          // Portfolio rows deep-link to the insights subdomain so users get
+          // the full screener-style company view instead of the legacy
+          // portfolio-symbol detail page.
+          const detailHref = getInsightsCompanyUrl(h.symbol);
 
           return (
             <li
               key={h.id}
               className="group transition-colors hover:bg-elevated-hover"
             >
-              <Link
+              <a
                 href={detailHref}
                 className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-[2fr_1.2fr_1.2fr_1fr_1fr_56px] md:items-center md:gap-4"
               >
@@ -142,7 +145,7 @@ function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps
                     <Plus className="h-4 w-4" />
                   </button>
                 </div>
-              </Link>
+              </a>
             </li>
           );
         })}

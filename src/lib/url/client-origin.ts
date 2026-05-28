@@ -4,6 +4,16 @@ function normalizeOrigin(origin: string): string {
 
 const PROD_ROOT = "alphasightai.online";
 const PROD_APP_ORIGIN = "https://chat.alphasightai.online";
+const PROD_INSIGHTS_ORIGIN = "https://insights.alphasightai.online";
+
+// Subdomains that host first-class app surfaces (not just marketing pages).
+// Auth + cookies are shared across all of them via the wildcard
+// `.alphasightai.online` cookie; we therefore keep traffic on its origin
+// instead of bouncing every page back to chat.
+const PRODUCT_HOSTS = new Set([
+  "chat.alphasightai.online",
+  "insights.alphasightai.online",
+]);
 
 function isProdHost(host: string): boolean {
   return host.endsWith(`.${PROD_ROOT}`) || host === PROD_ROOT;
@@ -31,8 +41,13 @@ export function getBrowserAppOrigin(): string {
     if (isVercelHost(host)) {
       return PROD_APP_ORIGIN;
     }
-    // On any alphasightai.online subdomain (info., about., …) the app itself
-    // lives on chat. — normalize so auth callbacks always come back there.
+    // First-class product subdomains keep their origin — they share the same
+    // wildcard auth cookie so the session works there directly.
+    if (PRODUCT_HOSTS.has(host)) {
+      return normalizeOrigin(window.location.origin);
+    }
+    // Marketing/legacy subdomains (info., about., …) normalize back to chat so
+    // their auth callbacks land on the canonical app origin.
     if (isProdHost(host) && host !== "chat.alphasightai.online") {
       return PROD_APP_ORIGIN;
     }
@@ -40,6 +55,53 @@ export function getBrowserAppOrigin(): string {
   }
 
   return PROD_APP_ORIGIN;
+}
+
+/**
+ * Origin of the chat product. Used when a non-chat surface (e.g. insights)
+ * needs to link back into the conversational app.
+ */
+export function getChatOrigin(): string {
+  if (process.env.NEXT_PUBLIC_CHAT_URL) {
+    return normalizeOrigin(process.env.NEXT_PUBLIC_CHAT_URL);
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host.endsWith(".localhost") || host.startsWith("127.")) {
+      // In local dev every product subdomain runs against the same Next server,
+      // so the chat surface is just the bare localhost origin.
+      const port = window.location.port ? `:${window.location.port}` : "";
+      return normalizeOrigin(`${window.location.protocol}//localhost${port}`);
+    }
+  }
+  return PROD_APP_ORIGIN;
+}
+
+/**
+ * Origin of the company-analysis product. Used by chat (and other surfaces)
+ * to deep-link to a ticker page.
+ */
+export function getInsightsOrigin(): string {
+  if (process.env.NEXT_PUBLIC_INSIGHTS_URL) {
+    return normalizeOrigin(process.env.NEXT_PUBLIC_INSIGHTS_URL);
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host.endsWith(".localhost") || host.startsWith("127.")) {
+      const port = window.location.port ? `:${window.location.port}` : "";
+      return normalizeOrigin(`${window.location.protocol}//insights.localhost${port}`);
+    }
+  }
+  return PROD_INSIGHTS_ORIGIN;
+}
+
+/**
+ * URL to a specific company's insights page. Centralizes the deep-link format
+ * so chat ticker chips, portfolio rows, and sidebar links stay consistent.
+ */
+export function getInsightsCompanyUrl(symbol: string): string {
+  const trimmed = symbol.trim().toUpperCase();
+  return `${getInsightsOrigin()}/${encodeURIComponent(trimmed)}`;
 }
 
 /**

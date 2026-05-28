@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { backtestEngine } from "@/lib/portfolio/backtestEngine";
 import type { BacktestHolding } from "@/lib/portfolio/backtestEngine";
+import { applyInsightsCors, corsPreflightResponse } from "@/lib/api/cors";
+
+function jsonWithCors(
+  request: NextRequest,
+  body: unknown,
+  init?: ResponseInit,
+): NextResponse {
+  return applyInsightsCors(request, NextResponse.json(body, init));
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return corsPreflightResponse(request);
+}
 
 /**
  * POST /api/portfolio/backtest
@@ -22,7 +35,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithCors(request, { error: "Unauthorized" }, { status: 401 });
     }
 
     // ── Parse + validate body ────────────────────────────────────────
@@ -33,9 +46,10 @@ export async function POST(request: NextRequest) {
     const { startDate: startStr, endDate: endStr } = body;
 
     if (!startStr || !endStr) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "startDate and endDate are required (ISO string)" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,16 +57,18 @@ export async function POST(request: NextRequest) {
     const endDate = new Date(endStr);
 
     if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Invalid date format — use ISO 8601 (YYYY-MM-DD)" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (startDate >= endDate) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "startDate must be before endDate" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -63,14 +79,15 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id);
 
     if (dbError) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Failed to fetch portfolio holdings" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     if (!holdings || holdings.length === 0) {
-      return NextResponse.json({
+      return jsonWithCors(request, {
         equityCurve: [],
         metrics: { totalReturn: 0, cagr: 0, maxDrawdown: 0, volatility: 0 },
       });
@@ -84,12 +101,13 @@ export async function POST(request: NextRequest) {
     // ── Delegate to engine ───────────────────────────────────────────
     const result = await backtestEngine(backtestHoldings, startDate, endDate);
 
-    return NextResponse.json(result);
+    return jsonWithCors(request, result);
   } catch (error) {
     console.error("POST /api/portfolio/backtest error:", error);
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

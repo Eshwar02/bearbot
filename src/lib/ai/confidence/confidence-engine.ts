@@ -1,5 +1,9 @@
 import type { ConfidenceScore, ConfidenceFactors } from './confidence-types';
-import { calculateAverageReliability, detectDuplicateDomains, normalizeSourceDomain } from './source-reliability';
+import {
+  calculateAverageReliability,
+  countFirstPartyFinancialDomains,
+  detectDuplicateDomains,
+} from './source-reliability';
 import {
   countUncertaintyPhrases,
   countFreshSources,
@@ -51,6 +55,25 @@ export function calculateConfidenceScore(factors: ConfidenceFactors): Confidence
   } else if (uniqueDomains.size === 1) {
     score += 3;
     bonuses.push('1 source cited (+3)');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // BONUS: Multi-source corroboration from first-party financial data
+  // When 2+ distinct first-party domains (insights, yahoo, finnhub) appear
+  // in the citations the answer is grounded in independently sourced live
+  // data — +5, capped at 100 by the clamp below.
+  // ─────────────────────────────────────────────────────────────────────────────
+  const explicitCorroboration =
+    typeof factors.corroborationBonus === 'number' ? factors.corroborationBonus : null;
+  const firstPartyCount = countFirstPartyFinancialDomains(domains);
+  if (explicitCorroboration !== null && explicitCorroboration > 0) {
+    score += explicitCorroboration;
+    bonuses.push(`Corroboration bonus (+${explicitCorroboration})`);
+    reasoning.push('Multiple first-party financial sources agree.');
+  } else if (firstPartyCount >= 2) {
+    score += 5;
+    bonuses.push(`First-party data corroboration ${firstPartyCount} sources (+5)`);
+    reasoning.push('Multiple first-party financial sources agree.');
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

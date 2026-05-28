@@ -11,7 +11,7 @@ type SetAllCookies = (
 // chat API enforces its own 5-prompt cap for unauthenticated callers. Every
 // other in-app surface (portfolio, watchlist, brief, settings, profile) still
 // gates on auth and bounces to /login.
-const PUBLIC_PATHS = ["/", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about", "/privacy", "/terms", "/disclaimer", "/contact"];
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/api/insights", "/info", "/about", "/insights", "/privacy", "/terms", "/disclaimer", "/contact"];
 
 // Search-engine + verification crawlers. When one of these hits a protected
 // page we rewrite to the marketing landing instead of redirecting to /login,
@@ -30,6 +30,16 @@ function isCrawler(request: NextRequest): boolean {
 const SUBDOMAIN_ROUTES: Record<string, string> = {
   "info.alphasightai.online": "/info",
   "about.alphasightai.online": "/about",
+};
+
+// Product subdomains: the request stays on the subdomain host but every path
+// is internally rewritten under the matching app route segment. So
+// insights.alphasightai.online/RELIANCE.NS serves /insights/RELIANCE.NS while
+// the URL bar still shows the insights subdomain. Asset paths and API routes
+// pass through untouched so static imports and /api/* keep working.
+const PRODUCT_SUBDOMAIN_REWRITES: Record<string, string> = {
+  "insights.alphasightai.online": "/insights",
+  "insights.localhost": "/insights",
 };
 
 const PROD_APP_HOST = "chat.alphasightai.online";
@@ -67,6 +77,21 @@ export async function middleware(request: NextRequest) {
     const redirectUrl = new URL(pathname === "/" ? subdomainTarget : pathname, appOrigin);
     redirectUrl.search = request.nextUrl.search;
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // Product subdomain: rewrite (200, internal) into the matching app segment
+  // so the URL bar stays on the subdomain while Next serves the corresponding
+  // app route. _next, /api, and static asset paths pass through untouched.
+  const productPrefix = PRODUCT_SUBDOMAIN_REWRITES[host];
+  if (
+    productPrefix &&
+    !pathname.startsWith("/_next") &&
+    !pathname.startsWith("/api") &&
+    !pathname.startsWith(productPrefix)
+  ) {
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = pathname === "/" ? productPrefix : `${productPrefix}${pathname}`;
+    return NextResponse.rewrite(rewriteUrl);
   }
 
   let response: NextResponse;

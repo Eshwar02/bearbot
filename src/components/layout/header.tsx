@@ -1,9 +1,8 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, LogOut, User, Palette } from 'lucide-react';
-import Image from 'next/image';
+import { Menu, LogOut, User, Palette, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/hooks/use-auth';
@@ -13,12 +12,14 @@ import {
 } from '@/lib/guest/limit';
 import { logger } from '@/lib/logger';
 import { cn } from '@/lib/utils';
+import { getChatOrigin } from '@/lib/url/client-origin';
 import { PWAInstallButton } from '@/components/ui/pwa-install-button';
 import { PersonalizationModal } from '@/components/ui/personalization-modal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const { user, loading: authLoading } = useAuth();
@@ -29,7 +30,18 @@ export function Header() {
   const [personalizationOpen, setPersonalizationOpen] = useState(false);
   const [initial, setInitial] = useState('A');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [chatHref, setChatHref] = useState<string>('/');
   const menuRef = useRef<HTMLDivElement>(null);
+  // Insights routes show a quick "Chat" jump button on the right side of the
+  // nav — we're a separate product surface and users expect a one-click hop
+  // back to the conversational app.
+  const onInsightsSurface = pathname?.startsWith('/insights') ?? false;
+
+  useEffect(() => {
+    if (onInsightsSurface) {
+      setChatHref(getChatOrigin() || '/');
+    }
+  }, [onInsightsSurface]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -86,6 +98,17 @@ export function Header() {
       <div className="flex-1" />
 
       <div className="flex items-center gap-2">
+        {onInsightsSurface && (
+          <Link
+            href={chatHref}
+            className="inline-flex items-center gap-1.5 rounded-full border border-borderSubtle bg-elevated px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-canvas hover:text-accent-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+            aria-label="Open the chat app"
+            title="Open chat"
+          >
+            <MessageSquare size={14} />
+            Chat
+          </Link>
+        )}
         <PWAInstallButton />
         {!authLoading && isGuest ? (
           <Link

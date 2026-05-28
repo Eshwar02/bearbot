@@ -2,13 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchQuote } from "@/lib/stock/data";
 import { resolveSymbol } from "@/lib/stock/symbols";
+import { applyInsightsCors, corsPreflightResponse } from "@/lib/api/cors";
 import type { PortfolioHolding } from "@/types/stock";
+
+function jsonWithCors(
+  request: NextRequest,
+  body: unknown,
+  init?: ResponseInit,
+): NextResponse {
+  return applyInsightsCors(request, NextResponse.json(body, init));
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return corsPreflightResponse(request);
+}
 
 /**
  * GET /api/portfolio - Fetch all holdings for the authenticated user
  * with current prices and P&L calculations.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -17,7 +30,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithCors(request, { error: "Unauthorized" }, { status: 401 });
     }
 
     const { data: holdings, error } = await supabase
@@ -27,14 +40,15 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Failed to fetch portfolio" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     if (!holdings || holdings.length === 0) {
-      return NextResponse.json({
+      return jsonWithCors(request, {
         holdings: [],
         totalValue: 0,
         totalInvested: 0,
@@ -90,7 +104,7 @@ export async function GET() {
     const totalPnlPercent =
       totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0;
 
-    return NextResponse.json({
+    return jsonWithCors(request, {
       holdings: enrichedHoldings,
       totalValue,
       totalInvested,
@@ -99,9 +113,10 @@ export async function GET() {
     });
   } catch (error) {
     console.error("GET /api/portfolio error:", error);
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -119,7 +134,7 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithCors(request, { error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -139,41 +154,46 @@ export async function POST(request: NextRequest) {
 
     // Validate inputs
     if (!symbol || typeof symbol !== "string") {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Symbol is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (typeof quantity !== "number" || quantity <= 0) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Quantity must be a positive number" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (typeof avgBuyPrice !== "number" || avgBuyPrice <= 0) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Average buy price must be a positive number" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Resolve and validate symbol
     const resolvedSymbol = await resolveSymbol(symbol);
     if (!resolvedSymbol) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Invalid stock symbol" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Fetch current quote to validate symbol and get current data
     const quote = await fetchQuote(resolvedSymbol);
     if (!quote) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Unable to fetch quote for symbol" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const currentPrice = quote.price;
@@ -187,11 +207,12 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existing) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         {
           error: "You already have a holding for this symbol. Update it instead.",
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -210,9 +231,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError || !holding) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Failed to add holding" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -222,7 +244,8 @@ export async function POST(request: NextRequest) {
     const pnl = currentValue - investedValue;
     const pnlPercent = investedValue > 0 ? (pnl / investedValue) * 100 : 0;
 
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       {
         holding: {
           ...holding,
@@ -232,13 +255,14 @@ export async function POST(request: NextRequest) {
           pnlPercent,
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("POST /api/portfolio error:", error);
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

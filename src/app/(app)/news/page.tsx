@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Newspaper,
@@ -9,6 +9,7 @@ import {
   ExternalLink,
   RefreshCw,
   AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -24,6 +25,9 @@ interface AggregatedNews {
     geopolitical: NewsItem[];
   };
   total: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
 }
 
 const CATEGORY_CONFIG = {
@@ -72,7 +76,7 @@ function NewsCard({ item }: { item: NewsItem }) {
       className="group block rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated overflow-hidden hover:border-accent-brand/30 hover:shadow-sm transition-all duration-200"
     >
       {item.imageUrl && !imgError && (
-        <div className="relative h-40 sm:h-48 overflow-hidden bg-skeleton">
+        <div className="relative h-40 sm:h-44 overflow-hidden bg-skeleton">
           <img
             src={item.imageUrl}
             alt=""
@@ -155,12 +159,14 @@ function CategorySection({
 export function NewsView() {
   const [data, setData] = useState<AggregatedNews | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const fetchNews = async (isRefresh = false) => {
+  const fetchNews = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await fetch('/api/news/aggregated');
+      const res = await fetch('/api/news/aggregated?offset=0&limit=50');
       if (res.ok) {
         const d = await res.json();
         setData(d);
@@ -171,11 +177,50 @@ export function NewsView() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (!data || !data.hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/news/aggregated?offset=${data.offset + data.limit}&limit=50`);
+      if (res.ok) {
+        const d: AggregatedNews = await res.json();
+        setData((prev) => {
+          if (!prev) return d;
+          return {
+            ...d,
+            news: [...prev.news, ...d.news],
+            categories: {
+              holdings: [...prev.categories.holdings, ...d.categories.holdings],
+              market: [...prev.categories.market, ...d.categories.market],
+              geopolitical: [...prev.categories.geopolitical, ...d.categories.geopolitical],
+            },
+          };
+        });
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [data, loadingMore]);
 
   useEffect(() => {
     fetchNews();
-  }, []);
+  }, [fetchNews]);
+
+  useEffect(() => {
+    if (!sentinelRef.current || loading) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: '300px' }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [loading, loadMore]);
 
   return (
     <div className="bg-canvas min-h-full">
@@ -190,11 +235,7 @@ export function NewsView() {
               Curated market, geopolitical & portfolio news
             </p>
           </div>
-          <Button
-            onClick={() => fetchNews(true)}
-            loading={refreshing}
-            size="md"
-          >
+          <Button onClick={() => fetchNews(true)} loading={refreshing} size="md">
             <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
             Refresh
           </Button>
@@ -222,11 +263,43 @@ export function NewsView() {
         )}
 
         {!loading && data && (
-          <div className="space-y-10">
-            <CategorySection category="market" items={data.categories.market} />
-            <CategorySection category="geopolitical" items={data.categories.geopolitical} />
-            <CategorySection category="holdings" items={data.categories.holdings} />
-          </div>
+          <>
+            <div className="space-y-10">
+              <CategorySection category="market" items={data.categories.market} />
+              <CategorySection category="geopolitical" items={data.categories.geopolitical} />
+              <CategorySection category="holdings" items={data.categories.holdings} />
+            </div>
+
+            {data.news.length > 0 && (
+              <>
+                <div className="mt-10">
+                  <h2 className="text-base font-semibold text-primary mb-4 flex items-center gap-2">
+                    <Newspaper className="h-4 w-4 text-accent-blue" />
+                    All Stories ({data.total})
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {data.news.map((item, i) => (
+                      <NewsCard key={`all-${i}`} item={item} />
+                    ))}
+                  </div>
+                </div>
+
+                <div ref={sentinelRef} className="h-10 mt-6 flex items-center justify-center">
+                  {loadingMore && (
+                    <div className="flex items-center gap-2 text-sm text-muted">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading more news...
+                    </div>
+                  )}
+                  {!data.hasMore && data.news.length > 0 && (
+                    <p className="text-xs text-muted">
+                      Showing all {data.total} stories
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </>
         )}
 
         {!loading && !data && (
@@ -234,20 +307,8 @@ export function NewsView() {
             <div className="rounded-full bg-elevated p-6 mb-4">
               <Newspaper className="h-10 w-10 text-muted" />
             </div>
-            <h2 className="text-lg font-semibold text-primary mb-1">
-              No news available
-            </h2>
-            <p className="text-sm text-muted mb-6">
-              Could not fetch news at this time. Try again later.
-            </p>
-          </div>
-        )}
-
-        {data && data.total > 0 && (
-          <div className="mt-8 pt-6 border-t border-borderSubtle text-center">
-            <p className="text-xs text-muted">
-              Showing {data.news.length} curated stories. Sources include NewsAPI, MarketAux & Google News.
-            </p>
+            <h2 className="text-lg font-semibold text-primary mb-1">No news available</h2>
+            <p className="text-sm text-muted mb-6">Could not fetch news at this time.</p>
           </div>
         )}
       </div>

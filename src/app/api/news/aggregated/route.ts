@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { fetchStockNews } from '@/lib/stock/news';
+import { fetchStockNews, fetchTopicNews } from '@/lib/stock/news';
 import { fetchQuote } from '@/lib/stock/data';
 import type { NewsItem } from '@/types/stock';
 
-const INDICES = ['^NSEI', '^BSESN'];
 const NSE_KEYWORDS = [
   'NSE India stock market today',
-  'Sensex Nifty 50 update',
-  'Indian stock market news',
+  'Sensex Nifty 50 news',
+  'Indian stock market',
+  'BSE NSE share market',
 ];
+
 const GEOPOLITICAL_KEYWORDS = [
-  'global economy geopolitics today',
-  'geopolitical risk market impact',
-  'international trade policy news',
+  'geopolitics global economy impact',
+  'geopolitical risk financial markets',
+  'international trade policy economy',
+  'global economic news today',
 ];
 
 function deduplicate(news: NewsItem[]): NewsItem[] {
@@ -35,6 +37,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+
     const { data: holdings } = await supabase
       .from('portfolio_holdings')
       .select('symbol, quantity, avg_buy_price')
@@ -42,51 +48,57 @@ export async function GET(request: NextRequest) {
 
     const portfolioSymbols = holdings?.map((h) => h.symbol) || [];
 
+    // Resolve company names via Yahoo quotes for better news matching
     const companyNames: Record<string, string> = {};
-    for (const symbol of portfolioSymbols) {
-      try {
-        const quote = await fetchQuote(symbol);
-        if (quote?.name) companyNames[symbol] = quote.name;
-      } catch {}
-    }
+    await Promise.all(
+      portfolioSymbols.map(async (symbol) => {
+        try {
+          const quote = await fetchQuote(symbol);
+          if (quote?.name && quote.name !== symbol) {
+            companyNames[symbol] = quote.name;
+          }
+        } catch {}
+      })
+    );
 
     const [holdingNewsResults, marketNews, geopoliticalNews] = await Promise.all([
+      // Fetch news for ALL holdings in parallel
       Promise.all(
-        portfolioSymbols.slice(0, 10).map(async (symbol) => {
-          const news = await fetchStockNews(symbol, companyNames[symbol] || symbol);
+        portfolioSymbols.map(async (symbol) => {
+          const name = companyNames[symbol] || symbol;
+          const news = await fetchStockNews(symbol, name);
           return news.map((item) => ({ ...item, symbol, category: 'holding' }));
         })
       ),
-      Promise.all(
-        NSE_KEYWORDS.map((q) => fetchStockNews('NSE', q))
-      ).then((results) => {
-        const flat = results.flat().map((item) => ({ ...item, category: 'market' as const }));
-        return deduplicate(flat).slice(0, 10);
-      }),
-      Promise.all(
-        GEOPOLITICAL_KEYWORDS.map((q) => fetchStockNews('global', q))
-      ).then((results) => {
-        const flat = results.flat().map((item) => ({ ...item, category: 'geopolitical' as const }));
-        return deduplicate(flat).slice(0, 8);
-      }),
+      // NSE / Indian market news — use dedicated topic fetcher
+      fetchTopicNews(NSE_KEYWORDS, 12, 30).then((items) =>
+        items.map((item) => ({ ...item, category: 'market' as const }))
+      ),
+      // Geopolitical news
+      fetchTopicNews(GEOPOLITICAL_KEYWORDS, 10, 25).then((items) =>
+        items.map((item) => ({ ...item, category: 'geopolitical' as const }))
+      ),
     ]);
 
-    const holdingsNews = deduplicate(holdingNewsResults.flat()).sort(
-      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    const holdingsNews = deduplicate(holdingNewsResults.flat())
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
-    const allNews = deduplicate([...holdingsNews, ...marketNews, ...geopoliticalNews]).sort(
-      (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    );
+    const allNews = deduplicate([...holdingsNews, ...marketNews, ...geopoliticalNews])
+      .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+
+    const paginated = allNews.slice(offset, offset + limit);
 
     return NextResponse.json({
-      news: allNews,
+      news: paginated,
       categories: {
         holdings: holdingsNews,
         market: marketNews,
         geopolitical: geopoliticalNews,
       },
       total: allNews.length,
+      offset,
+      limit,
+      hasMore: offset + limit < allNews.length,
     });
   } catch (error) {
     console.error('Aggregated news error:', error);

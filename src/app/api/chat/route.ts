@@ -53,6 +53,10 @@ import Groq from "groq-sdk";
 import * as XLSX from "xlsx";
 import { normalizeChatContent } from "@/lib/chat-content";
 import { extractInvestorProfile, mergeProfiles } from "@/lib/ai/investor-memory";
+import {
+  enrichSystemPromptWithCompanyData,
+  type InjectedCitation,
+} from "@/lib/ai/tools/inject-company-context";
 
 const EMPTY_RESPONSE_FALLBACK =
   "Unable to generate analysis right now. Showing available data below.";
@@ -1179,6 +1183,32 @@ if (!isGuest) {
       generalKind,
     });
 
+    // Pre-fetch insights API data so the model reasons over live, citable
+    // numbers instead of stale training knowledge. Failure is non-fatal —
+    // the helper returns the original prompt and an empty citation list.
+    let insightsCitations: InjectedCitation[] = [];
+    if (!earlySmallTalk) {
+      try {
+        const enriched = await enrichSystemPromptWithCompanyData(
+          composedMessage,
+          userMemory,
+        );
+        if (enriched.hasData) {
+          userMemory = enriched.prompt;
+          insightsCitations = enriched.citations;
+          console.debug("[chat-api] insights context injected", {
+            symbol: enriched.symbol,
+            citationCount: enriched.citations.length,
+          });
+        }
+      } catch (err) {
+        console.warn(
+          "[chat-api] insights context injection failed (continuing):",
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+
     let llmStream: ReadableStream<Uint8Array>;
     let usedProvider = "unknown";
     let resolvedPlan: ChatPlan | null = null;
@@ -1261,16 +1291,27 @@ if (!isGuest) {
       metadata.provider = usedProvider;
 
       // Calculate confidence score
-      let confidenceSources: Array<{ url: string; publishedAt?: string }> = [];
+      let confidenceSources: Array<{ url: string; publishedAt?: string; domain?: string; title?: string }> = [];
       if (webSearch && webSearch.sources.length > 0) {
         metadata.sources = webSearch.sources;
         confidenceSources = webSearch.sources;
+      }
+      // Insights tool citations flow into the same list the confidence
+      // engine reads. This is what raises scores on company questions:
+      // an insights.alphasightai.online + finnhub.io citation pair is
+      // multi-source corroboration from high-reliability domains.
+      if (insightsCitations.length > 0) {
+        confidenceSources = [...confidenceSources, ...insightsCitations];
+        const existing = Array.isArray(metadata.sources) ? metadata.sources : [];
+        metadata.sources = [...existing, ...insightsCitations];
       }
 
       const confidenceResult = calculateConfidenceScore({
         responseText: fullResponse,
         sources: confidenceSources,
-        marketData: userExplicitlyAskedAboutStock && stockAnalysis !== null,
+        marketData:
+          (userExplicitlyAskedAboutStock && stockAnalysis !== null) ||
+          insightsCitations.length > 0,
       });
 
       metadata.confidence = {

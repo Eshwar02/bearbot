@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchHistoryRange } from "@/lib/stock/data";
+import { applyInsightsCors, corsPreflightResponse } from "@/lib/api/cors";
+
+function jsonWithCors(
+  request: NextRequest,
+  body: unknown,
+  init?: ResponseInit,
+): NextResponse {
+  return applyInsightsCors(request, NextResponse.json(body, init));
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return corsPreflightResponse(request);
+}
 
 /**
  * GET /api/portfolio/sparklines
@@ -16,7 +29,7 @@ import { fetchHistoryRange } from "@/lib/stock/data";
  *   }
  * }
  */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -25,7 +38,7 @@ export async function GET(_request: NextRequest) {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithCors(request, { error: "Unauthorized" }, { status: 401 });
     }
 
     const { data: holdings, error } = await supabase
@@ -34,15 +47,16 @@ export async function GET(_request: NextRequest) {
       .eq("user_id", user.id);
 
     if (error) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Failed to fetch holdings" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     const symbols = Array.from(new Set((holdings || []).map((h) => h.symbol)));
     if (symbols.length === 0) {
-      return NextResponse.json({ sparklines: {} });
+      return jsonWithCors(request, { sparklines: {} });
     }
 
     const results = await Promise.all(
@@ -55,12 +69,13 @@ export async function GET(_request: NextRequest) {
     const sparklines: Record<string, Array<{ date: string; close: number }>> = {};
     for (const [s, series] of results) sparklines[s] = series;
 
-    return NextResponse.json({ sparklines });
+    return jsonWithCors(request, { sparklines });
   } catch (err) {
     console.error("GET /api/portfolio/sparklines error:", err);
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

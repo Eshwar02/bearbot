@@ -52,6 +52,7 @@ import type { StockAnalysis } from "@/types/stock";
 import Groq from "groq-sdk";
 import * as XLSX from "xlsx";
 import { normalizeChatContent } from "@/lib/chat-content";
+import { extractInvestorProfile, mergeProfiles } from "@/lib/ai/investor-memory";
 
 const EMPTY_RESPONSE_FALLBACK =
   "Unable to generate analysis right now. Showing available data below.";
@@ -740,14 +741,26 @@ export async function POST(request: NextRequest) {
         (typeof user!.user_metadata?.name === "string" && user!.user_metadata.name.trim()) ||
         (user!.email?.split("@")[0] ?? "").trim() ||
         "there";
+        // Fetch investor profile
+let investorProfile: Record<string, any> = {};
+if (!isGuest) {
+  const { data: profileData } = await supabase
+    .from('investor_profiles')
+    .select('profile')
+    .eq('user_id', user!.id)
+    .single();
+  investorProfile = profileData?.profile ?? {};
+}
+    
     const userProfileContext = [
-      userDisplayName && userDisplayName !== "there" ? `User profile name: ${userDisplayName}` : "",
-      prefsResponse.data?.default_market ? `Preferred market: ${prefsResponse.data.default_market}` : "",
-      prefsResponse.data?.currency ? `Preferred currency: ${prefsResponse.data.currency}` : "",
-      prefsResponse.data?.theme ? `Preferred theme: ${prefsResponse.data.theme}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+  userDisplayName && userDisplayName !== "there" ? `User profile name: ${userDisplayName}` : "",
+  prefsResponse.data?.default_market ? `Preferred market: ${prefsResponse.data.default_market}` : "",
+  prefsResponse.data?.currency ? `Preferred currency: ${prefsResponse.data.currency}` : "",
+  prefsResponse.data?.theme ? `Preferred theme: ${prefsResponse.data.theme}` : "",
+  Object.keys(investorProfile).length > 0 ? `Investor Profile: ${JSON.stringify(investorProfile)}` : "",
+]
+  .filter(Boolean)
+  .join("\n");
 
     const semanticMemoryBlock = formatMemoriesForPrompt(semanticMemoryRows);
     console.debug("[chat-api] semantic memory recall", {
@@ -1294,6 +1307,18 @@ export async function POST(request: NextRequest) {
           conversationId,
         })
       );
+      after(async () => {
+  try {
+    const conversation = `User: ${composedMessage}\nAssistant: ${fullResponse}`;
+    const extracted = await extractInvestorProfile(conversation);
+    const merged = mergeProfiles(investorProfile, extracted);
+    await supabase
+      .from('investor_profiles')
+      .upsert({ user_id: user!.id, profile: merged, updated_at: new Date().toISOString() });
+  } catch (err) {
+    console.warn('[chat-api] investor profile extraction failed:', err);
+  }
+});
     };
 
     const outboundStream = new ReadableStream<Uint8Array>({

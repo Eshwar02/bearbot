@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import type { UserPreferences } from '@/types/database';
 import { THEMES, useTheme, type Theme } from '@/components/theme-provider';
 import { createClient } from '@/lib/supabase/client';
+import InvestorProfileCard from '@/components/settings/InvestorProfileCard';
 import { publishPrefsUpdate, type Prefs as ClientPrefs } from '@/lib/hooks/use-prefs';
 
 type Prefs = Partial<UserPreferences> & {
@@ -382,7 +383,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </SettingCard>
-
+        <SettingCard icon={BarChart3} title="Investor Profile" description="Your automatically extracted investment preferences and tracked tickers">
+          <InvestorProfileCard />
+        </SettingCard>
         <SettingCard icon={Shield} title="Privacy & Security" description="Manage your data privacy">
           <div className="flex items-center justify-between p-4 rounded-lg bg-canvas border border-borderSubtle">
             <div>

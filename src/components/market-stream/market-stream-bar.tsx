@@ -5,7 +5,7 @@ import { Activity, Loader2 } from "lucide-react";
 import { TickerItem } from "./ticker-item";
 import type { MarketStreamItem } from "./types";
 
-const POLL_MS = 8_000;
+const POLL_MS = 2_500;
 const SCROLL_SPEED = 38; // px / sec — slower = more premium
 
 export function MarketStreamBar() {

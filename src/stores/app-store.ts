@@ -25,7 +25,7 @@ export interface ChatMessage extends Message {
   artifact?: CanvasArtifact;
 }
 
-export type AppView = 'chat' | 'portfolio' | 'brief' | 'watchlist' | 'settings';
+export type AppView = 'chat' | 'portfolio' | 'brief' | 'watchlist' | 'settings' | 'news';
 
 // ── Store shape ────────────────────────────────────────────────────
 

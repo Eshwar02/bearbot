@@ -29,7 +29,7 @@ import {
   SentimentGauge,
   SnapshotCards,
 } from '@/components/daily-brief/brief-insights';
-import { HoldingNews } from '@/components/daily-brief/holding-news';
+import { LatestNews } from '@/components/daily-brief/latest-news';
 import { DailyBriefSettings } from '@/components/daily-brief/schedule-settings';
 import type { DailyBrief } from '@/types/stock';
 import type { ScheduledReport } from '@/types/database';
@@ -233,9 +233,7 @@ export function DailyBriefView() {
             <RiskAssessment content={latestBrief.content} />
             <SentimentGauge content={latestBrief.content} snapshot={latestBrief.portfolio_snapshot} />
             <ActionItems />
-            {latestBrief.portfolio_snapshot?.holdings && (
-              <HoldingNews holdings={latestBrief.portfolio_snapshot.holdings} />
-            )}
+            <LatestNews />
 
             <div className="rounded-xl border border-borderSubtle dark:border-borderStrong bg-elevated p-6">
               <div className="flex items-center justify-between mb-4">

@@ -13,6 +13,7 @@ import {
   Settings,
   ChevronLeft,
   Trash2,
+  Newspaper,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore, type AppView } from '@/stores/app-store';
@@ -56,6 +57,7 @@ function groupConversations(conversations: Conversation[]) {
 const navLinks = [
   { view: 'portfolio', label: 'Portfolio', icon: Briefcase },
   { view: 'brief', label: 'Daily Brief', icon: Sun },
+  { view: 'news', label: 'News', icon: Newspaper },
   { view: 'watchlist', label: 'Watchlist', icon: Star },
   { view: 'settings', label: 'Settings', icon: Settings },
 ] as const;
@@ -135,6 +137,7 @@ export function Sidebar() {
         brief: '/daily-brief',
         watchlist: '/watchlist',
         settings: '/settings',
+        news: '/news',
       };
       router.push(routes[view]);
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;

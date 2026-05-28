@@ -35,6 +35,7 @@ async function fetchNewsdataNews(symbol: string, companyName: string): Promise<N
       source: article.source?.name || 'NewsAPI',
       publishedAt: article.publishedAt || new Date().toISOString(),
       summary: article.description || article.title || '',
+      imageUrl: article.urlToImage || undefined,
     }));
   } catch {
     return [];
@@ -135,6 +136,9 @@ async function fetchGoogleNewsRss(query: string): Promise<NewsItem[]> {
       const description = extractTag(block, "description");
       const source = sourceFromLink(link);
 
+      const enclosureMatch = block.match(/<enclosure[^>]*url="([^"]+)"/i);
+      const imageUrl = enclosureMatch ? enclosureMatch[1] : undefined;
+
       if (title && link) {
         items.push({
           title,
@@ -142,6 +146,7 @@ async function fetchGoogleNewsRss(query: string): Promise<NewsItem[]> {
           source,
           publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
           summary: description || title,
+          imageUrl,
         });
       }
 
@@ -182,12 +187,13 @@ async function fetchMarketauxNews(symbol: string): Promise<NewsItem[]> {
     const data = await res.json();
     if (!data.data || !Array.isArray(data.data)) return [];
 
-    return data.data.map((article: MarketauxArticle) => ({
+    return data.data.map((article: any) => ({
       title: article.title || '',
       url: article.url || '',
       source: article.source || 'MarketAux',
       publishedAt: article.published_at || new Date().toISOString(),
       summary: article.description || article.snippet || article.title || '',
+      imageUrl: article.image_url || undefined,
     }));
   } catch {
     return [];

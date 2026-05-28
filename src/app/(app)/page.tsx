@@ -8,6 +8,7 @@ const PortfolioView = dynamic(() => import('./portfolio/page'), { ssr: false });
 const DailyBriefView = dynamic(() => import('./daily-brief/page').then(m => ({ default: m.DailyBriefView })), { ssr: false });
 const WatchlistView = dynamic(() => import('./watchlist/page'), { ssr: false });
 const SettingsView = dynamic(() => import('./settings/page'), { ssr: false });
+const NewsView = dynamic(() => import('./news/page').then(m => ({ default: m.NewsView })), { ssr: false });
 
 export default function MainAppPage() {
   const activeView = useAppStore((s) => s.activeView);
@@ -19,6 +20,7 @@ export default function MainAppPage() {
       {activeView === 'brief' && <DailyBriefView />}
       {activeView === 'watchlist' && <WatchlistView />}
       {activeView === 'settings' && <SettingsView />}
+      {activeView === 'news' && <NewsView />}
     </>
   );
 }

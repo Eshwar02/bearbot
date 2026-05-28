@@ -38,6 +38,7 @@ import {
   CANVAS_MODE_INSTRUCTION,
 } from "@/lib/ai/prompts";
 import { runDeepResearch, formatResearchBundle } from "@/lib/ai/deep-research";
+import { extractAnalysisSnapshot, detectNarrativeDrift } from "@/lib/ai/drift-detection";
 import {
   isLikelyAffirmativeFollowup,
   looksLikeAssistantActionPrompt,
@@ -1266,6 +1267,38 @@ export async function POST(request: NextRequest) {
         reliabilityScore: confidenceResult.reliabilityScore,
         reasoning: confidenceResult.reasoning,
       };
+
+      // Narrative drift detection for stock analyses
+      if (stockAnalysis && userExplicitlyAskedAboutStock) {
+        try {
+          const currentSnapshot = await extractAnalysisSnapshot(fullResponse, stockAnalysis.quote.symbol, {
+            includeEmbedding: true,
+          });
+
+          const previousAssistantRow = historyRows?.find(
+            (row) =>
+              row.role === "assistant" &&
+              row.metadata &&
+              typeof row.metadata === "object" &&
+              Array.isArray((row.metadata as any).stockData)
+          );
+
+          if (previousAssistantRow) {
+            const previousSnapshot = await extractAnalysisSnapshot(
+              previousAssistantRow.content,
+              stockAnalysis.quote.symbol,
+              { includeEmbedding: true }
+            );
+            metadata.drift = detectNarrativeDrift(currentSnapshot, [previousSnapshot]);
+          }
+
+          const snapshotToStore = { ...currentSnapshot };
+          delete snapshotToStore.embedding;
+          metadata.analysisSnapshot = snapshotToStore;
+        } catch (driftError) {
+          console.warn("[chat-api] drift detection skipped", driftError);
+        }
+      }
 
       // Guest turns never touch the DB or memory store — the conversation
       // exists only in the streaming response and the browser.

@@ -29,5 +29,6 @@ export function getPreferredCurrency(): CurrencyCode | null {
 }
 
 export function resolveCurrency(fallback?: string): CurrencyCode {
-  return preferredCurrency ?? (isCurrencyCode(fallback) ? fallback : DEFAULT_CURRENCY);
+  if (isCurrencyCode(fallback)) return fallback;
+  return preferredCurrency ?? DEFAULT_CURRENCY;
 }

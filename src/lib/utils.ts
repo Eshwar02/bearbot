@@ -8,30 +8,28 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(
   value: number,
-  currency = 'INR',
+  currency?: string,
   options: { compact?: boolean } = {}
 ): string {
   const displayCurrency = resolveCurrency(currency);
   const symbols: Record<string, string> = { USD: '$', INR: '₹', EUR: '€', GBP: '£' };
+  const localeByCurrency: Record<string, string> = {
+    INR: 'en-IN',
+    USD: 'en-US',
+    GBP: 'en-GB',
+    EUR: 'en-IE',
+  };
+  const locale = localeByCurrency[displayCurrency] ?? 'en-US';
 
   // Compact: 1.23M, 4.5K — for chart axes and KPI tiles where full digits
   // would overflow.
   if (options.compact && Math.abs(value) >= 1000) {
+    const sign = value < 0 ? '-' : '';
     const symbol = symbols[displayCurrency] || `${displayCurrency} `;
-    return `${symbol}${formatNumber(value)}`;
+    return `${sign}${symbol}${formatNumber(Math.abs(value))}`;
   }
 
-  // For Indian users, use INR with rupee symbol
-  if (displayCurrency === 'INR' || displayCurrency === 'USD') {
-    const symbol = symbols[displayCurrency];
-    return `${symbol}${value.toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  }
-
-  // Fallback for other currencies
-  return new Intl.NumberFormat('en-IN', {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: displayCurrency,
     minimumFractionDigits: 2,

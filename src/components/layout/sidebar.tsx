@@ -85,8 +85,8 @@ export function Sidebar() {
   const setActiveView = useAppStore((s) => s.setActiveView);
   const createNewChat = useAppStore((s) => s.createNewChat);
   const deleteConversation = useAppStore((s) => s.deleteConversation);
-  const { user } = useAuth();
-  const isGuest = !user;
+  const { user, loading: authLoading } = useAuth();
+  const isGuest = !authLoading && !user;
 
   const grouped = useMemo(() => groupConversations(conversations), [conversations]);
 
@@ -218,7 +218,9 @@ export function Sidebar() {
                   className={cn(
                     'group relative flex cursor-pointer items-center rounded-lg px-3 py-1.5',
                     'transition-colors duration-100',
-                    isActive ? 'bg-elevated text-primary' : 'text-secondary',
+                    isActive
+                      ? 'bg-elevated text-primary'
+                      : 'text-secondary hover:bg-elevated hover:text-primary',
                   )}
                   onClick={() => handleSelectChat(conv.id)}
                 >

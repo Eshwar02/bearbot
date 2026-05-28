@@ -13,12 +13,16 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
+  const meta = user.user_metadata ?? {};
   const fullName =
-    user.user_metadata?.full_name ||
-    user.user_metadata?.name ||
+    (typeof meta.display_name === "string" && meta.display_name) ||
+    (typeof meta.full_name === "string" && meta.full_name) ||
+    (typeof meta.name === "string" && meta.name) ||
     "User";
 
   const email = user.email || "No email available";
+  const avatarUrl =
+    (typeof meta.avatar_url === "string" && meta.avatar_url) || null;
 
   return (
     <ProfileEditor
@@ -27,7 +31,7 @@ export default async function ProfilePage() {
       userId={user.id}
       createdAt={user.created_at ?? ""}
       emailVerified={!!user.email_confirmed_at}
-            
+      avatarUrl={avatarUrl}
     />
   );
 }

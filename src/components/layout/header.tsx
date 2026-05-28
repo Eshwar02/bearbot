@@ -1,8 +1,8 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, LogOut, User, ArrowLeft, Palette } from 'lucide-react';
+import { Menu, LogOut, User, Palette } from 'lucide-react';
 import Image from 'next/image';
 import { useAppStore } from '@/stores/app-store';
 import { createClient } from '@/lib/supabase/client';
@@ -15,14 +15,12 @@ import { logger } from '@/lib/logger';
 import { cn } from '@/lib/utils';
 import { PWAInstallButton } from '@/components/ui/pwa-install-button';
 import { PersonalizationModal } from '@/components/ui/personalization-modal';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function Header() {
   const router = useRouter();
-  const pathname = usePathname();
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
-  const setActiveView = useAppStore((s) => s.setActiveView);
   const { user, loading: authLoading } = useAuth();
   const guestCount = useGuestPromptCount();
   const isGuest = !user;
@@ -30,6 +28,7 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [personalizationOpen, setPersonalizationOpen] = useState(false);
   const [initial, setInitial] = useState('A');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,12 +45,17 @@ export function Header() {
 
   useEffect(() => {
     if (!user) return;
+    const meta = user.user_metadata ?? {};
     const source =
-      (typeof user.user_metadata?.full_name === 'string' && user.user_metadata.full_name) ||
+      (typeof meta.display_name === 'string' && meta.display_name) ||
+      (typeof meta.full_name === 'string' && meta.full_name) ||
       user.email ||
       'A';
     const first = source.trim().charAt(0).toUpperCase();
     if (first) setInitial(first);
+    setAvatarUrl(
+      (typeof meta.avatar_url === 'string' && meta.avatar_url) || null,
+    );
   }, [user]);
 
   const handleSignOut = useCallback(async () => {
@@ -66,15 +70,6 @@ export function Header() {
     }
   }, [router]);
 
-  const handleBack = useCallback(() => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-      return;
-    }
-    setActiveView('chat');
-    router.push('/');
-  }, [router, setActiveView]);
-
   return (
     <header className="relative z-30 flex h-12 shrink-0 items-center justify-between overflow-visible border-b border-borderSubtle bg-canvas/80 px-3 backdrop-blur print:hidden">
       <div className="flex items-center gap-1">
@@ -86,16 +81,6 @@ export function Header() {
         >
           <Menu size={18} />
         </button>
-        {pathname !== '/' && (
-          <button
-            onClick={handleBack}
-            className="rounded-lg p-1.5 text-secondary transition-colors hover:bg-elevated hover:text-primary"
-            aria-label="Go back"
-            title="Go back (Alt+←)"
-          >
-            <ArrowLeft size={18} />
-          </button>
-        )}
       </div>
 
       <div className="flex-1" />
@@ -128,6 +113,7 @@ export function Header() {
             title="User options (Cmd/Ctrl+Shift+U)"
           >
             <Avatar className="h-8 w-8 ring-1 ring-accent-brand/50 ring-offset-2 ring-offset-canvas">
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={initial} />}
               <AvatarFallback className="bg-accent-brand text-sm font-semibold text-inverse">
                 {initial}
               </AvatarFallback>

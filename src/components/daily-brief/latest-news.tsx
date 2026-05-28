@@ -14,14 +14,18 @@ export function LatestNews() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const setActiveView = useAppStore((s) => s.setActiveView);
+  const newsCache = useAppStore((s) => s.newsCache);
+  const setNewsCache = useAppStore((s) => s.setNewsCache);
 
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        const res = await fetch('/api/news/aggregated');
+        const res = await fetch('/api/news/aggregated?limit=9');
         if (res.ok) {
           const data = await res.json();
-          setNews((data.news || []).slice(0, 3));
+          setNews((data.news || []).slice(0, 9));
+          // Cache it for later use
+          setNewsCache(data);
         }
       } catch {
         // silent
@@ -29,8 +33,18 @@ export function LatestNews() {
         setLoading(false);
       }
     };
-    fetchNews();
-  }, []);
+
+    // Use cached data if available and fresh (< 5 minutes)
+    const newsLastFetched = useAppStore.getState().newsLastFetched;
+    const isCacheFresh = newsCache && (Date.now() - newsLastFetched) < 5 * 60 * 1000;
+    
+    if (isCacheFresh && newsCache?.news) {
+      setNews(newsCache.news.slice(0, 9));
+      setLoading(false);
+    } else {
+      fetchNews();
+    }
+  }, [setNewsCache]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -48,7 +62,7 @@ export function LatestNews() {
       <div className="rounded-xl border border-borderSubtle bg-elevated p-6">
         <div className="flex items-center gap-2 mb-4">
           <Newspaper className="h-5 w-5 text-accent-blue" />
-          <h2 className="text-lg font-semibold text-primary">Latest News</h2>
+          <h2 className="text-lg font-semibold text-primary">Market News</h2>
         </div>
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
@@ -79,70 +93,78 @@ export function LatestNews() {
       animate={{ opacity: 1, y: 0 }}
       className="rounded-xl border border-borderSubtle bg-elevated p-6"
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Newspaper className="h-5 w-5 text-accent-blue" />
-        <h2 className="text-lg font-semibold text-primary">Latest News</h2>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Newspaper className="h-5 w-5 text-accent-blue" />
+          <h2 className="text-lg font-semibold text-primary">Market News</h2>
+        </div>
+        <span className="text-xs font-medium text-muted">{news.length} stories</span>
       </div>
-      <div className="space-y-3">
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
         {news.map((item, index) => {
           const cat = categoryLabel(item.category);
           return (
-            <div
+            <a
               key={index}
-              className="flex items-start gap-3 pb-3 border-b border-borderSubtle last:border-b-0 last:pb-0"
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex flex-col rounded-lg border border-borderSubtle bg-canvas hover:border-accent-brand/40 hover:bg-elevated transition-all duration-200 overflow-hidden"
             >
               {item.imageUrl && (
-                <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-skeleton">
+                <div className="h-24 overflow-hidden bg-skeleton">
                   <img
                     src={item.imageUrl}
-                    alt=""
-                    className="w-full h-full object-cover"
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                 </div>
               )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <Badge variant={cat.variant} className="text-[10px] px-1.5 py-0">
+              <div className="flex-1 p-3 flex flex-col">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <Badge variant={cat.variant} className="text-[9px] px-1 py-0 shrink-0">
                     {cat.label}
                   </Badge>
                   {item.symbol && (
-                    <span className="text-[10px] font-medium text-muted uppercase">
+                    <span className="text-[9px] font-medium text-muted uppercase">
                       {item.symbol}
                     </span>
                   )}
-                  <span className="text-[10px] text-muted">{item.source}</span>
                 </div>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-medium text-primary hover:text-accent-blue transition-colors line-clamp-2"
-                >
+                <h3 className="text-xs font-semibold text-primary line-clamp-2 mb-1 group-hover:text-accent-blue transition-colors">
                   {item.title}
-                </a>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] text-muted">
+                </h3>
+                {item.summary && (
+                  <p className="text-[10px] text-secondary line-clamp-1 mb-auto">
+                    {item.summary}
+                  </p>
+                )}
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-borderSubtle">
+                  <span className="text-[9px] text-muted">
                     {formatDate(item.publishedAt)}
+                  </span>
+                  <span className="text-[9px] font-medium text-accent-blue opacity-0 group-hover:opacity-100 transition-opacity">
+                    Read
                   </span>
                 </div>
               </div>
-            </div>
+            </a>
           );
         })}
       </div>
-      <div className="mt-4 pt-3 border-t border-borderSubtle">
-        <button
-          onClick={() => {
-            setActiveView('news');
-            router.push('/news');
-          }}
-          className="flex items-center gap-1.5 text-sm font-medium text-accent-blue hover:underline"
-        >
-          Go to News
-          <ArrowRight className="h-3.5 w-3.5" />
-        </button>
-      </div>
+
+      <button
+        onClick={() => {
+          setActiveView('news');
+          router.push('/news');
+        }}
+        className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-sm font-medium text-accent-blue hover:bg-elevated rounded-lg transition-colors border border-borderSubtle hover:border-accent-brand/40"
+      >
+        Click to view more
+        <ArrowRight className="h-3.5 w-3.5" />
+      </button>
     </motion.div>
   );
 }

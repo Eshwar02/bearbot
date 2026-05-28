@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useAppStore } from '@/stores/app-store';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import type { NewsItem } from '@/types/stock';
 
@@ -157,6 +158,8 @@ function CategorySection({
 }
 
 export function NewsView() {
+  const newsCache = useAppStore((s) => s.newsCache);
+  const newsLastFetched = useAppStore((s) => s.newsLastFetched);
   const [data, setData] = useState<AggregatedNews | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -208,8 +211,14 @@ export function NewsView() {
   }, [data, loadingMore]);
 
   useEffect(() => {
-    fetchNews();
-  }, [fetchNews]);
+    // Use cache if available and fresh (< 5 minutes)
+    if (newsCache && (Date.now() - newsLastFetched) < 5 * 60 * 1000) {
+      setData(newsCache);
+      setLoading(false);
+    } else {
+      fetchNews();
+    }
+  }, [fetchNews, newsCache, newsLastFetched]);
 
   useEffect(() => {
     if (!sentinelRef.current || loading) return;

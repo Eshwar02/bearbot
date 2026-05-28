@@ -90,9 +90,14 @@ function processTickerChildren(
   }
   if (React.isValidElement<{ children?: React.ReactNode }>(children)) {
     const elementType = children.type;
-    // Skip elements that we should NOT walk into.
+    // Skip elements that we should NOT walk into: <a>, <code>, <button>, and functional components
     if (typeof elementType === 'string') {
-      if (elementType === 'a' || elementType === 'code') return children;
+      if (elementType === 'a' || elementType === 'code' || elementType === 'button') {
+        return children;
+      }
+    } else if (typeof elementType === 'function') {
+      // Skip functional/custom components entirely
+      return children;
     }
     const childProps = children.props as { children?: React.ReactNode };
     const inner = childProps.children;

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Lock } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { RESPONSE_GENERATED_EVENT, useChat } from '@/lib/hooks/use-chat';
+import { useNewsPreloader } from '@/lib/hooks/use-news-preloader';
 import { useAuth } from '@/lib/hooks/use-auth';
 import {
   GUEST_PROMPT_LIMIT,
@@ -51,6 +52,7 @@ function GenerationMarker() {
 }
 
 export function ChatPanel() {
+  useNewsPreloader(); // Preload news in background
   const { messages, isLoadingConversation, isStreaming } = useAppStore();
   const { sendMessage, stopStreaming } = useChat();
   const { user } = useAuth();

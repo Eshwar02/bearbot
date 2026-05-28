@@ -77,13 +77,17 @@ function sourceFromLink(link: string): string {
   }
 }
 
-async function fetchNewsdataNews(symbol: string, companyName: string): Promise<NewsItem[]> {
+function fetchOptions(refresh = false): RequestInit {
+  return refresh ? { cache: 'no-store' } : { next: { revalidate: 300 } };
+}
+
+async function fetchNewsdataNews(symbol: string, companyName: string, refresh = false): Promise<NewsItem[]> {
   if (!NEWSAPI_API_KEY) return [];
 
   try {
     const query = companyName || cleanSymbol(symbol);
     const url = `https://newsapi.org/v2/everything?apiKey=${NEWSAPI_API_KEY}&q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=10`;
-    const res = await fetch(url, { next: { revalidate: 300 } });
+    const res = await fetch(url, fetchOptions(refresh));
     if (!res.ok) return [];
 
     const data = await res.json();
@@ -102,13 +106,13 @@ async function fetchNewsdataNews(symbol: string, companyName: string): Promise<N
   }
 }
 
-async function fetchMarketauxNews(symbol: string): Promise<NewsItem[]> {
+async function fetchMarketauxNews(symbol: string, refresh = false): Promise<NewsItem[]> {
   if (!MARKETAUX_API_KEY) return [];
 
   try {
     const clean = cleanSymbol(symbol);
     const url = `https://api.marketaux.com/v1/news/all?symbols=${clean}&filter_entities=true&language=en&api_token=${MARKETAUX_API_KEY}&limit=10`;
-    const res = await fetch(url, { next: { revalidate: 300 } });
+    const res = await fetch(url, fetchOptions(refresh));
     if (!res.ok) return [];
 
     const data = await res.json();
@@ -127,12 +131,12 @@ async function fetchMarketauxNews(symbol: string): Promise<NewsItem[]> {
   }
 }
 
-async function fetchGoogleNewsRss(query: string, limit = 10): Promise<NewsItem[]> {
+async function fetchGoogleNewsRss(query: string, limit = 10, refresh = false): Promise<NewsItem[]> {
   if (!query.trim()) return [];
 
   try {
     const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
-    const res = await fetch(url, { next: { revalidate: 120 } });
+    const res = await fetch(url, refresh ? { cache: 'no-store' } : { next: { revalidate: 120 } });
     if (!res.ok) return [];
     const xml = await res.text();
 
@@ -196,11 +200,15 @@ function deduplicate(items: NewsItem[]): NewsItem[] {
 export async function fetchStockNews(
   symbol: string,
   companyName: string = "",
-  extraThemeQueries: string[] = []
+  extraThemeQueries: string[] = [],
+  refresh = false
 ): Promise<NewsItem[]> {
   const cacheKey = `news:${symbol.toUpperCase()}:${companyName}`;
-  const cached = stockCache.get<NewsItem[]>(cacheKey);
-  if (cached) return cached;
+
+  if (!refresh) {
+    const cached = stockCache.get<NewsItem[]>(cacheKey);
+    if (cached) return cached;
+  }
 
   const themeQueries =
     extraThemeQueries.length > 0
@@ -211,31 +219,26 @@ export async function fetchStockNews(
   const name = companyName || cleanSym;
 
   const [marketauxNews, newsdataNews] = await Promise.all([
-    fetchMarketauxNews(symbol),
-    fetchNewsdataNews(symbol, name),
+    fetchMarketauxNews(symbol, refresh),
+    fetchNewsdataNews(symbol, name, refresh),
   ]);
 
   const newsItems: NewsItem[] = [...marketauxNews, ...newsdataNews];
 
-  // Google News — search by company name across trusted financial sites
   const siteFilter = SOURCE_SITES.map((s) => `site:${s}`).join(" OR ");
-  const googleNamed = await fetchGoogleNewsRss(`${name} (${siteFilter})`, 10);
+  const googleNamed = await fetchGoogleNewsRss(`${name} (${siteFilter})`, 10, refresh);
   newsItems.push(...googleNamed);
 
-  // Also search by ticker symbol across same sites (catches cases where
-  // article mentions the ticker but not the full company name)
-  const googleTicker = await fetchGoogleNewsRss(`${cleanSym} stock (${siteFilter})`, 8);
+  const googleTicker = await fetchGoogleNewsRss(`${cleanSym} stock (${siteFilter})`, 8, refresh);
   newsItems.push(...googleTicker);
 
-  // Broader search without site restriction as fallback
   if (newsItems.length < 5) {
-    const googleBroad = await fetchGoogleNewsRss(`${name} stock news`, 10);
+    const googleBroad = await fetchGoogleNewsRss(`${name} stock news`, 10, refresh);
     newsItems.push(...googleBroad);
   }
 
-  // Product/theme-based enrichment
   for (const q of themeQueries.slice(0, 3)) {
-    const thematic = await fetchGoogleNewsRss(`${q} (${siteFilter})`, 6);
+    const thematic = await fetchGoogleNewsRss(`${q} (${siteFilter})`, 6, refresh);
     newsItems.push(...thematic);
   }
 
@@ -252,24 +255,24 @@ export async function fetchStockNews(
   return unique;
 }
 
-/**
- * Fetch broad market / thematic news without a specific stock symbol.
- * Used for NSE market news and geopolitical news sections.
- */
 export async function fetchTopicNews(
   queries: string[],
   limitPerQuery = 10,
-  maxTotal = 25
+  maxTotal = 25,
+  refresh = false
 ): Promise<NewsItem[]> {
   const results = await Promise.all(
     queries.map(async (q) => {
       const cacheKey = `topic:${q}`;
-      const cached = stockCache.get<NewsItem[]>(cacheKey);
-      if (cached) return cached;
+
+      if (!refresh) {
+        const cached = stockCache.get<NewsItem[]>(cacheKey);
+        if (cached) return cached;
+      }
 
       const siteFilter = SOURCE_SITES.map((s) => `site:${s}`).join(" OR ");
-      const named = await fetchGoogleNewsRss(`${q} (${siteFilter})`, limitPerQuery);
-      const broad = await fetchGoogleNewsRss(`${q}`, limitPerQuery);
+      const named = await fetchGoogleNewsRss(`${q} (${siteFilter})`, limitPerQuery, refresh);
+      const broad = await fetchGoogleNewsRss(`${q}`, limitPerQuery, refresh);
 
       const combined = deduplicate([...named, ...broad])
         .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())

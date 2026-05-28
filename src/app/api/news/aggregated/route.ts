@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const refresh = searchParams.get('refresh') === '1';
 
     const { data: holdings } = await supabase
       .from('portfolio_holdings')
@@ -48,7 +49,6 @@ export async function GET(request: NextRequest) {
 
     const portfolioSymbols = holdings?.map((h) => h.symbol) || [];
 
-    // Resolve company names via Yahoo quotes for better news matching
     const companyNames: Record<string, string> = {};
     await Promise.all(
       portfolioSymbols.map(async (symbol) => {
@@ -62,20 +62,17 @@ export async function GET(request: NextRequest) {
     );
 
     const [holdingNewsResults, marketNews, geopoliticalNews] = await Promise.all([
-      // Fetch news for ALL holdings in parallel
       Promise.all(
         portfolioSymbols.map(async (symbol) => {
           const name = companyNames[symbol] || symbol;
-          const news = await fetchStockNews(symbol, name);
+          const news = await fetchStockNews(symbol, name, [], refresh);
           return news.map((item) => ({ ...item, symbol, category: 'holding' }));
         })
       ),
-      // NSE / Indian market news — use dedicated topic fetcher
-      fetchTopicNews(NSE_KEYWORDS, 12, 30).then((items) =>
+      fetchTopicNews(NSE_KEYWORDS, 12, 30, refresh).then((items) =>
         items.map((item) => ({ ...item, category: 'market' as const }))
       ),
-      // Geopolitical news
-      fetchTopicNews(GEOPOLITICAL_KEYWORDS, 10, 25).then((items) =>
+      fetchTopicNews(GEOPOLITICAL_KEYWORDS, 10, 25, refresh).then((items) =>
         items.map((item) => ({ ...item, category: 'geopolitical' as const }))
       ),
     ]);

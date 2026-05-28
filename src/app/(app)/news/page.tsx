@@ -166,7 +166,8 @@ export function NewsView() {
   const fetchNews = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
     try {
-      const res = await fetch('/api/news/aggregated?offset=0&limit=50');
+      const url = isRefresh ? '/api/news/aggregated?offset=0&limit=50&refresh=1' : '/api/news/aggregated?offset=0&limit=50';
+      const res = await fetch(url);
       if (res.ok) {
         const d = await res.json();
         setData(d);

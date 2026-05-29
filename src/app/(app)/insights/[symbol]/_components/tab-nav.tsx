@@ -9,12 +9,17 @@ interface TabNavProps {
 }
 
 const TABS = [
+  { slug: 'overview', label: 'Overview' },
   { slug: 'chart', label: 'Chart' },
   { slug: 'analysis', label: 'Analysis' },
   { slug: 'peers', label: 'Peers' },
   { slug: 'quarters', label: 'Quarters' },
-  { slug: 'pnl', label: 'P&L' },
+  { slug: 'profit-loss', label: 'Profit & Loss' },
+  { slug: 'balance-sheet', label: 'Balance Sheet' },
+  { slug: 'cash-flow', label: 'Cash Flow' },
   { slug: 'ratios', label: 'Ratios' },
+  { slug: 'investors', label: 'Investors' },
+  { slug: 'documents', label: 'Documents' },
 ] as const;
 
 export function TabNav({ symbol }: TabNavProps) {

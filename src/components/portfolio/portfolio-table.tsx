@@ -69,6 +69,8 @@ function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps
             >
               <a
                 href={detailHref}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-[2fr_1.2fr_1.2fr_1fr_1fr_56px] md:items-center md:gap-4"
               >
                 {/* Company */}

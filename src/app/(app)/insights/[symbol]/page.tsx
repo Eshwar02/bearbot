@@ -6,5 +6,5 @@ interface InsightsSymbolPageProps {
 
 export default async function InsightsSymbolIndex({ params }: InsightsSymbolPageProps) {
   const { symbol } = await params;
-  redirect(`/insights/${symbol}/chart`);
+  redirect(`/insights/${symbol}/overview`);
 }

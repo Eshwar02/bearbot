@@ -9,29 +9,18 @@ interface QuartersPageProps {
   params: Promise<{ symbol: string }>;
 }
 
-const incomeMetrics: StatementTableMetric[] = [
-  { key: 'totalRevenue', label: 'Revenue', format: 'currency' },
-  { key: 'grossProfit', label: 'Gross profit', format: 'currency' },
-  { key: 'operatingIncome', label: 'Operating income', format: 'currency' },
-  { key: 'netIncome', label: 'Net income', format: 'currency' },
-  { key: 'ebitda', label: 'EBITDA', format: 'currency' },
-  { key: 'eps', label: 'EPS', format: 'number' },
-];
-
-const balanceMetrics: StatementTableMetric[] = [
-  { key: 'totalAssets', label: 'Total assets', format: 'currency' },
-  { key: 'totalLiabilities', label: 'Total liabilities', format: 'currency' },
-  { key: 'totalEquity', label: 'Equity', format: 'currency' },
-  { key: 'totalDebt', label: 'Total debt', format: 'currency' },
-  { key: 'cash', label: 'Cash', format: 'currency' },
-];
-
-const cashflowMetrics: StatementTableMetric[] = [
-  { key: 'operatingCashflow', label: 'Operating CF', format: 'currency' },
-  { key: 'investingCashflow', label: 'Investing CF', format: 'currency' },
-  { key: 'financingCashflow', label: 'Financing CF', format: 'currency' },
-  { key: 'capex', label: 'Capex', format: 'currency' },
-  { key: 'freeCashflow', label: 'Free CF', format: 'currency' },
+const quarterlyMetrics: StatementTableMetric[] = [
+  { key: 'totalRevenue', label: 'Sales', format: 'currency' },
+  { key: 'costOfRevenue', label: 'Expenses', format: 'currency' },
+  { key: 'operatingIncome', label: 'Operating Profit', format: 'currency' },
+  { key: 'operatingMargin', label: 'OPM %', format: 'percent' },
+  { key: 'otherIncome', label: 'Other Income', format: 'currency' },
+  { key: 'interestExpense', label: 'Interest', format: 'currency' },
+  { key: 'depreciation', label: 'Depreciation', format: 'currency' },
+  { key: 'pretaxIncome', label: 'Profit before tax', format: 'currency' },
+  { key: 'taxRate', label: 'Tax %', format: 'percent' },
+  { key: 'netIncome', label: 'Net Profit', format: 'currency' },
+  { key: 'eps', label: 'EPS in Rs', format: 'number' },
 ];
 
 function EmptyCard({ message }: { message: string }) {
@@ -48,45 +37,38 @@ export default async function QuartersPage({ params }: QuartersPageProps) {
   const financials = await getCompanyFinancials(symbol);
 
   const incomeRows = (financials?.income.quarterly ?? []) as unknown as StatementTableRow[];
-  const balanceRows = (financials?.balance.quarterly ?? []) as unknown as StatementTableRow[];
-  const cashflowRows = (financials?.cashflow.quarterly ?? []) as unknown as StatementTableRow[];
 
-  const allEmpty =
-    incomeRows.length === 0 && balanceRows.length === 0 && cashflowRows.length === 0;
-
-  if (!financials || allEmpty) {
-    if (!isIndianTicker(symbol)) {
-      return (
-        <EmptyCard message="Statement-level data isn't available on the free tier for US tickers. See Ratios for fundamentals." />
-      );
-    }
+  if (!financials || incomeRows.length === 0) {
     return <EmptyCard message="No quarterly statement data available." />;
   }
 
-  // Yahoo doesn't always expose statement-level currency; default to profile-level USD,
-  // but for Indian tickers it is always INR.
   const currency = isIndianTicker(symbol) ? 'INR' : 'USD';
 
   return (
     <div className="space-y-6">
-      <StatementTable
-        title="Quarterly income statement"
-        periods={incomeRows}
-        metrics={incomeMetrics}
-        currency={currency}
-      />
-      <StatementTable
-        title="Quarterly balance sheet"
-        periods={balanceRows}
-        metrics={balanceMetrics}
-        currency={currency}
-      />
-      <StatementTable
-        title="Quarterly cash flow"
-        periods={cashflowRows}
-        metrics={cashflowMetrics}
-        currency={currency}
-      />
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-primary sm:text-lg">
+            Quarterly Results
+          </h2>
+        </div>
+        <StatementTable
+          title="Quarterly Results"
+          periods={incomeRows}
+          metrics={quarterlyMetrics}
+          currency={currency}
+        />
+      </section>
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled
+          className="cursor-not-allowed rounded-md border border-accent-brand/40 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-accent-brand opacity-70"
+        >
+          Product Segments
+        </button>
+      </div>
     </div>
   );
 }

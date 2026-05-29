@@ -3,7 +3,9 @@ import { Suspense, type ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { getCompanyOverview } from '@/lib/insights/server';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AboutSidebar } from './_components/about-sidebar';
 import { CompanyHeader } from './_components/company-header';
+import { MetricsGrid } from './_components/metrics-grid';
 import { TabNav } from './_components/tab-nav';
 
 interface InsightsSymbolLayoutProps {
@@ -38,7 +40,7 @@ export default async function InsightsSymbolLayout({
           </p>
           <Link
             href="/insights"
-            className="inline-flex items-center gap-2 rounded-lg bg-accent-brand/15 px-4 py-2 text-sm font-medium text-accent-brand transition-colors hover:bg-accent-brand/25"
+            className="inline-flex items-center gap-2 rounded-lg bg-accent-brand/15 px-4 py-2 text-sm font-medium text-accent-brand transition-colors hover:bg-accent-brand-hover/25"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to insights
@@ -50,7 +52,14 @@ export default async function InsightsSymbolLayout({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-12 pt-6">
-      <CompanyHeader overview={overview} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
+        <div className="space-y-4">
+          <CompanyHeader overview={overview} />
+          <MetricsGrid overview={overview} />
+        </div>
+        <AboutSidebar overview={overview} />
+      </div>
+
       <TabNav symbol={overview.symbol} />
       <Suspense
         fallback={

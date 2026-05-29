@@ -76,7 +76,17 @@ export const viewport: Viewport = {
 const themeInitScript = `
 (function() {
   try {
-    var stored = localStorage.getItem('theme');
+    var cookieTheme = null;
+    var parts = document.cookie.split('; ');
+    for (var p = 0; p < parts.length; p++) {
+      if (parts[p].indexOf('theme=') === 0) {
+        cookieTheme = decodeURIComponent(parts[p].slice(6));
+        break;
+      }
+    }
+    var valid = ['light','dark','sandal','blue'];
+    if (cookieTheme && valid.indexOf(cookieTheme) === -1) cookieTheme = null;
+    var stored = cookieTheme || localStorage.getItem('theme');
     var hasAuthSession = false;
     for (var i = 0; i < localStorage.length; i++) {
       var key = localStorage.key(i) || '';

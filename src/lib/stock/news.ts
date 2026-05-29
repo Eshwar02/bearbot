@@ -151,8 +151,19 @@ async function fetchGoogleNewsRss(query: string, limit = 10, refresh = false): P
       const pubDate = extractTag(block, "pubDate");
       const description = extractTag(block, "description");
       const source = sourceFromLink(link);
+      let imageUrl: string | undefined;
       const enclosureMatch = block.match(/<enclosure[^>]*url="([^"]+)"/i);
-      const imageUrl = enclosureMatch ? enclosureMatch[1] : undefined;
+      if (enclosureMatch) {
+        imageUrl = enclosureMatch[1];
+      } else {
+        const descImgMatch = description.match(
+          /<img[^>]+src=["']([^"']+)["']/i
+        );
+        if (descImgMatch) {
+          const src = descImgMatch[1];
+          if (src.startsWith('http')) imageUrl = src;
+        }
+      }
 
       if (title && link) {
         items.push({
@@ -185,6 +196,54 @@ function deriveThemeQueries(symbol: string, companyName: string): string[] {
   }
 
   return Array.from(themeSet);
+}
+
+async function fetchOgImage(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const match = html.match(
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
+    );
+    if (match) return match[1];
+
+    const matchAlt = html.match(
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i
+    );
+    return matchAlt ? matchAlt[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+async function enrichNewsImages(items: NewsItem[]): Promise<NewsItem[]> {
+  const missing = items
+    .map((item, i) => ({ item, index: i }))
+    .filter(({ item }) => !item.imageUrl);
+
+  if (missing.length === 0) return items;
+
+  const concurrency = 5;
+  for (let start = 0; start < missing.length; start += concurrency) {
+    const batch = missing.slice(start, start + concurrency);
+    const results = await Promise.all(
+      batch.map(async ({ item, index }) => {
+        const imageUrl = await fetchOgImage(item.url);
+        return { index, imageUrl };
+      })
+    );
+
+    for (const { index, imageUrl } of results) {
+      if (imageUrl) items[index].imageUrl = imageUrl;
+    }
+  }
+
+  return items;
 }
 
 function deduplicate(items: NewsItem[]): NewsItem[] {
@@ -254,6 +313,8 @@ export async function fetchStockNews(
 
   return unique;
 }
+
+export { enrichNewsImages };
 
 export async function fetchTopicNews(
   queries: string[],

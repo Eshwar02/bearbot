@@ -3,16 +3,22 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Newspaper, ExternalLink, ArrowRight, ArrowUpRight } from 'lucide-react';
+import { Newspaper, ExternalLink, ArrowRight, ArrowUpRight, Globe, AlertTriangle, Briefcase } from 'lucide-react';
 import { cn, timeAgo } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import type { NewsItem } from '@/types/stock';
 import { useAppStore } from '@/stores/app-store';
 
-const CATEGORY_STYLES: Record<string, { bar: string; label: string; variant: 'blue' | 'amber' | 'green' | 'gray' }> = {
-  market: { bar: 'bg-accent-blue', label: 'Market', variant: 'blue' },
-  geopolitical: { bar: 'bg-accent-amber', label: 'Geopolitical', variant: 'amber' },
-  holdings: { bar: 'bg-accent-green', label: 'Portfolio', variant: 'green' },
+const CATEGORY_STYLES: Record<string, {
+  bar: string;
+  label: string;
+  variant: 'blue' | 'amber' | 'green' | 'gray';
+  placeholder: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = {
+  market: { bar: 'bg-accent-blue', label: 'Market', variant: 'blue', placeholder: 'from-accent-blue/40 to-accent-blue/5', icon: Globe },
+  geopolitical: { bar: 'bg-accent-amber', label: 'Geopolitical', variant: 'amber', placeholder: 'from-accent-amber/40 to-accent-amber/5', icon: AlertTriangle },
+  holdings: { bar: 'bg-accent-green', label: 'Portfolio', variant: 'green', placeholder: 'from-accent-green/40 to-accent-green/5', icon: Briefcase },
 };
 
 function extractDomain(url: string): string {
@@ -111,7 +117,7 @@ export function LatestNews() {
               )}
             >
               <div className={cn('h-[2px] shrink-0', style.bar)} />
-              {item.imageUrl && (
+              {item.imageUrl ? (
                 <div className="h-24 overflow-hidden bg-skeleton shrink-0">
                   <img
                     src={item.imageUrl}
@@ -121,6 +127,19 @@ export function LatestNews() {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
+                </div>
+              ) : (
+                <div className={cn(
+                  'h-24 shrink-0 flex items-center justify-center',
+                  'bg-gradient-to-br',
+                  style.placeholder,
+                )}>
+                  <div className="flex flex-col items-center gap-1 opacity-40">
+                    <style.icon className="h-5 w-5" />
+                    <span className="text-[8px] font-medium uppercase tracking-wider">
+                      {item.source}
+                    </span>
+                  </div>
                 </div>
               )}
               <div className="flex-1 p-3 flex flex-col">

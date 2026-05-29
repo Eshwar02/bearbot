@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { fetchStockNews, fetchTopicNews } from '@/lib/stock/news';
+import { fetchStockNews, fetchTopicNews, enrichNewsImages } from '@/lib/stock/news';
 import { fetchQuote } from '@/lib/stock/data';
 import type { NewsItem } from '@/types/stock';
 
@@ -80,7 +80,13 @@ export async function GET(request: NextRequest) {
     const holdingsNews = deduplicate(holdingNewsResults.flat())
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
-    const allNews = deduplicate([...holdingsNews, ...marketNews, ...geopoliticalNews])
+    const [catHoldings, catMarket, catGeopolitical] = await Promise.all([
+      enrichNewsImages(holdingsNews),
+      enrichNewsImages(marketNews),
+      enrichNewsImages(geopoliticalNews),
+    ]);
+
+    const allNews = deduplicate([...catHoldings, ...catMarket, ...catGeopolitical])
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
     const paginated = allNews.slice(offset, offset + limit);
@@ -88,9 +94,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       news: paginated,
       categories: {
-        holdings: holdingsNews,
-        market: marketNews,
-        geopolitical: geopoliticalNews,
+        holdings: catHoldings,
+        market: catMarket,
+        geopolitical: catGeopolitical,
       },
       total: allNews.length,
       offset,

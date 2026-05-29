@@ -42,6 +42,8 @@ const CATEGORY_CONFIG = {
     borderGlow: 'shadow-accent-blue/15',
     iconBg: 'bg-accent-blue/10 text-accent-blue',
     divider: 'border-accent-blue/20',
+    imagePlaceholder: 'from-accent-blue/40 to-accent-blue/5',
+    imageIcon: Globe,
   },
   geopolitical: {
     label: 'Geopolitical',
@@ -52,6 +54,8 @@ const CATEGORY_CONFIG = {
     borderGlow: 'shadow-accent-amber/15',
     iconBg: 'bg-accent-amber/10 text-accent-amber',
     divider: 'border-accent-amber/20',
+    imagePlaceholder: 'from-accent-amber/40 to-accent-amber/5',
+    imageIcon: AlertTriangle,
   },
   holdings: {
     label: 'Portfolio Holdings',
@@ -62,6 +66,8 @@ const CATEGORY_CONFIG = {
     borderGlow: 'shadow-accent-green/15',
     iconBg: 'bg-accent-green/10 text-accent-green',
     divider: 'border-accent-green/20',
+    imagePlaceholder: 'from-accent-green/40 to-accent-green/5',
+    imageIcon: Briefcase,
   },
 } as const;
 
@@ -140,7 +146,7 @@ function NewsCard({ item }: { item: NewsItem }) {
         )}
       />
 
-      {item.imageUrl && !imgError && (
+      {item.imageUrl && !imgError ? (
         <div className="relative h-40 sm:h-44 overflow-hidden bg-skeleton shrink-0">
           <img
             src={item.imageUrl}
@@ -149,6 +155,19 @@ function NewsCard({ item }: { item: NewsItem }) {
             onError={() => setImgError(true)}
           />
           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-elevated to-transparent" />
+        </div>
+      ) : (
+        <div className={cn(
+          'relative h-40 sm:h-44 overflow-hidden shrink-0 flex items-center justify-center',
+          'bg-gradient-to-br',
+          config.imagePlaceholder,
+        )}>
+          <div className="flex flex-col items-center gap-1.5 opacity-40">
+            <config.imageIcon className="h-8 w-8" />
+            <span className="text-[10px] font-medium uppercase tracking-wider">
+              {item.source}
+            </span>
+          </div>
         </div>
       )}
 

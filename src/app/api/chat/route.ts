@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimiters, checkRateLimit, buildRateLimitResponse, getUserIdentifier } from "@/lib/rate-limit";
+
 import {
   classifyMessage,
   streamChat,
@@ -453,6 +455,22 @@ function chatJsonResponse(
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting (Upstash Redis-backed, shared across serverless instances)
+    // Rate limited by user id when authenticated; otherwise by IP.
+    const rlKey = getUserIdentifier(request);
+    const rl = await checkRateLimit({
+      limiter: rateLimiters.chat,
+      key: rlKey,
+      route: 'chat',
+    });
+    if (!rl.allowed) {
+      return buildRateLimitResponse({
+        route: 'chat',
+        retryAfterSeconds: rl.retryAfterSeconds,
+        limit: rl.limit,
+        remaining: rl.remaining,
+      });
+    }
     const progressEvents: AIProgressFrame[] = [];
     let hasActiveProgressTask = false;
     let lastPhase: AIProgressFrame["phase"] | null = null;

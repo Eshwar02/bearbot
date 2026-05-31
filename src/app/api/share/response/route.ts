@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomInt } from 'crypto';
+import { randomInt, createHash } from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -16,6 +16,10 @@ function generateToken(length: number) {
   return out;
 }
 
+function hashContent(content: string) {
+  return createHash('sha256').update(content).digest('hex');
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -28,13 +32,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = (await request.json()) as { messageId?: string; content?: string };
+    const body = (await request.json()) as {
+      messageId?: string;
+      conversationId?: string;
+      content?: string;
+    };
     const messageId = body.messageId?.trim() ?? '';
+    const conversationId = body.conversationId?.trim() ?? '';
     const content = body.content?.trim() ?? '';
 
-    if (!UUID_RE.test(messageId)) {
-      return NextResponse.json({ error: 'Invalid messageId' }, { status: 400 });
-    }
     if (!content) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
     }
@@ -42,76 +48,69 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Content too long' }, { status: 400 });
     }
 
-    const { data: message, error: messageError } = await supabase
-      .from('messages')
-      .select('id, conversation_id')
-      .eq('id', messageId)
-      .single();
-    if (messageError || !message) {
-      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
-    }
-
-    const { data: conversation, error: conversationError } = await supabase
-      .from('conversations')
-      .select('id')
-      .eq('id', message.conversation_id)
-      .eq('user_id', user.id)
-      .single();
-    if (conversationError || !conversation) {
-      return NextResponse.json({ error: 'Message not found' }, { status: 404 });
+    // conversationId is optional — when present, verify the caller owns it.
+    // Client message ids are generated locally and may not match the db row,
+    // so we never require them to exist; we only persist them for analytics.
+    let verifiedConversationId: string | null = null;
+    if (conversationId && UUID_RE.test(conversationId)) {
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('id', conversationId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (conversation?.id) {
+        verifiedConversationId = conversation.id;
+      }
     }
 
     const admin = createAdminClient();
+    const contentHash = hashContent(content);
 
-    const { data: existing, error: existingError } = await admin
+    // Dedupe per-user by exact content hash so repeated clicks on the same
+    // response reuse the same share token instead of piling up rows.
+    const { data: existing } = await admin
       .from('shared_responses')
-      .select('token')
+      .select('token, content')
       .eq('user_id', user.id)
-      .eq('source_message_id', messageId)
+      .eq('content', content)
+      .limit(1)
       .maybeSingle();
-    if (existingError) {
-      return NextResponse.json({ error: 'Failed to prepare share link' }, { status: 500 });
+    if (existing?.token) {
+      return NextResponse.json({
+        shareUrl: `/share/response/${existing.token}`,
+        token: existing.token,
+      });
     }
 
-    if (existing?.token) {
-      const { error: updateError } = await admin
-        .from('shared_responses')
-        .update({ content })
-        .eq('user_id', user.id)
-        .eq('source_message_id', messageId);
-      if (updateError) {
-        return NextResponse.json({ error: 'Failed to update share link' }, { status: 500 });
-      }
-      return NextResponse.json({ shareUrl: `/share/response/${existing.token}`, token: existing.token });
-    }
+    const sourceMessageId = UUID_RE.test(messageId) ? messageId : null;
 
     for (let attempt = 0; attempt < TOKEN_RETRY_LIMIT; attempt += 1) {
       const token = generateToken(TOKEN_LENGTH);
-      const { error: insertError } = await admin.from('shared_responses').insert({
+      const insertPayload: Record<string, unknown> = {
         token,
         user_id: user.id,
-        source_message_id: messageId,
         content,
-      });
+      };
+      if (sourceMessageId) insertPayload.source_message_id = sourceMessageId;
+      if (verifiedConversationId) insertPayload.source_conversation_id = verifiedConversationId;
+
+      const { error: insertError } = await admin
+        .from('shared_responses')
+        .insert(insertPayload);
 
       if (!insertError) {
         return NextResponse.json({ shareUrl: `/share/response/${token}`, token });
       }
 
-      // 23505 unique_violation — token collision or concurrent insert for same source_message_id.
+      // 23505 unique_violation — token collision, retry.
       if (insertError.code === '23505') {
-        const { data: reused } = await admin
-          .from('shared_responses')
-          .select('token')
-          .eq('user_id', user.id)
-          .eq('source_message_id', messageId)
-          .maybeSingle();
-        if (reused?.token) {
-          return NextResponse.json({ shareUrl: `/share/response/${reused.token}`, token: reused.token });
-        }
         continue;
       }
 
+      console.error('POST /api/share/response insert failed:', insertError, {
+        hash: contentHash,
+      });
       return NextResponse.json({ error: 'Failed to create share link' }, { status: 500 });
     }
 

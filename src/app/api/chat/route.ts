@@ -4,8 +4,12 @@ import {
   classifyMessage,
   streamChat,
   validateAiSetup,
+  generatePlan,
+  shouldUsePlanner,
   type MessageClassification,
+  type ChatPlan,
 } from "@/lib/ai";
+import { validateCerebrasSetup } from "@/lib/ai/cerebras";
 import {
   searchWeb,
   validateSerpApiSetup,
@@ -34,6 +38,12 @@ import {
   CANVAS_MODE_INSTRUCTION,
 } from "@/lib/ai/prompts";
 import { runDeepResearch, formatResearchBundle } from "@/lib/ai/deep-research";
+import { extractAnalysisSnapshot, detectNarrativeDrift } from "@/lib/ai/drift-detection";
+import {
+  isLikelyAffirmativeFollowup,
+  looksLikeAssistantActionPrompt,
+  normalizeNoisyEnglish,
+} from "@/lib/ai/followup-intent";
 import { resolveSymbol } from "@/lib/stock/symbols";
 import { fetchQuote, fetchHistory, fetchCompanyInfo } from "@/lib/stock/data";
 import { fetchStockNews } from "@/lib/stock/news";
@@ -43,6 +53,11 @@ import type { StockAnalysis } from "@/types/stock";
 import Groq from "groq-sdk";
 import * as XLSX from "xlsx";
 import { normalizeChatContent } from "@/lib/chat-content";
+import { extractInvestorProfile, mergeProfiles } from "@/lib/ai/investor-memory";
+import {
+  enrichSystemPromptWithCompanyData,
+  type InjectedCitation,
+} from "@/lib/ai/tools/inject-company-context";
 
 const EMPTY_RESPONSE_FALLBACK =
   "Unable to generate analysis right now. Showing available data below.";
@@ -90,6 +105,44 @@ function isMemoryQuery(message: string): boolean {
   return /\b(remember|memory|memories|know about me|saved facts|what do you know about me|do you know me)\b/i.test(
     message
   );
+}
+
+function extractLastAssistantTurn(
+  history: Array<{ role: "user" | "assistant"; content: string }>
+): string | null {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role === "assistant") {
+      const c = history[i].content.trim();
+      return c ? c : null;
+    }
+  }
+  return null;
+}
+
+function buildConversationAnchorBlock(
+  early: Array<{ role: "user" | "assistant"; content: string }>,
+  recent: Array<{ role: "user" | "assistant"; content: string }>
+): string {
+  const clip = (value: string, max = 220) =>
+    value.replace(/\s+/g, " ").trim().slice(0, max);
+  const render = (rows: Array<{ role: "user" | "assistant"; content: string }>) =>
+    rows
+      .filter((row) => row.content.trim().length > 0)
+      .map((row) => `- ${row.role === "user" ? "User" : "Assistant"}: ${clip(row.content)}`)
+      .join("\n");
+
+  const earlyBlock = render(early);
+  const recentBlock = render(recent);
+  if (!earlyBlock && !recentBlock) return "";
+
+  return [
+    "Conversation continuity anchors (thread start and latest context):",
+    earlyBlock ? `Thread start:\n${earlyBlock}` : "",
+    recentBlock ? `Latest context:\n${recentBlock}` : "",
+    "Use this to maintain continuity across the whole chat. If the user says 'yes/do that', continue the most recent assistant proposal instead of restarting from scratch.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -249,6 +302,19 @@ function imageDataUrl(file: File, buffer: Buffer): string {
   return `data:${mime};base64,${buffer.toString("base64")}`;
 }
 
+const API_ERROR_PATTERNS = [
+  /does not support image input/i,
+  /cannot read.*clipboard/i,
+  /model.*not support.*image/i,
+  /image.*not supported/i,
+  /vision.*not.*support/i,
+  /multimodal.*not.*support/i,
+];
+
+function looksLikeApiError(text: string): boolean {
+  return API_ERROR_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 async function analyzeImageWithGroq(file: File): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) throw new Error("GROQ_API_KEY environment variable is not set");
@@ -289,6 +355,10 @@ async function analyzeImageWithGroq(file: File): Promise<string> {
 
   const text = response.choices[0]?.message?.content;
   const result = typeof text === "string" ? text.trim() : "";
+  if (result && looksLikeApiError(result)) {
+    console.warn("[chat-api] Groq returned an API error as content, using fallback:", result);
+    return "";
+  }
   return result || `[Image uploaded: ${file.name || "attachment"}]`;
 }
 
@@ -414,10 +484,13 @@ export async function POST(request: NextRequest) {
       error: authError,
     } = await supabase.auth.getUser();
 
-    if (authError || !user) {
-      return chatJsonResponse("Your session expired. Please log in again.", 401, {
-        error: "Unauthorized",
-      });
+    // Guests are allowed to try the chat without an account. Their turns are
+    // never persisted, no conversation row is created, no memory is read or
+    // written. The 5-prompt cap that nudges them to sign up lives client-side
+    // in use-chat.ts. authError is treated as "no session" rather than failure.
+    const isGuest = !user;
+    if (authError) {
+      console.warn("[chat-api] auth.getUser returned error; treating as guest:", authError.message);
     }
 
     const contentType = request.headers.get("content-type") || "";
@@ -488,6 +561,7 @@ export async function POST(request: NextRequest) {
 
     const attachmentContext = formatAttachmentContext(attachmentSummaries);
     const composedMessage = [incomingMessage, attachmentContext].filter(Boolean).join("\n\n").trim();
+    const normalizedMessage = normalizeNoisyEnglish(composedMessage);
 
     if (!composedMessage) {
       return chatJsonResponse("Please enter a message.", 400, {
@@ -506,7 +580,8 @@ export async function POST(request: NextRequest) {
       });
     }
     console.debug("[chat-api] validated request", {
-      userId: user.id,
+      userId: user?.id ?? "guest",
+      isGuest,
       messageLength: incomingMessage.length,
       attachments: attachmentSummaries.length,
       hasConversationId: Boolean(requestedConversationId),
@@ -522,14 +597,18 @@ export async function POST(request: NextRequest) {
     }
 
     let activeConversationId = requestedConversationId;
-    if (!activeConversationId) {
+    if (isGuest) {
+      // Guest turns are not persisted; the client never gets a conversation id
+      // back, so follow-ups stay in the same in-memory thread until they log in.
+      activeConversationId = null;
+    } else if (!activeConversationId) {
       recordProgress("Creating a new conversation", 12);
       const titleSeed = incomingMessage || attachmentSummaries[0]?.name || "New chat";
       const title =
         titleSeed.length > 60 ? `${titleSeed.substring(0, 60)}...` : titleSeed;
       const { data: conversation, error } = await supabase
         .from("conversations")
-        .insert({ user_id: user.id, title })
+        .insert({ user_id: user!.id, title })
         .select("id")
         .single();
       if (error || !conversation) {
@@ -545,7 +624,7 @@ export async function POST(request: NextRequest) {
         .from("conversations")
         .select("id")
         .eq("id", activeConversationId)
-        .eq("user_id", user.id)
+        .eq("user_id", user!.id)
         .single();
       if (error || !existing) {
         return chatJsonResponse("Conversation not found.", 404, {
@@ -555,33 +634,60 @@ export async function POST(request: NextRequest) {
     }
 
     recordProgress("Loading conversation history and preferences", 18);
-    const wantsMemoryAnswer = isMemoryQuery(composedMessage);
+    const wantsMemoryAnswer = isMemoryQuery(composedMessage) || isMemoryQuery(normalizedMessage);
 
-    const [historyResponse, userMemoryBase, prefsResponse, semanticMemoryRows] =
-      await Promise.all([
-        supabase
-          .from("messages")
-          .select("role, content, metadata")
-          .eq("conversation_id", activeConversationId)
-          .order("created_at", { ascending: false })
-          .limit(12),
-        buildUserContext(supabase, user.id).catch((err) => {
-          console.warn("[chat-api] buildUserContext failed", err);
-          return "";
-        }),
-        supabase
-          .from("user_preferences")
-          .select("language_mode, default_market, currency, theme")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-        wantsMemoryAnswer
-          ? listRecentMemories(supabase, user.id, { limit: 10 })
-          : searchMemories(supabase, user.id, composedMessage),
-      ]);
+    type HistoryRow = { id?: string; role: string; content: string; metadata: unknown };
+    type AnchorRow = { id: string; role: "user" | "assistant"; content: string };
+    type PrefsRow = { language_mode?: string; default_market?: string; currency?: string; theme?: string };
+    const [historyResponse, anchorStartResponse, anchorEndResponse, userMemoryBase, prefsResponse, semanticMemoryRows] = isGuest
+      ? ([
+          { data: [] as HistoryRow[], error: null },
+          { data: [] as AnchorRow[], error: null },
+          { data: [] as AnchorRow[], error: null },
+          "",
+          { data: null as PrefsRow | null, error: null },
+          [] as Awaited<ReturnType<typeof searchMemories>>,
+        ] as const)
+      : await Promise.all([
+          supabase
+            .from("messages")
+            .select("id, role, content, metadata")
+            .eq("conversation_id", activeConversationId!)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          supabase
+            .from("messages")
+            .select("id, role, content")
+            .eq("conversation_id", activeConversationId!)
+            .in("role", ["user", "assistant"])
+            .order("created_at", { ascending: true })
+            .limit(14),
+          supabase
+            .from("messages")
+            .select("id, role, content")
+            .eq("conversation_id", activeConversationId!)
+            .in("role", ["user", "assistant"])
+            .order("created_at", { ascending: false })
+            .limit(14),
+          buildUserContext(supabase, user!.id).catch((err) => {
+            console.warn("[chat-api] buildUserContext failed", err);
+            return "";
+          }),
+          supabase
+            .from("user_preferences")
+            .select("language_mode, default_market, currency, theme")
+            .eq("user_id", user!.id)
+            .maybeSingle(),
+          wantsMemoryAnswer
+            ? listRecentMemories(supabase, user!.id, { limit: 10 })
+            : searchMemories(supabase, user!.id, normalizedMessage || composedMessage),
+        ]);
 
     recordProgress("Saving your message", 22);
     // Insert user message after fetching history to avoid duplicating it in the LLM context
-    const { error: userMessageError } = await supabase.from("messages").insert({
+    const { error: userMessageError } = isGuest
+      ? ({ error: null as { message: string } | null })
+      : await supabase.from("messages").insert({
       conversation_id: activeConversationId,
       role: "user",
       content: incomingMessage || composedMessage,
@@ -612,13 +718,13 @@ export async function POST(request: NextRequest) {
     const nameMatch = incomingMessage.match(
       /(?:my name is|call me)\s+([a-zA-Z][a-zA-Z\s]{0,40})(?:[.!?]|$)/i
     );
-    if (nameMatch) {
+    if (nameMatch && !isGuest) {
       recordProgress("Updating user memory", 24);
       const name = nameMatch[1].trim();
       console.log("[chat-api] Saving name:", name);
       const { error } = await supabase
         .from("user_memory")
-        .upsert({ user_id: user.id, key: "name", value: name }, { onConflict: "user_id,key" });
+        .upsert({ user_id: user!.id, key: "name", value: name }, { onConflict: "user_id,key" });
       if (error) console.error("[chat-api] Save name error:", error);
     }
 
@@ -634,19 +740,32 @@ export async function POST(request: NextRequest) {
       ? LANG_INSTRUCTION_TANGLISH
       : LANG_INSTRUCTION_ENGLISH;
 
-    const userDisplayName =
-      (typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim()) ||
-      (typeof user.user_metadata?.name === "string" && user.user_metadata.name.trim()) ||
-      (user.email?.split("@")[0] ?? "").trim() ||
-      "there";
+    const userDisplayName = isGuest
+      ? "there"
+      : (typeof user!.user_metadata?.full_name === "string" && user!.user_metadata.full_name.trim()) ||
+        (typeof user!.user_metadata?.name === "string" && user!.user_metadata.name.trim()) ||
+        (user!.email?.split("@")[0] ?? "").trim() ||
+        "there";
+        // Fetch investor profile
+let investorProfile: Record<string, any> = {};
+if (!isGuest) {
+  const { data: profileData } = await supabase
+    .from('investor_profiles')
+    .select('profile')
+    .eq('user_id', user!.id)
+    .single();
+  investorProfile = profileData?.profile ?? {};
+}
+    
     const userProfileContext = [
-      userDisplayName && userDisplayName !== "there" ? `User profile name: ${userDisplayName}` : "",
-      prefsResponse.data?.default_market ? `Preferred market: ${prefsResponse.data.default_market}` : "",
-      prefsResponse.data?.currency ? `Preferred currency: ${prefsResponse.data.currency}` : "",
-      prefsResponse.data?.theme ? `Preferred theme: ${prefsResponse.data.theme}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+  userDisplayName && userDisplayName !== "there" ? `User profile name: ${userDisplayName}` : "",
+  prefsResponse.data?.default_market ? `Preferred market: ${prefsResponse.data.default_market}` : "",
+  prefsResponse.data?.currency ? `Preferred currency: ${prefsResponse.data.currency}` : "",
+  prefsResponse.data?.theme ? `Preferred theme: ${prefsResponse.data.theme}` : "",
+  Object.keys(investorProfile).length > 0 ? `Investor Profile: ${JSON.stringify(investorProfile)}` : "",
+]
+  .filter(Boolean)
+  .join("\n");
 
     const semanticMemoryBlock = formatMemoriesForPrompt(semanticMemoryRows);
     console.debug("[chat-api] semantic memory recall", {
@@ -674,6 +793,9 @@ export async function POST(request: NextRequest) {
             : "";
         return { role: metadata.role, content: `${metadata.content ?? ""}${fileContext}` };
       });
+    const anchorStartRows = (anchorStartResponse.data ?? []) as AnchorRow[];
+    const anchorEndRows = ((anchorEndResponse.data ?? []) as AnchorRow[]).reverse();
+    const conversationAnchorBlock = buildConversationAnchorBlock(anchorStartRows, anchorEndRows);
     const isFirstAssistantTurn =
       !conversationHistory.some((entry) => entry.role === "assistant");
 
@@ -682,6 +804,17 @@ export async function POST(request: NextRequest) {
     let chatMode: "stock" | "general" = "general";
     let generalKind: "brief" | "normal" = "normal";
     let isDetailedStockRequest = false;
+    const isConfirmationFollowup = isLikelyAffirmativeFollowup(composedMessage);
+    const lastAssistantTurn = extractLastAssistantTurn(conversationHistory);
+    if (
+      isConfirmationFollowup &&
+      lastAssistantTurn &&
+      looksLikeAssistantActionPrompt(lastAssistantTurn)
+    ) {
+      llmMessage = `${composedMessage}
+
+(Conversation instruction: The user is confirming your immediately previous proposal/request. Continue by doing what you just offered in the previous assistant turn. Do not restart the topic. Previous assistant turn: "${lastAssistantTurn.slice(0, 1200)}")`;
+    }
 
     // Coreference resolution: if the user said "tell me about that" / "what
     // about its dividend?", rewrite into a standalone query naming the entity
@@ -698,7 +831,7 @@ export async function POST(request: NextRequest) {
     let llmIntent: MessageClassification;
     try {
       llmIntent = await withTimeout(
-        classifyMessage(composedMessage, conversationHistory),
+        classifyMessage(normalizedMessage || composedMessage, conversationHistory),
         4000,
         "classifyMessage"
       );
@@ -717,12 +850,42 @@ export async function POST(request: NextRequest) {
     const earlySmallTalk = !wantsMemoryAnswer && llmIntent.kind === "small_talk";
     console.debug("[chat-api] llm classifier", llmIntent);
 
-    let routingMessage = composedMessage;
-    if (!earlySmallTalk && needsRewrite(composedMessage, conversationHistory.length > 0)) {
+    // Plan-then-execute gate: only complex authenticated queries get the
+    // planner. Guests, small-talk, and short/tiny intents stay on the
+    // single-model fast path so latency does not regress. When triggered,
+    // the planner call is kicked off here so it overlaps with rewrite +
+    // symbol/quote/web-search work that the route already awaits below.
+    const useAgentPath = shouldUsePlanner({
+      isGuest,
+      earlySmallTalk,
+      wantsMemoryAnswer,
+      cerebrasValid: validateCerebrasSetup().valid,
+      thinkMode,
+      hasImageAttachments,
+      depth: llmIntent.depth,
+      kind: llmIntent.kind,
+    });
+    const planPromise: Promise<ChatPlan | null> = useAgentPath
+      ? generatePlan(composedMessage, conversationHistory, { timeoutMs: 2500 }).catch(() => null)
+      : Promise.resolve(null);
+    if (useAgentPath) {
+      console.debug("[chat-api] agent path armed", {
+        depth: llmIntent.depth,
+        kind: llmIntent.kind,
+        thinkMode,
+        hasImageAttachments,
+      });
+    }
+
+    let routingMessage = normalizedMessage || composedMessage;
+    if (
+      !earlySmallTalk &&
+      needsRewrite(normalizedMessage || composedMessage, conversationHistory.length > 0)
+    ) {
       recordProgress("Resolving references from previous turns", 26);
       try {
         routingMessage = await withTimeout(
-          rewriteFollowupQuery(composedMessage, conversationHistory),
+          rewriteFollowupQuery(normalizedMessage || composedMessage, conversationHistory),
           4500,
           "rewriteFollowupQuery"
         );
@@ -733,7 +896,7 @@ export async function POST(request: NextRequest) {
         );
         routingMessage = composedMessage;
       }
-      if (routingMessage !== composedMessage) {
+      if (routingMessage !== (normalizedMessage || composedMessage)) {
         // Give the LLM both: the explicit standalone query (for accuracy) and
         // the user's original phrasing (for natural reply tone).
         llmMessage = `${composedMessage}\n\n(Resolved standalone form for your reasoning, do not echo verbatim: "${routingMessage}")`;
@@ -876,11 +1039,17 @@ export async function POST(request: NextRequest) {
     //     the old "hi" -> portfolio dump bug.
     //   - everything else: full context, as before.
     if (earlySmallTalk && !wantsMemoryAnswer) {
-      userMemory = [semanticMemoryBlock, userProfileContext, languageInstruction]
+      userMemory = [semanticMemoryBlock, conversationAnchorBlock, userProfileContext, languageInstruction]
         .filter((s) => s && s.length > 0)
         .join("\n\n");
     } else {
-      userMemory = [semanticMemoryBlock, userProfileContext, userMemoryBase, languageInstruction]
+      userMemory = [
+        semanticMemoryBlock,
+        conversationAnchorBlock,
+        userProfileContext,
+        userMemoryBase,
+        languageInstruction,
+      ]
         .filter((s) => s && s.length > 0)
         .join("\n\n");
     }
@@ -960,7 +1129,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const conversationId = activeConversationId as string;
+    const conversationId = (activeConversationId ?? "") as string;
 
     // Whether the user explicitly asked about a stock in THIS message. Used
     // to gate the stock-chart UI: a coreference rewrite could otherwise
@@ -1015,12 +1184,44 @@ export async function POST(request: NextRequest) {
       generalKind,
     });
 
+    // Pre-fetch insights API data so the model reasons over live, citable
+    // numbers instead of stale training knowledge. Failure is non-fatal —
+    // the helper returns the original prompt and an empty citation list.
+    let insightsCitations: InjectedCitation[] = [];
+    if (!earlySmallTalk) {
+      try {
+        const enriched = await enrichSystemPromptWithCompanyData(
+          composedMessage,
+          userMemory,
+        );
+        if (enriched.hasData) {
+          userMemory = enriched.prompt;
+          insightsCitations = enriched.citations;
+          console.debug("[chat-api] insights context injected", {
+            symbol: enriched.symbol,
+            citationCount: enriched.citations.length,
+          });
+        }
+      } catch (err) {
+        console.warn(
+          "[chat-api] insights context injection failed (continuing):",
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+
     let llmStream: ReadableStream<Uint8Array>;
     let usedProvider = "unknown";
+    let resolvedPlan: ChatPlan | null = null;
     try {
       recordProgress(`Opening ${chatMode === "stock" ? "stock analysis" : "general chat"} LLM stream`, 80);
       console.debug("[chat-api] opening LLM stream", { mode: chatMode });
       const hasWebSearch = Boolean(webSearch && webSearch.sources.length > 0);
+      // Planner ran in parallel with data fetches; await it here. On a deep
+      // stock query the symbol+quote+history+news work already burned the
+      // planner's budget, so this await is effectively free. The promise
+      // never rejects (generatePlan swallows errors and returns null).
+      resolvedPlan = await planPromise;
       const result = await withTimeout(
         streamChat({
           mode: chatMode,
@@ -1030,6 +1231,7 @@ export async function POST(request: NextRequest) {
           kind: generalKind,
           model: requestedModel,
           userMemory: userMemory || undefined,
+          plan: resolvedPlan,
           routing: {
             kind: wantsMemoryAnswer ? "general_other" : llmIntent.kind,
             depth: wantsMemoryAnswer ? "short" : llmIntent.depth,
@@ -1090,16 +1292,27 @@ export async function POST(request: NextRequest) {
       metadata.provider = usedProvider;
 
       // Calculate confidence score
-      let confidenceSources: Array<{ url: string; publishedAt?: string }> = [];
+      let confidenceSources: Array<{ url: string; publishedAt?: string; domain?: string; title?: string }> = [];
       if (webSearch && webSearch.sources.length > 0) {
         metadata.sources = webSearch.sources;
         confidenceSources = webSearch.sources;
+      }
+      // Insights tool citations flow into the same list the confidence
+      // engine reads. This is what raises scores on company questions:
+      // an insights.alphasightai.online + finnhub.io citation pair is
+      // multi-source corroboration from high-reliability domains.
+      if (insightsCitations.length > 0) {
+        confidenceSources = [...confidenceSources, ...insightsCitations];
+        const existing = Array.isArray(metadata.sources) ? metadata.sources : [];
+        metadata.sources = [...existing, ...insightsCitations];
       }
 
       const confidenceResult = calculateConfidenceScore({
         responseText: fullResponse,
         sources: confidenceSources,
-        marketData: userExplicitlyAskedAboutStock && stockAnalysis !== null,
+        marketData:
+          (userExplicitlyAskedAboutStock && stockAnalysis !== null) ||
+          insightsCitations.length > 0,
       });
 
       metadata.confidence = {
@@ -1108,6 +1321,42 @@ export async function POST(request: NextRequest) {
         reliabilityScore: confidenceResult.reliabilityScore,
         reasoning: confidenceResult.reasoning,
       };
+
+      // Narrative drift detection for stock analyses
+      if (stockAnalysis && userExplicitlyAskedAboutStock) {
+        try {
+          const currentSnapshot = await extractAnalysisSnapshot(fullResponse, stockAnalysis.quote.symbol, {
+            includeEmbedding: true,
+          });
+
+          const previousAssistantRow = historyRows?.find(
+            (row) =>
+              row.role === "assistant" &&
+              row.metadata &&
+              typeof row.metadata === "object" &&
+              Array.isArray((row.metadata as any).stockData)
+          );
+
+          if (previousAssistantRow) {
+            const previousSnapshot = await extractAnalysisSnapshot(
+              previousAssistantRow.content,
+              stockAnalysis.quote.symbol,
+              { includeEmbedding: true }
+            );
+            metadata.drift = detectNarrativeDrift(currentSnapshot, [previousSnapshot]);
+          }
+
+          const snapshotToStore = { ...currentSnapshot };
+          delete snapshotToStore.embedding;
+          metadata.analysisSnapshot = snapshotToStore;
+        } catch (driftError) {
+          console.warn("[chat-api] drift detection skipped", driftError);
+        }
+      }
+
+      // Guest turns never touch the DB or memory store — the conversation
+      // exists only in the streaming response and the browser.
+      if (isGuest) return;
 
       await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -1126,12 +1375,24 @@ export async function POST(request: NextRequest) {
       // Vercel serverless after the response is sent (Next.js 15.1+).
       // Failures are logged inside addMemories() — never throws.
       after(
-        addMemories(supabase, user.id, {
+        addMemories(supabase, user!.id, {
           userMessage: composedMessage,
           assistantResponse: fullResponse,
           conversationId,
         })
       );
+      after(async () => {
+  try {
+    const conversation = `User: ${composedMessage}\nAssistant: ${fullResponse}`;
+    const extracted = await extractInvestorProfile(conversation);
+    const merged = mergeProfiles(investorProfile, extracted);
+    await supabase
+      .from('investor_profiles')
+      .upsert({ user_id: user!.id, profile: merged, updated_at: new Date().toISOString() });
+  } catch (err) {
+    console.warn('[chat-api] investor profile extraction failed:', err);
+  }
+});
     };
 
     const outboundStream = new ReadableStream<Uint8Array>({
@@ -1228,12 +1489,20 @@ export async function POST(request: NextRequest) {
     const responseHeaders: Record<string, string> = {
       "Content-Type": "text/plain; charset=utf-8",
       "Transfer-Encoding": "chunked",
-      "X-Conversation-Id": conversationId,
       "X-Has-Stock-Data": userExplicitlyAskedAboutStock ? "true" : "false",
       "X-Has-Web-Sources": hasWebSources ? "true" : "false",
       "Access-Control-Expose-Headers":
-        "X-Conversation-Id, X-Has-Stock-Data, X-Stock-Symbol, X-Stock-Exchange, X-Has-Web-Sources",
+        "X-Conversation-Id, X-Has-Stock-Data, X-Stock-Symbol, X-Stock-Exchange, X-Has-Web-Sources, X-Guest, X-Agent-Mode",
     };
+    if (resolvedPlan) {
+      responseHeaders["X-Agent-Mode"] = "plan-execute";
+    }
+    if (conversationId) {
+      responseHeaders["X-Conversation-Id"] = conversationId;
+    }
+    if (isGuest) {
+      responseHeaders["X-Guest"] = "true";
+    }
     if (stockAnalysis && userExplicitlyAskedAboutStock) {
       responseHeaders["X-Stock-Symbol"] = stockAnalysis.quote.symbol;
       responseHeaders["X-Stock-Exchange"] = stockAnalysis.quote.exchange || "";

@@ -7,7 +7,11 @@ type SetAllCookies = (
   cookies: Array<{ name: string; value: string; options?: CookieOptions }>
 ) => void;
 
-const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/info", "/about", "/privacy", "/terms", "/disclaimer", "/contact"];
+// Guests are allowed on the chat page ("/") so they can try the product. The
+// chat API enforces its own 5-prompt cap for unauthenticated callers. Every
+// other in-app surface (portfolio, watchlist, brief, settings, profile) still
+// gates on auth and bounces to /login.
+const PUBLIC_PATHS = ["/", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/api/daily-brief", "/api/market-stream", "/api/quotes", "/api/insights", "/info", "/about", "/insights", "/privacy", "/terms", "/disclaimer", "/contact"];
 
 // Search-engine + verification crawlers. When one of these hits a protected
 // page we rewrite to the marketing landing instead of redirecting to /login,
@@ -20,28 +24,73 @@ function isCrawler(request: NextRequest): boolean {
 }
 
 // Marketing subdomains: when a request lands on info./about./… and asks for
-// the bare root, rewrite to the matching internal route before the auth
-// gate runs. Doing this in the proxy (not next.config.ts rewrites) avoids two
-// problems: (1) Turbopack's spottier rewrite support, and (2) the proxy
-// otherwise sees the un-rewritten "/" path and bounces unauthenticated users
-// to /login.
+// the bare root, redirect to the matching route on the main app origin before
+// the auth gate runs. This avoids serving any page on the broken subdomain
+// host and keeps auth/session state on the same origin as the chat app.
 const SUBDOMAIN_ROUTES: Record<string, string> = {
   "info.alphasightai.online": "/info",
   "about.alphasightai.online": "/about",
 };
 
+// Product subdomains: the request stays on the subdomain host but every path
+// is internally rewritten under the matching app route segment. So
+// insights.alphasightai.online/RELIANCE.NS serves /insights/RELIANCE.NS while
+// the URL bar still shows the insights subdomain. Asset paths and API routes
+// pass through untouched so static imports and /api/* keep working.
+const PRODUCT_SUBDOMAIN_REWRITES: Record<string, string> = {
+  "insights.alphasightai.online": "/insights",
+  "insights.localhost": "/insights",
+};
+
+const PROD_APP_HOST = "chat.alphasightai.online";
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isApiPath = pathname.startsWith("/api/");
+  const host = request.headers.get("host") || "";
+
+  // If the production deployment is hit on its raw vercel.app URL, bounce to
+  // the canonical custom domain BEFORE any auth/cookie work happens. Otherwise
+  // OAuth callbacks land on vercel.app, Supabase writes session cookies there,
+  // and when the user returns to chat.alphasightai.online they have no cookie
+  // and the chat falls back to guest mode (the "5 free prompts" banner).
+  if (
+    process.env.NODE_ENV === "production" &&
+    host.endsWith(".vercel.app")
+  ) {
+    const target = new URL(request.nextUrl.toString());
+    target.host = PROD_APP_HOST;
+    target.protocol = "https:";
+    target.port = "";
+    return NextResponse.redirect(target, 308);
+  }
 
   // Host-based root rewrite for marketing subdomains. Only the literal "/" is
   // remapped so that /login, /api/*, and asset paths on those subdomains keep
   // working normally.
-  const host = request.headers.get("host") || "";
   const subdomainTarget = SUBDOMAIN_ROUTES[host];
-  if (subdomainTarget && pathname === "/") {
+  if (subdomainTarget) {
+    const appOrigin =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      request.nextUrl.origin;
+    const redirectUrl = new URL(pathname === "/" ? subdomainTarget : pathname, appOrigin);
+    redirectUrl.search = request.nextUrl.search;
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Product subdomain: rewrite (200, internal) into the matching app segment
+  // so the URL bar stays on the subdomain while Next serves the corresponding
+  // app route. _next, /api, and static asset paths pass through untouched.
+  const productPrefix = PRODUCT_SUBDOMAIN_REWRITES[host];
+  if (
+    productPrefix &&
+    !pathname.startsWith("/_next") &&
+    !pathname.startsWith("/api") &&
+    !pathname.startsWith(productPrefix)
+  ) {
     const rewriteUrl = request.nextUrl.clone();
-    rewriteUrl.pathname = subdomainTarget;
+    rewriteUrl.pathname = pathname === "/" ? productPrefix : `${productPrefix}${pathname}`;
     return NextResponse.rewrite(rewriteUrl);
   }
 

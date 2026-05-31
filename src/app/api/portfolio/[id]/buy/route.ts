@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchQuote } from "@/lib/stock/data";
+import { applyInsightsCors, corsPreflightResponse } from "@/lib/api/cors";
+
+function jsonWithCors(
+  request: NextRequest,
+  body: unknown,
+  init?: ResponseInit,
+): NextResponse {
+  return applyInsightsCors(request, NextResponse.json(body, init));
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return corsPreflightResponse(request);
+}
 
 /**
  * POST /api/portfolio/[id]/buy - Add more shares to an existing holding at a
@@ -25,7 +38,7 @@ export async function POST(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithCors(request, { error: "Unauthorized" }, { status: 401 });
     }
 
     const { data: existing, error: fetchError } = await supabase
@@ -36,22 +49,24 @@ export async function POST(
       .single();
 
     if (fetchError || !existing) {
-      return NextResponse.json({ error: "Holding not found" }, { status: 404 });
+      return jsonWithCors(request, { error: "Holding not found" }, { status: 404 });
     }
 
     const body = await request.json().catch(() => ({}));
     const { quantity, price } = body as { quantity?: number; price?: number };
 
     if (typeof quantity !== "number" || !Number.isFinite(quantity) || quantity <= 0) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Quantity must be a positive number" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Price must be a positive number" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -72,9 +87,10 @@ export async function POST(
       .single();
 
     if (updateError || !updated) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Failed to update holding" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -91,7 +107,7 @@ export async function POST(
     const pnl = currentValue - investedValue;
     const pnlPercent = investedValue > 0 ? (pnl / investedValue) * 100 : 0;
 
-    return NextResponse.json({
+    return jsonWithCors(request, {
       holding: { ...updated, currentPrice, currentValue, pnl, pnlPercent },
       averaging: {
         previousQuantity: oldQty,
@@ -104,9 +120,10 @@ export async function POST(
     });
   } catch (error) {
     console.error("POST /api/portfolio/[id]/buy error:", error);
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

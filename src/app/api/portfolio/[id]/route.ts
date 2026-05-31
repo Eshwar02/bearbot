@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchQuote } from "@/lib/stock/data";
+import { applyInsightsCors, corsPreflightResponse } from "@/lib/api/cors";
+
+function jsonWithCors(
+  request: NextRequest,
+  body: unknown,
+  init?: ResponseInit,
+): NextResponse {
+  return applyInsightsCors(request, NextResponse.json(body, init));
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return corsPreflightResponse(request);
+}
 
 /**
  * PUT /api/portfolio/[id] - Update a portfolio holding.
@@ -19,7 +32,7 @@ export async function PUT(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithCors(request, { error: "Unauthorized" }, { status: 401 });
     }
 
     // Verify ownership
@@ -31,9 +44,10 @@ export async function PUT(
       .single();
 
     if (fetchError || !existing) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Holding not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -50,9 +64,10 @@ export async function PUT(
 
     if (quantity !== undefined) {
       if (typeof quantity !== "number" || quantity <= 0) {
-        return NextResponse.json(
+        return jsonWithCors(
+          request,
           { error: "Quantity must be a positive number" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updates.quantity = quantity;
@@ -60,9 +75,10 @@ export async function PUT(
 
     if (avgBuyPrice !== undefined) {
       if (typeof avgBuyPrice !== "number" || avgBuyPrice <= 0) {
-        return NextResponse.json(
+        return jsonWithCors(
+          request,
           { error: "Average buy price must be a positive number" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updates.avg_buy_price = avgBuyPrice;
@@ -72,9 +88,10 @@ export async function PUT(
       const ALLOWED = ["USD", "INR", "EUR", "GBP"] as const;
       const upper = currency ? currency.toUpperCase() : null;
       if (upper && !ALLOWED.includes(upper as typeof ALLOWED[number])) {
-        return NextResponse.json(
+        return jsonWithCors(
+          request,
           { error: "Invalid currency" },
-          { status: 400 }
+          { status: 400 },
         );
       }
       updates.currency = upper;
@@ -85,9 +102,10 @@ export async function PUT(
     }
 
     if (Object.keys(updates).length === 0) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "No fields to update" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -101,9 +119,10 @@ export async function PUT(
       .single();
 
     if (updateError || !updated) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Failed to update holding" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -121,7 +140,7 @@ export async function PUT(
     const pnl = currentValue - investedValue;
     const pnlPercent = investedValue > 0 ? (pnl / investedValue) * 100 : 0;
 
-    return NextResponse.json({
+    return jsonWithCors(request, {
       holding: {
         ...updated,
         currentPrice,
@@ -132,9 +151,10 @@ export async function PUT(
     });
   } catch (error) {
     console.error("PUT /api/portfolio/[id] error:", error);
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -143,7 +163,7 @@ export async function PUT(
  * DELETE /api/portfolio/[id] - Remove a portfolio holding.
  */
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -155,7 +175,7 @@ export async function DELETE(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithCors(request, { error: "Unauthorized" }, { status: 401 });
     }
 
     // Verify ownership
@@ -167,9 +187,10 @@ export async function DELETE(
       .single();
 
     if (fetchError || !existing) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Holding not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -179,18 +200,20 @@ export async function DELETE(
       .eq("id", id);
 
     if (deleteError) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Failed to delete holding" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    return NextResponse.json({ success: true });
+    return jsonWithCors(request, { success: true });
   } catch (error) {
     console.error("DELETE /api/portfolio/[id] error:", error);
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

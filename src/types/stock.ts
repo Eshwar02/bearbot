@@ -62,6 +62,9 @@ export interface NewsItem {
   source: string;
   publishedAt: string;
   summary: string;
+  imageUrl?: string;
+  symbol?: string;
+  category?: string;
 }
 
 export interface CompanyInfo {

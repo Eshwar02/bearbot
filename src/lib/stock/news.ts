@@ -1,54 +1,9 @@
 import type { NewsItem } from "@/types/stock";
-import { yahoo } from "@/lib/stock/yahoo";
 import { stockCache, CACHE_TTL } from "./cache";
 
 const MARKETAUX_API_KEY = process.env.MARKETAUX_API_KEY;
 const NEWSAPI_API_KEY = process.env.NEWSAPI_API_KEY || process.env.NEWSDATA_API_KEY;
-const MAX_NEWS_ITEMS = 12;
-
-interface NewsdataArticle {
-  title: string;
-  link: string;
-  source_name: string;
-  pubDate: string;
-  description: string;
-}
-
-/**
- * Fetch news from NewsAPI.org API
- */
-async function fetchNewsdataNews(symbol: string, companyName: string): Promise<NewsItem[]> {
-  if (!NEWSAPI_API_KEY) return [];
-
-  try {
-    const query = companyName || symbol.replace(/\.(NS|BO)$/, '');
-    const url = `https://newsapi.org/v2/everything?apiKey=${NEWSAPI_API_KEY}&q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=5`;
-    const res = await fetch(url, { next: { revalidate: 300 } });
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    if (!data.articles || !Array.isArray(data.articles)) return [];
-
-    return data.articles.map((article: any) => ({
-      title: article.title || '',
-      url: article.url || '',
-      source: article.source?.name || 'NewsAPI',
-      publishedAt: article.publishedAt || new Date().toISOString(),
-      summary: article.description || article.title || '',
-    }));
-  } catch {
-    return [];
-  }
-}
-
-interface MarketauxArticle {
-  title: string;
-  url: string;
-  source: string;
-  published_at: string;
-  description: string;
-  snippet: string;
-}
+const MAX_NEWS_ITEMS = 30;
 
 const SOURCE_SITES = [
   "mint",
@@ -66,7 +21,7 @@ const COMPANY_PRODUCT_THEMES: Array<{
   themes: string[];
 }> = [
   {
-    matcher: /\b(amara\s*raja|amararaja|amraraaja|amara\s*raja\s*energy)\b/i,
+    matcher: /\b(amara\s*raja|amararaja|are&m|amara\s*raja\s*energy)\b/i,
     themes: [
       "lithium battery",
       "lithium ion cell",
@@ -80,6 +35,10 @@ const COMPANY_PRODUCT_THEMES: Array<{
     themes: ["petrochemicals", "new energy", "solar", "green hydrogen"],
   },
 ];
+
+function cleanSymbol(symbol: string): string {
+  return symbol.replace(/\.(NS|BO)$/, "").trim();
+}
 
 function decodeXmlEntities(input: string): string {
   return input
@@ -106,20 +65,78 @@ function sourceFromLink(link: string): string {
     if (host.includes("livemint")) return "Mint";
     if (host.includes("reuters")) return "Reuters";
     if (host.includes("bloomberg")) return "Bloomberg";
+    if (host.includes("ndtv")) return "NDTV Profit";
+    if (host.includes("thehindu")) return "The Hindu";
+    if (host.includes("timesofindia")) return "Times of India";
+    if (host.includes("indiatimes")) return "India Times";
+    if (host.includes("cnbc")) return "CNBC";
+    if (host.includes("yahoo")) return "Yahoo Finance";
     return host.replace(/^www\./, "");
   } catch {
     return "Google News";
   }
 }
 
-async function fetchGoogleNewsRss(query: string): Promise<NewsItem[]> {
+function fetchOptions(refresh = false): RequestInit {
+  return refresh ? { cache: 'no-store' } : { next: { revalidate: 300 } };
+}
+
+async function fetchNewsdataNews(symbol: string, companyName: string, refresh = false): Promise<NewsItem[]> {
+  if (!NEWSAPI_API_KEY) return [];
+
+  try {
+    const query = companyName || cleanSymbol(symbol);
+    const url = `https://newsapi.org/v2/everything?apiKey=${NEWSAPI_API_KEY}&q=${encodeURIComponent(query)}&language=en&sortBy=publishedAt&pageSize=10`;
+    const res = await fetch(url, fetchOptions(refresh));
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (!data.articles || !Array.isArray(data.articles)) return [];
+
+    return data.articles.map((article: any) => ({
+      title: article.title || '',
+      url: article.url || '',
+      source: article.source?.name || 'NewsAPI',
+      publishedAt: article.publishedAt || new Date().toISOString(),
+      summary: article.description || article.title || '',
+      imageUrl: article.urlToImage || undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchMarketauxNews(symbol: string, refresh = false): Promise<NewsItem[]> {
+  if (!MARKETAUX_API_KEY) return [];
+
+  try {
+    const clean = cleanSymbol(symbol);
+    const url = `https://api.marketaux.com/v1/news/all?symbols=${clean}&filter_entities=true&language=en&api_token=${MARKETAUX_API_KEY}&limit=10`;
+    const res = await fetch(url, fetchOptions(refresh));
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (!data.data || !Array.isArray(data.data)) return [];
+
+    return data.data.map((article: any) => ({
+      title: article.title || '',
+      url: article.url || '',
+      source: article.source || 'MarketAux',
+      publishedAt: article.published_at || new Date().toISOString(),
+      summary: article.description || article.snippet || article.title || '',
+      imageUrl: article.image_url || undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function fetchGoogleNewsRss(query: string, limit = 10, refresh = false): Promise<NewsItem[]> {
   if (!query.trim()) return [];
 
   try {
-    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(
-      query
-    )}&hl=en-IN&gl=IN&ceid=IN:en`;
-    const res = await fetch(url, { next: { revalidate: 120 } });
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
+    const res = await fetch(url, refresh ? { cache: 'no-store' } : { next: { revalidate: 120 } });
     if (!res.ok) return [];
     const xml = await res.text();
 
@@ -127,13 +144,26 @@ async function fetchGoogleNewsRss(query: string): Promise<NewsItem[]> {
     const itemRegex = /<item>([\s\S]*?)<\/item>/gi;
     let match: RegExpExecArray | null = itemRegex.exec(xml);
 
-    while (match) {
+    while (match && items.length < limit) {
       const block = match[1];
       const title = extractTag(block, "title");
       const link = extractTag(block, "link");
       const pubDate = extractTag(block, "pubDate");
       const description = extractTag(block, "description");
       const source = sourceFromLink(link);
+      let imageUrl: string | undefined;
+      const enclosureMatch = block.match(/<enclosure[^>]*url="([^"]+)"/i);
+      if (enclosureMatch) {
+        imageUrl = enclosureMatch[1];
+      } else {
+        const descImgMatch = description.match(
+          /<img[^>]+src=["']([^"']+)["']/i
+        );
+        if (descImgMatch) {
+          const src = descImgMatch[1];
+          if (src.startsWith('http')) imageUrl = src;
+        }
+      }
 
       if (title && link) {
         items.push({
@@ -142,20 +172,21 @@ async function fetchGoogleNewsRss(query: string): Promise<NewsItem[]> {
           source,
           publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
           summary: description || title,
+          imageUrl,
         });
       }
 
       match = itemRegex.exec(xml);
     }
 
-    return items.slice(0, 8);
+    return items;
   } catch {
     return [];
   }
 }
 
 function deriveThemeQueries(symbol: string, companyName: string): string[] {
-  const base = `${companyName || symbol}`.trim();
+  const base = `${companyName || cleanSymbol(symbol)}`.trim();
   const themeSet = new Set<string>();
 
   for (const entry of COMPANY_PRODUCT_THEMES) {
@@ -167,50 +198,75 @@ function deriveThemeQueries(symbol: string, companyName: string): string[] {
   return Array.from(themeSet);
 }
 
-/**
- * Fetch real-time news from MarketAux API
- */
-async function fetchMarketauxNews(symbol: string): Promise<NewsItem[]> {
-  if (!MARKETAUX_API_KEY) return [];
-
+async function fetchOgImage(url: string): Promise<string | null> {
   try {
-    const cleanSymbol = symbol.replace(/\.(NS|BO)$/, '');
-    const url = `https://api.marketaux.com/v1/news/all?symbols=${cleanSymbol}&filter_entities=true&language=en&api_token=${MARKETAUX_API_KEY}&limit=6`;
-    const res = await fetch(url, { next: { revalidate: 300 } });
-    if (!res.ok) return [];
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
 
-    const data = await res.json();
-    if (!data.data || !Array.isArray(data.data)) return [];
+    const html = await res.text();
+    const match = html.match(
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
+    );
+    if (match) return match[1];
 
-    return data.data.map((article: MarketauxArticle) => ({
-      title: article.title || '',
-      url: article.url || '',
-      source: article.source || 'MarketAux',
-      publishedAt: article.published_at || new Date().toISOString(),
-      summary: article.description || article.snippet || article.title || '',
-    }));
+    const matchAlt = html.match(
+      /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i
+    );
+    return matchAlt ? matchAlt[1] : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
-/**
- * Fetch recent news for a stock.
- * Tries MarketAux API first for real-time news, falls back to Yahoo Finance.
- * Returns 5-10 relevant, deduplicated news items sorted by date.
- *
- * @param symbol      - Yahoo Finance ticker (e.g. "AAPL", "RELIANCE.NS")
- * @param companyName - Human-readable company name for fallback search
- */
+async function enrichNewsImages(items: NewsItem[]): Promise<NewsItem[]> {
+  const missing = items
+    .map((item, i) => ({ item, index: i }))
+    .filter(({ item }) => !item.imageUrl);
+
+  if (missing.length === 0) return items;
+
+  const concurrency = 5;
+  for (let start = 0; start < missing.length; start += concurrency) {
+    const batch = missing.slice(start, start + concurrency);
+    const results = await Promise.all(
+      batch.map(async ({ item, index }) => {
+        const imageUrl = await fetchOgImage(item.url);
+        return { index, imageUrl };
+      })
+    );
+
+    for (const { index, imageUrl } of results) {
+      if (imageUrl) items[index].imageUrl = imageUrl;
+    }
+  }
+
+  return items;
+}
+
+function deduplicate(items: NewsItem[]): NewsItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = item.title.toLowerCase().trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function fetchStockNews(
   symbol: string,
   companyName: string = "",
-  extraThemeQueries: string[] = []
+  extraThemeQueries: string[] = [],
+  refresh = false
 ): Promise<NewsItem[]> {
   const cacheKey = `news:${symbol.toUpperCase()}:${companyName}`;
-  const cached = stockCache.get<NewsItem[]>(cacheKey);
-  if (cached) {
-    return cached;
+
+  if (!refresh) {
+    const cached = stockCache.get<NewsItem[]>(cacheKey);
+    if (cached) return cached;
   }
 
   const themeQueries =
@@ -218,121 +274,79 @@ export async function fetchStockNews(
       ? extraThemeQueries
       : deriveThemeQueries(symbol, companyName);
 
-  // Try MarketAux first for real-time news
-  const marketauxNews = await fetchMarketauxNews(symbol);
+  const cleanSym = cleanSymbol(symbol);
+  const name = companyName || cleanSym;
 
-  // Try NewsData.io as second source
-  const newsdataNews = await fetchNewsdataNews(symbol, companyName);
+  const [marketauxNews, newsdataNews] = await Promise.all([
+    fetchMarketauxNews(symbol, refresh),
+    fetchNewsdataNews(symbol, name, refresh),
+  ]);
 
   const newsItems: NewsItem[] = [...marketauxNews, ...newsdataNews];
 
-  // Query Google News RSS for company headlines across common business outlets.
-  const sourceQuery =
-    companyName && companyName.trim().length > 0 ? companyName : symbol.replace(/\.(NS|BO)$/, "");
   const siteFilter = SOURCE_SITES.map((s) => `site:${s}`).join(" OR ");
-  const googleCompanyNews = await fetchGoogleNewsRss(`${sourceQuery} (${siteFilter})`);
-  newsItems.push(...googleCompanyNews);
+  const googleNamed = await fetchGoogleNewsRss(`${name} (${siteFilter})`, 10, refresh);
+  newsItems.push(...googleNamed);
 
-  // Product/theme-based enrichment (key requirement) - limit to 2 for performance
-  for (const q of themeQueries.slice(0, 2)) {
-    const thematic = await fetchGoogleNewsRss(`${q} (${siteFilter})`);
+  const googleTicker = await fetchGoogleNewsRss(`${cleanSym} stock (${siteFilter})`, 8, refresh);
+  newsItems.push(...googleTicker);
+
+  if (newsItems.length < 5) {
+    const googleBroad = await fetchGoogleNewsRss(`${name} stock news`, 10, refresh);
+    newsItems.push(...googleBroad);
+  }
+
+  for (const q of themeQueries.slice(0, 3)) {
+    const thematic = await fetchGoogleNewsRss(`${q} (${siteFilter})`, 6, refresh);
     newsItems.push(...thematic);
   }
 
-  // Strategy 1: Search by ticker symbol - disabled to prioritize real-time APIs
-  // try {
-  //   const searchResult = await yahoo.search(symbol, {
-  //     newsCount: 10,
-  //     quotesCount: 0,
-  //   });
-
-  //   if (searchResult.news && searchResult.news.length > 0) {
-  //     for (const item of searchResult.news) {
-  //       newsItems.push(mapNewsItem(item));
-  //     }
-  //   }
-  // } catch (error) {
-  //   console.error(
-  //     `[fetchStockNews] Search by symbol failed for ${symbol}:`,
-  //     error instanceof Error ? error.message : error
-  //   );
-  // }
-
-  // Strategy 2: If too few results, also try searching by company name - disabled
-  // if (newsItems.length < 3 && companyName) {
-  //   try {
-  //     const nameSearch = await yahoo.search(companyName, {
-  //       newsCount: 10,
-  //       quotesCount: 0,
-  //     });
-
-  //   if (nameSearch.news && nameSearch.news.length > 0) {
-  //     for (const item of nameSearch.news) {
-  //       newsItems.push(mapNewsItem(item));
-  //     }
-  //   }
-  // } catch (error) {
-  //   console.error(
-  //     `[fetchStockNews] Search by name failed for ${companyName}:`,
-  //     error instanceof Error ? error.message : error
-  //   );
-  // }
-  // }
-
   if (newsItems.length === 0) return [];
 
-  // Deduplicate by title
-  const seen = new Set<string>();
-  const unique = newsItems.filter((item) => {
-    const key = item.title.toLowerCase().trim();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const unique = deduplicate(newsItems)
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .slice(0, MAX_NEWS_ITEMS);
 
-  // Return up to 6 items (reduced for performance), most recent first
-  const result = unique
-    .sort(
-      (a, b) =>
-        new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    )
-    .slice(0, 6);
-
-  // Cache the result
-  if (result.length > 0) {
-    stockCache.set(cacheKey, result, CACHE_TTL.NEWS);
+  if (unique.length > 0) {
+    stockCache.set(cacheKey, unique, CACHE_TTL.NEWS);
   }
 
-  return result;
+  return unique;
 }
 
-// ── Helper ───────────────────────────────────────────────────────────
+export { enrichNewsImages };
 
-function mapNewsItem(item: {
-  title?: string;
-  link?: string;
-  publisher?: string;
-  providerPublishTime?: number | Date;
-}): NewsItem {
-  let publishedAt: string;
-  if (item.providerPublishTime) {
-    const ts = item.providerPublishTime;
-    // yahoo-finance2 may return seconds-since-epoch or a Date object
-    publishedAt =
-      typeof ts === "number"
-        ? new Date(ts < 1e12 ? ts * 1000 : ts).toISOString()
-        : ts instanceof Date
-          ? ts.toISOString()
-          : new Date().toISOString();
-  } else {
-    publishedAt = new Date().toISOString();
-  }
+export async function fetchTopicNews(
+  queries: string[],
+  limitPerQuery = 10,
+  maxTotal = 25,
+  refresh = false
+): Promise<NewsItem[]> {
+  const results = await Promise.all(
+    queries.map(async (q) => {
+      const cacheKey = `topic:${q}`;
 
-  return {
-    title: item.title || "Untitled",
-    url: item.link || "",
-    source: item.publisher || "Yahoo Finance",
-    publishedAt,
-    summary: item.title || "",
-  };
+      if (!refresh) {
+        const cached = stockCache.get<NewsItem[]>(cacheKey);
+        if (cached) return cached;
+      }
+
+      const siteFilter = SOURCE_SITES.map((s) => `site:${s}`).join(" OR ");
+      const named = await fetchGoogleNewsRss(`${q} (${siteFilter})`, limitPerQuery, refresh);
+      const broad = await fetchGoogleNewsRss(`${q}`, limitPerQuery, refresh);
+
+      const combined = deduplicate([...named, ...broad])
+        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+        .slice(0, limitPerQuery);
+
+      if (combined.length > 0) {
+        stockCache.set(cacheKey, combined, CACHE_TTL.NEWS);
+      }
+      return combined;
+    })
+  );
+
+  return deduplicate(results.flat())
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .slice(0, maxTotal);
 }

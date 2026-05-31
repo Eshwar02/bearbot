@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { fetchQuote, fetchHistory } from "@/lib/stock/data";
 import { analyzeTechnicals } from "@/lib/stock/technicals";
+import { applyInsightsCors, corsPreflightResponse } from "@/lib/api/cors";
 import {
   buildPortfolioIntelligence,
   type PortfolioAssetSignal,
@@ -9,7 +10,19 @@ import {
 
 const MAX_ANALYZED_ASSETS = 12;
 
-export async function GET() {
+function jsonWithCors(
+  request: NextRequest,
+  body: unknown,
+  init?: ResponseInit,
+): NextResponse {
+  return applyInsightsCors(request, NextResponse.json(body, init));
+}
+
+export async function OPTIONS(request: NextRequest) {
+  return corsPreflightResponse(request);
+}
+
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const {
@@ -18,7 +31,7 @@ export async function GET() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithCors(request, { error: "Unauthorized" }, { status: 401 });
     }
 
     const { data: holdings, error: holdingsError } = await supabase
@@ -29,14 +42,15 @@ export async function GET() {
       .limit(MAX_ANALYZED_ASSETS);
 
     if (holdingsError) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { error: "Failed to fetch holdings" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     if (!holdings || holdings.length === 0) {
-      return NextResponse.json({
+      return jsonWithCors(request, {
         intelligence: buildPortfolioIntelligence([]),
         analyzedAssets: 0,
       });
@@ -80,16 +94,17 @@ export async function GET() {
       .filter((v): v is PortfolioAssetSignal => v !== null);
 
     const intelligence = buildPortfolioIntelligence(assets);
-    return NextResponse.json({
+    return jsonWithCors(request, {
       intelligence,
       analyzedAssets: assets.length,
       totalHoldings: holdings.length,
     });
   } catch (error) {
     console.error("GET /api/portfolio/intelligence error:", error);
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -44,7 +44,34 @@ function isTheme(v: unknown): v is Theme {
   return typeof v === 'string' && (THEMES as readonly string[]).includes(v);
 }
 
+const THEME_COOKIE = 'theme';
+const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+function readCookieTheme(): Theme | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie
+    .split('; ')
+    .find((c) => c.startsWith(`${THEME_COOKIE}=`));
+  if (!match) return null;
+  const value = decodeURIComponent(match.slice(THEME_COOKIE.length + 1));
+  return isTheme(value) ? value : null;
+}
+
+function writeCookieTheme(theme: Theme) {
+  if (typeof document === 'undefined') return;
+  const host = window.location.hostname;
+  let domainAttr = '';
+  if (host.endsWith('.alphasightai.online') || host === 'alphasightai.online') {
+    domainAttr = '; Domain=.alphasightai.online';
+  } else if (host.endsWith('.localhost')) {
+    domainAttr = '; Domain=.localhost';
+  }
+  document.cookie = `${THEME_COOKIE}=${encodeURIComponent(theme)}; Path=/; Max-Age=${THEME_COOKIE_MAX_AGE}; SameSite=Lax${domainAttr}`;
+}
+
 function readStoredTheme(): Theme {
+  const cookieTheme = readCookieTheme();
+  if (cookieTheme) return cookieTheme;
   try {
     const stored = localStorage.getItem('theme');
     if (isTheme(stored)) return stored;
@@ -56,14 +83,12 @@ function readStoredTheme(): Theme {
     if (isTheme(attr)) return attr;
     return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
   }
-  return 'dark';
+  return 'light';
 }
 
 function applyTheme(theme: Theme) {
   const html = document.documentElement;
   html.setAttribute('data-theme', theme);
-  // Keep .dark class in sync for any legacy `dark:` Tailwind selectors.
-  // Treat sandal as light-family, blue + dark as dark-family.
   const isDarkFamily = theme === 'dark' || theme === 'blue';
   html.classList.toggle('dark', isDarkFamily);
   try {
@@ -71,10 +96,11 @@ function applyTheme(theme: Theme) {
   } catch {
     // ignore
   }
+  writeCookieTheme(theme);
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>('dark');
+  const [theme, setThemeState] = React.useState<Theme>('light');
 
   React.useEffect(() => {
     const initial = readStoredTheme();
@@ -109,7 +135,7 @@ export function useTheme(): ThemeContextValue {
   const ctx = React.useContext(ThemeContext);
   if (!ctx) {
     return {
-      theme: 'dark',
+      theme: 'light',
       setTheme: () => {},
       toggleTheme: () => {},
     };

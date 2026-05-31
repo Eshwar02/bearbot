@@ -13,9 +13,12 @@ import {
   Settings,
   ChevronLeft,
   Trash2,
+  Newspaper,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getInsightsOrigin } from '@/lib/url/client-origin';
 import { useAppStore, type AppView } from '@/stores/app-store';
+import { useAuth } from '@/lib/hooks/use-auth';
 import type { Conversation } from '@/types/database';
 
 function startOfDay(date: Date): number {
@@ -55,6 +58,7 @@ function groupConversations(conversations: Conversation[]) {
 const navLinks = [
   { view: 'portfolio', label: 'Portfolio', icon: Briefcase },
   { view: 'brief', label: 'Daily Brief', icon: Sun },
+  { view: 'news', label: 'News', icon: Newspaper },
   { view: 'watchlist', label: 'Watchlist', icon: Star },
   { view: 'settings', label: 'Settings', icon: Settings },
 ] as const;
@@ -84,6 +88,8 @@ export function Sidebar() {
   const setActiveView = useAppStore((s) => s.setActiveView);
   const createNewChat = useAppStore((s) => s.createNewChat);
   const deleteConversation = useAppStore((s) => s.deleteConversation);
+  const { user, loading: authLoading } = useAuth();
+  const isGuest = !authLoading && !user;
 
   const grouped = useMemo(() => groupConversations(conversations), [conversations]);
 
@@ -132,6 +138,7 @@ export function Sidebar() {
         brief: '/daily-brief',
         watchlist: '/watchlist',
         settings: '/settings',
+        news: '/news',
       };
       router.push(routes[view]);
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -187,13 +194,22 @@ export function Sidebar() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-borderStrong">
-        {grouped.length === 0 && (
+        {isGuest && (
+          <div className="mx-1 mt-2 rounded-lg border border-borderSubtle bg-canvas px-3 py-3 text-[12px] leading-relaxed text-secondary">
+            <p className="mb-2 text-primary">You&apos;re using AlphaSight as a guest.</p>
+            <p className="mb-3 text-muted">
+              Use the top-right Log in button to save chats and unlock Portfolio, Watchlist, and the
+              Daily Brief.
+            </p>
+          </div>
+        )}
+        {!isGuest && grouped.length === 0 && (
           <p className="px-3 py-8 text-center text-xs text-muted">
             No conversations yet
           </p>
         )}
-        
-        {grouped.map((group) => (
+
+        {!isGuest && grouped.map((group) => (
           <div key={group.label} className="mb-4">
               <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
                 {group.label}
@@ -206,7 +222,9 @@ export function Sidebar() {
                   className={cn(
                     'group relative flex cursor-pointer items-center rounded-lg px-3 py-1.5',
                     'transition-colors duration-100',
-                    isActive ? 'bg-elevated text-primary' : 'text-secondary',
+                    isActive
+                      ? 'bg-elevated text-primary'
+                      : 'text-secondary hover:bg-elevated hover:text-primary',
                   )}
                   onClick={() => handleSelectChat(conv.id)}
                 >
@@ -240,7 +258,7 @@ export function Sidebar() {
         ))}
       </div>
 
-      <div className="border-t border-borderSubtle p-2">
+      <div className={cn('border-t border-borderSubtle p-2', isGuest && 'hidden')}>
         {navLinks.map((link) => {
           const isActive = activeView === link.view;
           return (

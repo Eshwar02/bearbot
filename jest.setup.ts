@@ -1,4 +1,10 @@
 import '@testing-library/jest-dom';
+import { TextEncoder, TextDecoder } from 'util';
+import { ReadableStream } from 'stream/web';
+
+globalThis.TextEncoder = TextEncoder as typeof globalThis.TextEncoder;
+globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder;
+globalThis.ReadableStream = ReadableStream as unknown as typeof globalThis.ReadableStream;
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({

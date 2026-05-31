@@ -27,4 +27,10 @@ export interface ConfidenceFactors {
   sentimentAnalysis?: {
     agreementLevel?: 'high' | 'medium' | 'low';
   };
+  /**
+   * Optional pre-computed corroboration bonus. The engine computes this
+   * automatically from the citation list, but the field is exposed so
+   * callers can opt in to an explicit override (e.g. tests).
+   */
+  corroborationBonus?: number;
 }

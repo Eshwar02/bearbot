@@ -11,9 +11,18 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const origin = getRequestOrigin(request);
   const code = searchParams.get("code");
+  const redirectParam = searchParams.get("redirect");
+  const safeRedirect =
+    redirectParam && redirectParam.startsWith("/") && !redirectParam.startsWith("//")
+      ? redirectParam
+      : "/";
 
   if (code) {
-    const cookiesToSet: Parameters<SetAllCookies>[0] = [];
+    // Build the redirect response up-front so Supabase can write Set-Cookie
+    // headers directly onto it. Buffering cookies and applying them at the end
+    // misses any refresh that happens during getUser(), which is why the
+    // browser arrives at "/" without a session and gets bounced to /login.
+    const response = NextResponse.redirect(new URL(safeRedirect, origin));
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
@@ -25,7 +34,12 @@ export async function GET(request: NextRequest) {
             return request.cookies.getAll();
           },
           setAll(newCookies: Parameters<SetAllCookies>[0]) {
-            cookiesToSet.push(...newCookies);
+            newCookies.forEach(({ name, value }) => {
+              request.cookies.set(name, value);
+            });
+            newCookies.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
           },
         },
       }
@@ -70,12 +84,6 @@ export async function GET(request: NextRequest) {
         console.debug("[auth/callback] User profile sync skipped:", error);
       }
     }
-
-    const redirectUrl = new URL("/", origin);
-    const response = NextResponse.redirect(redirectUrl);
-    cookiesToSet.forEach(({ name, value, options }) => {
-      response.cookies.set(name, value, options);
-    });
 
     return response;
   }

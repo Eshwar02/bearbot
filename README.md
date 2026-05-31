@@ -85,8 +85,8 @@
 | **Backend** | Next.js Route Handlers | Serverless API functions |
 | **Database** | Supabase (PostgreSQL) | RLS-enforced data isolation |
 | **Auth** | Supabase Auth (PKCE OAuth) | Secure passwordless & email flows |
-| **LLM** | Mistral (Large, Small) | Context-aware AI responses & embeddings |
-| **Market Data** | Yahoo Finance API | Real-time quotes & historical data |
+| **LLM** | Mistral + Cerebras | Context-aware AI responses, embeddings & low-latency routing |
+| **Market Data** | Yahoo Finance + Finnhub | Real-time quotes, profiles, fundamentals & historical data |
 | **News** | MarketAux, NewsData, Yahoo RSS | Multi-source news aggregation |
 | **Deployment** | Vercel | Serverless, edge-optimized hosting |
 
@@ -162,6 +162,12 @@ Theme, chart/news visibility, and notification toggles apply **instantly** to UI
 - pgvector embeddings for semantic facts ("prefers dividend stocks")
 - Top-K retrieval with similarity thresholding
 - Auto-extraction & deduplication on every chat turn
+
+### 7. **Confidence Scoring**
+- Source reliability scoring surfaces a response confidence meter directly in chat.
+
+### 8. **Shareable Responses**
+- Public share links preserve rendered chat output and improve markdown-safe message display.
 
 ---
 
@@ -287,27 +293,45 @@ vercel deploy
 
 ## 🌟 Recent Updates
 
-### Latest Features (recent)
-- ✅ **Brand & Assets** - Updated logo across public assets and touch icons
-- ✅ **Login & Signup Redesign** - Canvas reveal, animated UI, improved placeholders, colored pixels and black input text for better contrast
-- ✅ **Login Flow UX** - Synced success/failure pixel colors and delayed redirect to preserve login animation
-- ✅ **Subdomain Routing** - Send users to chat subdomain after login; subdomain routing for *.alphasightai.online
-- ✅ **Marketing Routes & Proxy Fixes** - Route marketing subdomain roots to /info and /about; allow /info and /about as public routes
-- ✅ **UI Polishing** - Limit dropdown items to 4, remove borders, add hover shadow
-- ✅ **Icon Updates** - New favicon and touch icons
+### Latest Changes (recent)
+- ✅ **Chart Stability** - Fixed the market indices bar stuttering on refresh.
+- ✅ **Auth Redirects** - Hardened OAuth redirects for custom-domain flows and stopped benign errors from crashing the app.
+- ✅ **Conversation Intelligence** - Improved follow-up intent continuation and noisy-English normalization.
+- ✅ **Google OAuth** - Switched redirect handling to the custom domain instead of `vercel.app`.
+- ✅ **Source Safety** - Added Groq API error detection and defensive checks for source arrays.
+- ✅ **Routing** - Marketing subdomains now resolve to the app origin, while marketing pages stay on the working origin.
+- ✅ **Guest UX** - Simplified guest login CTAs, opened chat to guests, and kept the 5-prompt cap.
+- ✅ **Agent Workflow** - Completed the plan-then-execute path with the Cerebras planner.
+- ✅ **Branding** - Unified brand icons across the app and public assets.
+- ✅ **Auth Reliability** - Wrote OAuth session cookies before redirecting to chat.
+- ✅ **SEO** - Improved crawler access with `llms.txt` and semantic HTML.
+- ✅ **Confidence Meter** - Added source reliability scoring and a visible confidence badge in chat.
+- ✅ **Response Sharing** - Added shareable response pages with safer chat rendering.
+- ✅ **Provider Upgrades** - Added the Cerebras provider and Finnhub fundamentals/profile data.
+- ✅ **UI Polish** - Refined sidebar chat typography and hover behavior, plus attachment-click feedback.
+- ✅ **Subdomain UX** - Fixed the info subdomain tab title.
 
 ### Recent Commits
 ```
-48a989b - fix: sync login success/failure pixel colors and delay redirect until animation completes
-ece9a59 - feat: update logo across all public assets
-75f6528 - feat: send users to chat subdomain after login
-75bf5c5 - fix: route marketing subdomain roots to /info, /about in proxy
-cd1a4dd - fix: allow /info and /about as public routes
-28f2afd - feat: add logo and fix placeholder visibility on login/signup pages
-fcbd107 - feat: update login/signup pages with colored pixels, black input text, and matching design
-97f0391 - feat: redesign login page with canvas reveal effect and animated UI
-787a647 - feat: subdomain routing for *.alphasightai.online
-e37cff1 - fix: limit dropdown to 4 items, remove border, add hover shadow
+6dd203a - fix: stop market indices bar from stuttering on refresh
+bdc9cdb - fix: harden vercel.app OAuth redirects and benign error handling
+4bd7b9e - fix: improve follow-up intent continuation and noisy-English normalization
+c34eac9 - fix: route Google OAuth back to the custom domain
+6b41ae0 - fix: add Groq API error detection and defensive source-array checks
+ba53ac9 - fix: redirect marketing subdomains to the app origin
+e7aeb2c - fix: keep marketing pages on the working origin
+637d57b - fix: simplify guest login CTAs and refresh stability
+5e7d045 - feat: complete plan-then-execute agent path with Cerebras planner
+1daccea - feat: open chat to guests, enforce 5-prompt cap, unify brand icons
+fc4ab94 - fix(auth): write OAuth session cookies before redirecting to chat
+677fe8e - feat: improve GEO/SEO with AI crawler access, llms.txt, semantic HTML
+0942c39 - feat: add AI confidence meter with source reliability scoring
+63ddb6d - Fix shared response links and chat rendering
+8f3ef64 - Add Cerebras provider with intent-based routing
+0e73fe9 - Add Finnhub for US profile and fundamentals
+75d22b4 - Refine sidebar chat typography and hover behavior
+04fde8a - Add attachment click development notification
+50ba188 - Fix info subdomain tab title
 ```
 
 ---

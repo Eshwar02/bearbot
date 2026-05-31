@@ -1,26 +1,47 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Menu, LogOut, User, ArrowLeft, Palette } from 'lucide-react';
-import Image from 'next/image';
+import Link from 'next/link';
+import { Menu, LogOut, User, Palette, MessageSquare } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/hooks/use-auth';
+import {
+  GUEST_PROMPT_LIMIT,
+  useGuestPromptCount,
+} from '@/lib/guest/limit';
 import { logger } from '@/lib/logger';
 import { cn } from '@/lib/utils';
+import { getChatOrigin } from '@/lib/url/client-origin';
 import { PWAInstallButton } from '@/components/ui/pwa-install-button';
 import { PersonalizationModal } from '@/components/ui/personalization-modal';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const sidebarOpen = useAppStore((s) => s.sidebarOpen);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
-  const setActiveView = useAppStore((s) => s.setActiveView);
+  const { user, loading: authLoading } = useAuth();
+  const guestCount = useGuestPromptCount();
+  const isGuest = !user;
+  const guestAtLimit = isGuest && guestCount >= GUEST_PROMPT_LIMIT;
   const [menuOpen, setMenuOpen] = useState(false);
   const [personalizationOpen, setPersonalizationOpen] = useState(false);
   const [initial, setInitial] = useState('A');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [chatHref, setChatHref] = useState<string>('/');
   const menuRef = useRef<HTMLDivElement>(null);
+  // Insights routes show a quick "Chat" jump button on the right side of the
+  // nav — we're a separate product surface and users expect a one-click hop
+  // back to the conversational app.
+  const onInsightsSurface = pathname?.startsWith('/insights') ?? false;
+
+  useEffect(() => {
+    if (onInsightsSurface) {
+      setChatHref(getChatOrigin() || '/');
+    }
+  }, [onInsightsSurface]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -35,21 +56,19 @@ export function Header() {
   }, [menuOpen]);
 
   useEffect(() => {
-    let isMounted = true;
-    const supabase = createClient();
-
-    supabase.auth.getUser().then(({ data }) => {
-      if (!isMounted) return;
-      const user = data.user;
-      const source = user?.user_metadata?.full_name || user?.email || 'A';
-      const first = source.trim().charAt(0).toUpperCase();
-      if (first) setInitial(first);
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    if (!user) return;
+    const meta = user.user_metadata ?? {};
+    const source =
+      (typeof meta.display_name === 'string' && meta.display_name) ||
+      (typeof meta.full_name === 'string' && meta.full_name) ||
+      user.email ||
+      'A';
+    const first = source.trim().charAt(0).toUpperCase();
+    if (first) setInitial(first);
+    setAvatarUrl(
+      (typeof meta.avatar_url === 'string' && meta.avatar_url) || null,
+    );
+  }, [user]);
 
   const handleSignOut = useCallback(async () => {
     setMenuOpen(false);
@@ -63,15 +82,6 @@ export function Header() {
     }
   }, [router]);
 
-  const handleBack = useCallback(() => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-      return;
-    }
-    setActiveView('chat');
-    router.push('/');
-  }, [router, setActiveView]);
-
   return (
     <header className="relative z-30 flex h-12 shrink-0 items-center justify-between overflow-visible border-b border-borderSubtle bg-canvas/80 px-3 backdrop-blur print:hidden">
       <div className="flex items-center gap-1">
@@ -83,22 +93,38 @@ export function Header() {
         >
           <Menu size={18} />
         </button>
-        {pathname !== '/' && (
-          <button
-            onClick={handleBack}
-            className="rounded-lg p-1.5 text-secondary transition-colors hover:bg-elevated hover:text-primary"
-            aria-label="Go back"
-            title="Go back (Alt+←)"
-          >
-            <ArrowLeft size={18} />
-          </button>
-        )}
       </div>
 
       <div className="flex-1" />
 
       <div className="flex items-center gap-2">
+        {onInsightsSurface && (
+          <Link
+            href={chatHref}
+            className="inline-flex items-center gap-1.5 rounded-full border border-borderSubtle bg-elevated px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-canvas hover:text-accent-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand"
+            aria-label="Open the chat app"
+            title="Open chat"
+          >
+            <MessageSquare size={14} />
+            Chat
+          </Link>
+        )}
         <PWAInstallButton />
+        {!authLoading && isGuest ? (
+          <Link
+            href="/login?redirect=/"
+            className={cn(
+              'relative inline-flex items-center justify-center rounded-full bg-accent-brand px-4 py-1.5 text-sm font-semibold text-inverse ring-1 ring-accent-brand/60 transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-brand',
+              guestAtLimit
+                ? 'animate-pulse shadow-[0_0_0_4px_rgba(45,212,191,0.28),0_0_28px_8px_rgba(59,130,246,0.55)]'
+                : 'shadow-[0_0_0_2px_rgba(45,212,191,0.18),0_0_14px_2px_rgba(59,130,246,0.30)] hover:shadow-[0_0_0_3px_rgba(45,212,191,0.26),0_0_22px_4px_rgba(59,130,246,0.45)]'
+            )}
+            aria-label="Log in to AlphaSight"
+          >
+            Log in
+          </Link>
+        ) : null}
+        {!authLoading && !isGuest ? (
         <div ref={menuRef} className="relative">
           <button
             type="button"
@@ -110,6 +136,7 @@ export function Header() {
             title="User options (Cmd/Ctrl+Shift+U)"
           >
             <Avatar className="h-8 w-8 ring-1 ring-accent-brand/50 ring-offset-2 ring-offset-canvas">
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={initial} />}
               <AvatarFallback className="bg-accent-brand text-sm font-semibold text-inverse">
                 {initial}
               </AvatarFallback>
@@ -196,6 +223,7 @@ export function Header() {
             </div>
           )}
         </div>
+        ) : null}
       </div>
 
       <PersonalizationModal

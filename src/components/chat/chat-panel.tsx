@@ -1,8 +1,15 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Lock } from 'lucide-react';
 import { useAppStore } from '@/stores/app-store';
 import { RESPONSE_GENERATED_EVENT, useChat } from '@/lib/hooks/use-chat';
+import { useNewsPreloader } from '@/lib/hooks/use-news-preloader';
+import { useAuth } from '@/lib/hooks/use-auth';
+import {
+  GUEST_PROMPT_LIMIT,
+  useGuestPromptCount,
+} from '@/lib/guest/limit';
 import { ChatMessage } from './chat-message';
 import { WelcomeScreen } from './welcome-screen';
 import { PromptInputBox } from '@/components/ui/ai-prompt-box';
@@ -45,8 +52,14 @@ function GenerationMarker() {
 }
 
 export function ChatPanel() {
+  useNewsPreloader(); // Preload news in background
   const { messages, isLoadingConversation, isStreaming } = useAppStore();
   const { sendMessage, stopStreaming } = useChat();
+  const { user } = useAuth();
+  const guestCount = useGuestPromptCount();
+  const isGuest = !user;
+  const guestAtLimit = isGuest && guestCount >= GUEST_PROMPT_LIMIT;
+  const guestRemaining = isGuest ? Math.max(0, GUEST_PROMPT_LIMIT - guestCount) : null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -179,21 +192,42 @@ export function ChatPanel() {
       {/* Composer */}
       <div className="bg-canvas px-4 pb-5 pt-2 sm:px-6">
         <div className="mx-auto max-w-3xl">
-          <PromptInputBox
-            value={draft}
-            onChange={setDraft}
-            onSend={handleSend}
-            onStop={stopStreaming}
-            isStreaming={isStreaming}
-            placeholder="Ask about any stock, market, or portfolio…"
-            webSearchEnabled={webSearchEnabled}
-            onWebSearchToggle={setWebSearchEnabled}
-            attachments={attachments}
-            onAttachmentsChange={setAttachments}
-            onAttachmentRemove={handleAttachmentRemove}
-          />
+          {guestAtLimit ? (
+            <div
+              role="region"
+              aria-label="Guest limit reached"
+              className="flex flex-col items-center gap-3 rounded-2xl border border-borderStrong bg-elevated/70 px-5 py-5 text-center backdrop-blur"
+            >
+              <div className="flex items-center gap-2 text-primary">
+                <Lock size={16} className="text-accent-brand" aria-hidden="true" />
+                <span className="text-sm font-medium">
+                  You&apos;ve used your free limit.
+                </span>
+              </div>
+              <p className="max-w-md text-sm text-secondary">
+                Continue to AlphaSight by using the top-right Log in button to keep chatting, save your
+                conversations, and unlock portfolio, watchlist, and daily brief.
+              </p>
+            </div>
+          ) : (
+            <PromptInputBox
+              value={draft}
+              onChange={setDraft}
+              onSend={handleSend}
+              onStop={stopStreaming}
+              isStreaming={isStreaming}
+              placeholder="Ask about any stock, market, or portfolio…"
+              webSearchEnabled={webSearchEnabled}
+              onWebSearchToggle={setWebSearchEnabled}
+              attachments={attachments}
+              onAttachmentsChange={setAttachments}
+              onAttachmentRemove={handleAttachmentRemove}
+            />
+          )}
           <p className="mt-2 text-center text-[11px] text-muted">
-            AlphaSight can make mistakes. Verify critical financial decisions.
+            {isGuest && !guestAtLimit && guestRemaining !== null
+              ? `${guestRemaining} free ${guestRemaining === 1 ? 'prompt' : 'prompts'} remaining. AlphaSight can make mistakes. Verify critical financial decisions.`
+              : 'AlphaSight can make mistakes. Verify critical financial decisions.'}
           </p>
         </div>
       </div>

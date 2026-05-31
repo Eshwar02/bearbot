@@ -11,7 +11,9 @@ import {
   organizationSchema,
   websiteSchema,
   softwareApplicationSchema,
+  faqSchema,
 } from '@/components/seo/json-ld';
+import { SeoContent } from '@/components/seo/seo-content';
 import './globals.css';
 
 const geistMono = Geist_Mono({
@@ -74,9 +76,30 @@ export const viewport: Viewport = {
 const themeInitScript = `
 (function() {
   try {
-    var stored = localStorage.getItem('theme');
+    var cookieTheme = null;
+    var parts = document.cookie.split('; ');
+    for (var p = 0; p < parts.length; p++) {
+      if (parts[p].indexOf('theme=') === 0) {
+        cookieTheme = decodeURIComponent(parts[p].slice(6));
+        break;
+      }
+    }
+    var valid = ['light','dark','sandal','blue'];
+    if (cookieTheme && valid.indexOf(cookieTheme) === -1) cookieTheme = null;
+    var stored = cookieTheme || localStorage.getItem('theme');
+    var hasAuthSession = false;
+    for (var i = 0; i < localStorage.length; i++) {
+      var key = localStorage.key(i) || '';
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        var token = localStorage.getItem(key);
+        if (token && token !== 'null') {
+          hasAuthSession = true;
+          break;
+        }
+      }
+    }
     var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var theme = stored || (prefersDark ? 'dark' : 'light');
+    var theme = stored || (hasAuthSession && prefersDark ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', theme);
     document.documentElement.classList.toggle('dark', theme === 'dark' || theme === 'blue');
   } catch (e) {}
@@ -114,7 +137,6 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/logo.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -125,11 +147,13 @@ export default function RootLayout({
         <JsonLd data={organizationSchema} />
         <JsonLd data={websiteSchema} />
         <JsonLd data={softwareApplicationSchema} />
+        <JsonLd data={faqSchema} />
       </head>
       <body
         suppressHydrationWarning
         className={`${geistMono.variable} ${fraunces.variable} font-sans antialiased transition-colors duration-200`}
       >
+        <SeoContent />
         <ErrorBoundary>
           <Providers>{children}</Providers>
         </ErrorBoundary>

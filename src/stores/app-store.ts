@@ -25,7 +25,7 @@ export interface ChatMessage extends Message {
   artifact?: CanvasArtifact;
 }
 
-export type AppView = 'chat' | 'portfolio' | 'brief' | 'watchlist' | 'settings';
+export type AppView = 'chat' | 'portfolio' | 'brief' | 'watchlist' | 'settings' | 'news';
 
 // ── Store shape ────────────────────────────────────────────────────
 
@@ -71,6 +71,11 @@ interface AppState {
   /* ── Canvas (artifact side panel) ─────────── */
   canvasArtifact: CanvasArtifact | null;
   setCanvasArtifact: (artifact: CanvasArtifact | null) => void;
+
+  /* ── News Cache ───────────────────────────── */
+  newsCache: any;
+  newsLastFetched: number;
+  setNewsCache: (data: any) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -232,4 +237,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   /* ── Canvas ───────────────────────────────── */
   canvasArtifact: null,
   setCanvasArtifact: (artifact) => set({ canvasArtifact: artifact }),
+
+  /* ── News Cache (for background preloading) ─ */
+  newsCache: null,
+  newsLastFetched: 0,
+  setNewsCache: (data) => set({ newsCache: data, newsLastFetched: Date.now() }),
 }));

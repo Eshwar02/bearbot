@@ -87,10 +87,19 @@ export async function PUT(request: NextRequest) {
     if (body.notif_brief_email !== undefined) patch.notif_brief_email = !!body.notif_brief_email;
     if (body.notif_in_app !== undefined) patch.notif_in_app = !!body.notif_in_app;
     if (body.daily_brief_time !== undefined) {
-      if (!/^\d{2}:\d{2}$/.test(body.daily_brief_time)) {
+      if (typeof body.daily_brief_time !== "string") {
         return NextResponse.json({ error: "Invalid daily_brief_time (HH:MM)" }, { status: 400 });
       }
-      patch.daily_brief_time = body.daily_brief_time;
+      const m = body.daily_brief_time.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+      if (!m) {
+        return NextResponse.json({ error: "Invalid daily_brief_time (HH:MM)" }, { status: 400 });
+      }
+      const hh = parseInt(m[1], 10);
+      const mm = parseInt(m[2], 10);
+      if (hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+        return NextResponse.json({ error: "Invalid daily_brief_time (HH:MM)" }, { status: 400 });
+      }
+      patch.daily_brief_time = `${m[1]}:${m[2]}`;
     }
     if (body.daily_brief_tz !== undefined) {
       if (typeof body.daily_brief_tz !== "string" || body.daily_brief_tz.length > 64) {

@@ -9,7 +9,6 @@ import {
   Shield,
   Palette,
   BarChart3,
-  Languages,
   Eye,
   Clock,
 } from 'lucide-react';
@@ -18,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import type { UserPreferences } from '@/types/database';
 import { THEMES, useTheme, type Theme } from '@/components/theme-provider';
 import { createClient } from '@/lib/supabase/client';
+import InvestorProfileCard from '@/components/settings/InvestorProfileCard';
 import { publishPrefsUpdate, type Prefs as ClientPrefs } from '@/lib/hooks/use-prefs';
 
 type Prefs = Partial<UserPreferences> & {
@@ -299,17 +299,6 @@ export default function SettingsPage() {
           </div>
         </SettingCard>
 
-        <SettingCard icon={Languages} title="Language" description="Choose how the assistant talks back to you">
-          <div className="flex gap-2 flex-wrap">
-            <Button variant={p.language_mode === 'auto' ? 'primary' : 'secondary'} size="sm" onClick={() => updatePreference('language_mode', 'auto')}>Auto-detect</Button>
-            <Button variant={p.language_mode === 'english' ? 'primary' : 'secondary'} size="sm" onClick={() => updatePreference('language_mode', 'english')}>English only</Button>
-            <Button variant={p.language_mode === 'tanglish' ? 'primary' : 'secondary'} size="sm" onClick={() => updatePreference('language_mode', 'tanglish')}>Tanglish</Button>
-          </div>
-          <p className="text-xs text-muted mt-2">
-            Auto-detect picks Tanglish only when you write in Tanglish.
-          </p>
-        </SettingCard>
-
         <SettingCard icon={Eye} title="Display" description="Control what shows up in chat">
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3 rounded-lg bg-canvas border border-borderSubtle">
@@ -354,9 +343,10 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-primary mb-2">Time (HH:MM, local)</label>
               <input
                 type="time"
+                step={60}
                 className="w-full rounded-lg bg-input border border-borderStrong px-3 py-2 text-sm text-primary"
-                value={p.daily_brief_time ?? '09:00'}
-                onChange={(e) => updatePreference('daily_brief_time', e.target.value)}
+                value={(p.daily_brief_time ?? '09:00').slice(0, 5)}
+                onChange={(e) => updatePreference('daily_brief_time', e.target.value.slice(0, 5))}
                 disabled={p.notif_brief_email === false}
               />
             </div>
@@ -393,7 +383,9 @@ export default function SettingsPage() {
             </div>
           </div>
         </SettingCard>
-
+        <SettingCard icon={BarChart3} title="Investor Profile" description="Your automatically extracted investment preferences and tracked tickers">
+          <InvestorProfileCard />
+        </SettingCard>
         <SettingCard icon={Shield} title="Privacy & Security" description="Manage your data privacy">
           <div className="flex items-center justify-between p-4 rounded-lg bg-canvas border border-borderSubtle">
             <div>

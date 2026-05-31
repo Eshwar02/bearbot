@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import {
   User,
   Mail,
-  Fingerprint,
   Calendar,
   ShieldCheck,
   Crown,
@@ -16,6 +15,7 @@ import {
   X,
   KeyRound,
 } from "lucide-react";
+import { AvatarEditModal } from "./avatar-edit-modal";
 
 interface ProfileEditorProps {
   fullName: string;
@@ -23,16 +23,20 @@ interface ProfileEditorProps {
   userId: string;
   createdAt: string;
   emailVerified: boolean;
+  avatarUrl: string | null;
 }
 
 export default function ProfileEditor({
   fullName,
   email,
-  userId,
   createdAt,
   emailVerified,
+  avatarUrl,
 }: ProfileEditorProps) {
-  const initials = fullName
+  const [displayName, setDisplayName] = useState(fullName);
+  const [avatar, setAvatar] = useState<string | null>(avatarUrl);
+
+  const initials = displayName
     .split(" ")
     .map((word) => word[0])
     .join("")
@@ -45,7 +49,7 @@ export default function ProfileEditor({
   const supabase = createClient();
 
   const [isEditingName, setIsEditingName] = useState(false);
-  const [nameValue, setNameValue] = useState(fullName);
+  const [nameValue, setNameValue] = useState(displayName);
 
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [emailValue, setEmailValue] = useState(email);
@@ -53,28 +57,36 @@ export default function ProfileEditor({
   const [isEmailVerified, setIsEmailVerified] = useState(emailVerified);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+
   const handleSaveName = async () => {
-    if (!nameValue.trim()) return;
+    const trimmed = nameValue.trim();
+    if (!trimmed) return;
 
     setIsSaving(true);
 
     const { error } = await supabase.auth.updateUser({
-        data: {
-        full_name: nameValue.trim(),
-        },
+      data: {
+        display_name: trimmed,
+        full_name: trimmed,
+      },
     });
+
+    if (!error) {
+      await supabase.auth.refreshSession();
+    }
 
     setIsSaving(false);
 
     if (error) {
-        alert(error.message);
-        return;
+      toast.error(error.message);
+      return;
     }
 
+    setDisplayName(trimmed);
     setIsEditingName(false);
-
-    window.location.reload();
-    };
+    toast.success("Name updated.");
+  };
     const handleSaveEmail = async () => {
           const trimmedEmail = emailValue.trim();
 
@@ -131,7 +143,7 @@ export default function ProfileEditor({
           setIsEmailVerified(false);
           setIsEditingEmail(false);
         };
-      
+
         const handleResendVerification = async () => {
           setIsSaving(true);
 
@@ -201,13 +213,32 @@ export default function ProfileEditor({
 
         <div className="overflow-hidden rounded-3xl border border-borderSubtle bg-elevated shadow-lg">
           <div className="flex flex-col gap-4 border-b border-borderSubtle p-5 md:flex-row md:items-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 text-2xl font-bold text-white shadow-lg">
-              {initials}
+            <div className="relative">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 text-2xl font-bold text-white shadow-lg">
+                {avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatar}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initials
+                )}
+              </div>
+              <button
+                onClick={() => setAvatarModalOpen(true)}
+                className="absolute -bottom-1 -right-1 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-elevated bg-accent-brand text-inverse shadow-md transition-transform hover:scale-105"
+                aria-label="Edit profile picture"
+                title="Edit profile picture"
+              >
+                <Pencil size={12} />
+              </button>
             </div>
 
             <div className="flex-1">
               <h2 className="text-xl font-bold tracking-tight text-primary">
-                {fullName}
+                {displayName}
               </h2>
               <p className="mt-1 text-sm text-muted">
                 {email}
@@ -216,7 +247,7 @@ export default function ProfileEditor({
 
             <div className="inline-flex items-center gap-2 rounded-xl border border-accent-green/20 bg-accent-green/10 px-3 py-1.5 text-xs font-semibold text-accent-green">
               <Crown className="h-3.5 w-3.5" />
-              AlphaSight Pro
+              AlphaSight
             </div>
           </div>
 
@@ -233,7 +264,7 @@ export default function ProfileEditor({
                     className="w-full rounded-lg border border-borderStrong bg-input px-3 py-2 text-base text-primary outline-none focus:border-accent-green"
                 />
                 ) : (
-                nameValue
+                displayName
                 )
             }
             action={
@@ -250,7 +281,7 @@ export default function ProfileEditor({
 
                     <button
                     onClick={() => {
-                        setNameValue(fullName);
+                        setNameValue(displayName);
                         setIsEditingName(false);
                     }}
                     className="inline-flex items-center gap-1 rounded-lg border border-red-500/20 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-500 hover:bg-red-500/20"
@@ -322,13 +353,6 @@ export default function ProfileEditor({
             />
 
             <InfoCard
-              icon={<Fingerprint className="h-4 w-4 text-violet-400" />}
-              label="User ID"
-              value={userId}
-              mono
-            />
-
-            <InfoCard
               icon={<Calendar className="h-4 w-4 text-amber-400" />}
               label="Member Since"
               value={memberSince}
@@ -358,7 +382,7 @@ export default function ProfileEditor({
             <InfoCard
               icon={<Crown className="h-4 w-4 text-yellow-500" />}
               label="Current Plan"
-              value="AlphaSight Pro"
+              value="AlphaSight Basic"
               valueClassName="text-accent-green"
             />
             <InfoCard
@@ -380,6 +404,14 @@ export default function ProfileEditor({
           </div>
         </div>
       </div>
+
+      <AvatarEditModal
+        open={avatarModalOpen}
+        onClose={() => setAvatarModalOpen(false)}
+        currentAvatar={avatar}
+        seedFallback={displayName || email || "user"}
+        onSaved={(url) => setAvatar(url)}
+      />
     </div>
   );
 }

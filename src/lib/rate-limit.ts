@@ -1,121 +1,134 @@
-// Rate limiting middleware for API routes
-// Uses memory store - upgrade to Redis for distributed systems
+// Rate limiting utilities for API routes.
+// Production-ready: Upstash Redis-backed (shared across serverless instances)
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 
-interface RateLimitConfig {
+export type RateLimitKeyType = 'chat' | 'stock' | 'general';
+
+function getRedisClient() {
+  // Uses Upstash environment variables.
+  // In local dev you can set UPSTASH_REDIS_REST_URL/TOKEN or stub via a
+  // proxy Redis instance.
+  return Redis.fromEnv();
+}
+
+function makeLimiter({
+  keyPrefix,
+  maxRequests,
+}: {
+  keyPrefix: string;
   maxRequests: number;
-  windowMs: number;
-  message?: string;
+}) {
+  return new Ratelimit({
+    redis: getRedisClient(),
+    limiter: Ratelimit.slidingWindow(maxRequests, '1 m'),
+    prefix: keyPrefix,
+  });
 }
 
-interface RateLimitStore {
-  count: number;
-  resetAt: number;
-}
+// Pre-configured rate limiters for different endpoints
+export const rateLimiters: Record<RateLimitKeyType, ReturnType<typeof makeLimiter>> = {
+  // Chat endpoint - 30 requests per minute
+  chat: makeLimiter({ keyPrefix: 'alphaSight:chat', maxRequests: 30 }),
 
-class RateLimiter {
-  private store: Map<string, RateLimitStore> = new Map();
-  private config: RateLimitConfig;
+  // Stock search - 60 requests per minute
+  stock: makeLimiter({ keyPrefix: 'alphaSight:stock', maxRequests: 60 }),
 
-  constructor(config: RateLimitConfig) {
-    this.config = config;
-    // Cleanup expired entries every minute
-    setInterval(() => this.cleanup(), 60_000);
-  }
+  // General API - 100 requests per minute
+  general: makeLimiter({ keyPrefix: 'alphaSight:general', maxRequests: 100 }),
+};
 
-  private getKey(identifier: string): string {
-    return `rate-limit:${identifier}`;
-  }
-
-  check(identifier: string): boolean {
-    const key = this.getKey(identifier);
-    const now = Date.now();
-
-    let entry = this.store.get(key);
-
-    if (!entry || now > entry.resetAt) {
-      entry = { count: 0, resetAt: now + this.config.windowMs };
-      this.store.set(key, entry);
+export async function checkRateLimit({
+  limiter,
+  key,
+  route,
+}: {
+  limiter: ReturnType<typeof makeLimiter>;
+  key: string;
+  route: RateLimitKeyType;
+}): Promise<
+  | {
+      allowed: true;
+      limit: number;
+      remaining: number;
+      resetAt?: Date;
+      retryAfterSeconds?: number;
     }
-
-    entry.count++;
-
-    if (entry.count > this.config.maxRequests) {
-      logger.warn('Rate limit exceeded', {
-        identifier,
-        count: entry.count,
-        limit: this.config.maxRequests,
-      });
-      return false;
+  | {
+      allowed: false;
+      limit: number;
+      remaining: number;
+      resetAt?: Date;
+      retryAfterSeconds?: number;
     }
+> {
+  try {
+    const result = await (limiter as any).limit(key);
+    // Upstash returns something like:
+    // { success: boolean, limit: number, remaining: number, reset: number }
+    const allowed = Boolean(result.success);
+    const limit = Number(result.limit ?? 0);
+    const remaining = Number(result.remaining ?? 0);
+    const resetMs = Number(result.reset ?? 0);
+    const retryAfterSeconds =
+      resetMs > 0 ? Math.max(0, Math.ceil((resetMs - Date.now()) / 1000)) : undefined;
 
-    return true;
-  }
-
-  private cleanup(): void {
-    const now = Date.now();
-    let removedCount = 0;
-
-    for (const [key, entry] of this.store) {
-      if (now > entry.resetAt) {
-        this.store.delete(key);
-        removedCount++;
-      }
-    }
-
-    if (removedCount > 0) {
-      logger.debug('Rate limiter cleanup', { removedCount });
-    }
-  }
-
-  reset(identifier: string): void {
-    this.store.delete(this.getKey(identifier));
-  }
-
-  stats() {
     return {
-      entries: this.store.size,
-      maxRequests: this.config.maxRequests,
-      windowMs: this.config.windowMs,
+      allowed,
+      limit,
+      remaining,
+      resetAt: resetMs ? new Date(resetMs) : undefined,
+      retryAfterSeconds,
+    } as any;
+  } catch (err) {
+    // Fail open if Upstash is misconfigured, but log loudly.
+    logger.error('Rate limiter error; failing open', err, { route, key });
+    return {
+      allowed: true,
+      limit: 0,
+      remaining: 0,
     };
   }
 }
 
-// Pre-configured rate limiters for different endpoints
-export const rateLimiters = {
-  // Chat endpoint - 30 requests per minute
-  chat: new RateLimiter({ maxRequests: 30, windowMs: 60 * 1000 }),
-
-  // Stock search - 60 requests per minute
-  stock: new RateLimiter({ maxRequests: 60, windowMs: 60 * 1000 }),
-
-  // General API - 100 requests per minute
-  general: new RateLimiter({ maxRequests: 100, windowMs: 60 * 1000 }),
-};
-
-export function createRateLimitMiddleware(limiter: RateLimiter) {
-  return (request: NextRequest, identifier: string) => {
-    if (!limiter.check(identifier)) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': '60' } }
-      );
-    }
-
-    return null; // Request allowed
+export function buildRateLimitResponse({
+  route,
+  retryAfterSeconds,
+  limit,
+  remaining,
+}: {
+  route: RateLimitKeyType;
+  retryAfterSeconds?: number;
+  limit: number;
+  remaining: number;
+}) {
+  const headers: Record<string, string> = {
+    'X-RateLimit-Limit': String(limit),
+    'X-RateLimit-Remaining': String(remaining),
   };
+  if (typeof retryAfterSeconds === 'number') {
+    headers['Retry-After'] = String(retryAfterSeconds);
+  }
+
+  return NextResponse.json(
+    { error: 'Too many requests. Please try again later.' },
+    { status: 429, headers }
+  );
 }
 
 // Helper to extract user identifier from request
 export function getUserIdentifier(request: NextRequest): string {
-  // Try to get user ID from auth cookie or header
-  const userId =
-    request.headers.get('x-user-id') ||
-    request.cookies.get('user-id')?.value ||
-    request.headers.get('x-forwarded-for') ||
-    'anonymous';
+  // Authenticated users should be rate-limited by their user id.
+  // For guests, use IP.
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const ip = forwardedFor?.split(',')[0]?.trim();
 
-  return userId;
+  // If caller passes user-id header/cookie, it will be preferred.
+  const userId = request.headers.get('x-user-id') || request.cookies.get('user-id')?.value;
+
+  return userId || ip || 'anonymous';
 }
+

@@ -122,7 +122,6 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://query1.finance.yahoo.com" />
         <link rel="dns-prefetch" href="https://query2.finance.yahoo.com" />
-        <link rel="canonical" href={siteConfig.url} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <JsonLd data={organizationSchema} />
         <JsonLd data={websiteSchema} />

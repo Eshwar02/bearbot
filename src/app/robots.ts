@@ -8,7 +8,6 @@ const PRIVATE_PATHS = [
   '/api/',
   '/auth/',
   '/login',
-  '/signup',
   '/forgot-password',
   '/reset-password',
   '/profile',

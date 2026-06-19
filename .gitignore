@@ -38,3 +38,5 @@ next-env.d.ts
 test-results
 test-results/.last-run.json
 .last-run.json
+test-results/
+playwright-report/

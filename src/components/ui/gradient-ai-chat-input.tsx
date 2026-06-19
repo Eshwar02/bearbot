@@ -275,6 +275,7 @@ export function GradientAIChatInput({
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 placeholder={placeholder}
+                aria-label="Chat message input"
               disabled={disabled}
               rows={1}
               className={cn(

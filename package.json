@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@mistralai/mistralai": "^2.2.1",
@@ -49,11 +50,10 @@
     "uuid": "^14.0.0",
     "xlsx": "^0.18.5",
     "yahoo-finance2": "^2.14.0",
-    "zustand": "^5.0.2",
-    "@upstash/redis": "^1.34.0",
-    "@upstash/ratelimit": "^1.34.0"
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "@tailwindcss/typography": "^0.5.15",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

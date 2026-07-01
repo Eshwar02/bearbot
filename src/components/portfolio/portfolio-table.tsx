@@ -36,18 +36,28 @@ interface PortfolioTableProps {
  */
 function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-borderSubtle bg-elevated shadow-md">
+    <div 
+      className="overflow-hidden rounded-2xl border border-borderSubtle bg-elevated shadow-md"
+      role="table"
+      aria-label="Portfolio holdings"
+    >
       {/* Header — desktop only */}
-      <div className="hidden grid-cols-[2fr_1.2fr_1.2fr_1fr_1fr_56px] gap-4 border-b border-borderSubtle bg-canvas/60 px-5 py-3 text-xs font-medium uppercase tracking-wide text-muted md:grid">
-        <span>Company</span>
-        <span className="text-center">1D Trend</span>
-        <span className="text-right">Market price (1D %)</span>
-        <span className="text-right">Returns (%)</span>
-        <span className="text-right">Current (Invested)</span>
-        <span className="sr-only">Actions</span>
+      <div 
+        className="hidden grid-cols-[2fr_1.2fr_1.2fr_1fr_1fr_56px] gap-4 border-b border-borderSubtle bg-canvas/60 px-5 py-3 text-xs font-medium uppercase tracking-wide text-muted md:grid"
+        role="row"
+      >
+        <span role="columnheader">Company</span>
+        <span className="text-center" role="columnheader">1D Trend</span>
+        <span className="text-right" role="columnheader">Market price (1D %)</span>
+        <span className="text-right" role="columnheader">Returns (%)</span>
+        <span className="text-right" role="columnheader">Current (Invested)</span>
+        <span className="sr-only" role="columnheader">Actions</span>
       </div>
 
-      <ul className="divide-y divide-borderSubtle">
+      <ul 
+        className="divide-y divide-borderSubtle"
+        role="rowgroup"
+      >
         {holdings.map((h) => {
           const dayChange = h.livePrice != null ? h.livePrice - (h.previousClose ?? h.livePrice) : 0;
           const dayChangePct =
@@ -66,6 +76,7 @@ function PortfolioTable({ holdings, sparklines, onBuyMore }: PortfolioTableProps
             <li
               key={h.id}
               className="group transition-colors hover:bg-elevated-hover"
+              role="row"
             >
               <a
                 href={detailHref}

@@ -119,7 +119,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
   const prefs = usePrefs();
   const isUser = message.role === 'user';
   const isStreaming = message.isStreaming;
-  
+
   const normalizedContent = useMemo(
     () => (typeof message.content === 'string' ? normalizeChatContent(message.content) : ''),
     [message.content],
@@ -132,7 +132,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         .trim(),
     [normalizedContent],
   );
-  
+
   const hasContent = visibleText.length > 0;
   const hasStreamingText = normalizedContent.trim().length > 0;
   const attachments = useMemo(() => {
@@ -213,8 +213,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
         /* ── Assistant: Plain text, readable width, icon on left ── */
         <div className="flex w-full gap-4">
           <AssistantMark />
-          <div className="min-w-0 flex-1 pt-1">
-            
+          <div
+            className="min-w-0 flex-1 pt-1"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions text"
+          >
+
             {/* Stock card (top of message) */}
             {!isStreaming && prefs.show_charts && message.stockData && message.stockData[0] && (
               <div className="mb-5 max-w-2xl">
@@ -236,7 +241,15 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   sources={message.sources}
                 />
               )}
-              {!hasStreamingText && isStreaming && <StreamingDots />}
+              {!hasStreamingText && isStreaming &&
+                <div
+                  role="status"
+                  aria-live="polite"
+                  aria-label="Assistant is generating a response"
+                >
+                  <StreamingDots />
+                </div>
+              }
               {!hasContent && !isStreaming && (
                 <div className="text-[15px] leading-7 italic text-muted">
                   {EMPTY_RESPONSE_FALLBACK}
@@ -307,12 +320,12 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   }}
                   aria-label="Mark response as helpful"
                   aria-pressed={feedback === 'good'}
-                    className={cn(
-                      'flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors',
-                      feedback === 'good'
-                        ? 'bg-accent-brand text-dark-950'
-                        : 'text-secondary hover:bg-elevated hover:text-primary'
-                    )}
+                  className={cn(
+                    'flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors',
+                    feedback === 'good'
+                      ? 'bg-accent-brand text-dark-950'
+                      : 'text-secondary hover:bg-elevated hover:text-primary'
+                  )}
                 >
                   <ThumbsUp className="h-3.5 w-3.5" />
                 </button>
@@ -323,12 +336,12 @@ export function ChatMessage({ message }: ChatMessageProps) {
                   }}
                   aria-label="Mark response as unhelpful"
                   aria-pressed={feedback === 'poor'}
-                    className={cn(
-                      'flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors',
-                      feedback === 'poor'
-                        ? 'bg-red-600 text-white'
-                        : 'text-secondary hover:bg-elevated hover:text-primary'
-                    )}
+                  className={cn(
+                    'flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors',
+                    feedback === 'poor'
+                      ? 'bg-red-600 text-white'
+                      : 'text-secondary hover:bg-elevated hover:text-primary'
+                  )}
                 >
                   <ThumbsDown className="h-3.5 w-3.5" />
                 </button>
@@ -345,7 +358,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
               </div>
             )}
             {!isUser && !isStreaming && feedbackReply && (
-              <p className="mt-2 text-xs text-muted">{feedbackReply}</p>
+              <p
+                className="mt-2 text-xs text-muted"
+                role="status"
+                aria-live="polite"
+              >
+                {feedbackReply}
+              </p>
             )}
 
             {/* Confidence badge */}

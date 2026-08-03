@@ -190,7 +190,7 @@ npm install
 
 ### 2. Environment Setup
 
-Create `.env.local`:
+Create a `.env.local` file in the project root:
 
 ```env
 # Supabase (required)

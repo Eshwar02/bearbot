@@ -16,6 +16,7 @@ import { getChatOrigin } from '@/lib/url/client-origin';
 import { PWAInstallButton } from '@/components/ui/pwa-install-button';
 import { PersonalizationModal } from '@/components/ui/personalization-modal';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ThemeSwitch } from '@/components/ui/theme-switch-button';
 
 export function Header() {
   const router = useRouter();
@@ -109,6 +110,7 @@ export function Header() {
             Chat
           </Link>
         )}
+        <ThemeSwitch persist={Boolean(user)} />
         <PWAInstallButton />
         {!authLoading && isGuest ? (
           <Link

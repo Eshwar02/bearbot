@@ -84,24 +84,14 @@ const themeInitScript = `
         break;
       }
     }
-    var valid = ['light','dark','sandal','blue'];
+    var valid = ['light','dark','system'];
     if (cookieTheme && valid.indexOf(cookieTheme) === -1) cookieTheme = null;
     var stored = cookieTheme || localStorage.getItem('theme');
-    var hasAuthSession = false;
-    for (var i = 0; i < localStorage.length; i++) {
-      var key = localStorage.key(i) || '';
-      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
-        var token = localStorage.getItem(key);
-        if (token && token !== 'null') {
-          hasAuthSession = true;
-          break;
-        }
-      }
-    }
     var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var theme = stored || (hasAuthSession && prefersDark ? 'dark' : 'light');
+    var theme = stored || 'system';
+    var resolved = theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme;
     document.documentElement.setAttribute('data-theme', theme);
-    document.documentElement.classList.toggle('dark', theme === 'dark' || theme === 'blue');
+    document.documentElement.classList.toggle('dark', resolved === 'dark');
   } catch (e) {}
 })();
 `;

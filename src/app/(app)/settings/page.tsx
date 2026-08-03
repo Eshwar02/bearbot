@@ -34,12 +34,10 @@ type Prefs = Partial<UserPreferences> & {
   created_at?: string;
 };
 
-const THEME_CHOICES: Array<Theme | 'system'> = [...THEMES, 'system'];
-const THEME_LABELS: Record<Theme | 'system', string> = {
+const THEME_CHOICES: Theme[] = THEMES;
+const THEME_LABELS: Record<Theme, string> = {
   light: 'Light',
   dark: 'Dark',
-  sandal: 'Sandal',
-  blue: 'Blue',
   system: 'System',
 };
 
@@ -108,12 +106,11 @@ export default function SettingsPage() {
   const { setTheme } = useTheme();
 
   const applyThemePreference = useCallback((theme: string) => {
-    if (theme === 'light' || theme === 'dark' || theme === 'sandal' || theme === 'blue') {
+    if (theme === 'light' || theme === 'dark' || theme === 'system') {
       setTheme(theme);
       return;
     }
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setTheme(prefersDark ? 'dark' : 'light');
+    setTheme('system');
   }, [setTheme]);
 
   useEffect(() => {
@@ -193,7 +190,7 @@ export default function SettingsPage() {
         if (key === 'currency' && (value === 'INR' || value === 'USD' || value === 'EUR' || value === 'GBP')) {
           livePatch.currency = value;
         }
-        if (key === 'theme' && (value === 'light' || value === 'dark' || value === 'sandal' || value === 'blue' || value === 'system')) {
+        if (key === 'theme' && (value === 'light' || value === 'dark' || value === 'system')) {
           livePatch.theme = value;
         }
         if (Object.keys(livePatch).length > 0) {

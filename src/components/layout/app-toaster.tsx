@@ -9,7 +9,7 @@ export function AppToaster() {
   const { theme } = useTheme();
   if (!prefs.notif_in_app) return null;
 
-  const toasterTheme = theme === 'light' || theme === 'sandal' ? 'light' : 'dark';
+  const toasterTheme = theme === 'light' ? 'light' : 'dark';
 
   return <Toaster position="top-right" theme={toasterTheme} richColors closeButton />;
 }

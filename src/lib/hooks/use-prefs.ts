@@ -9,7 +9,7 @@ export type Prefs = {
   language_mode: 'auto' | 'english' | 'tanglish';
   notif_in_app: boolean;
   currency: 'INR' | 'USD' | 'EUR' | 'GBP';
-  theme: 'light' | 'dark' | 'sandal' | 'blue' | 'system';
+  theme: 'light' | 'dark' | 'system';
 };
 
 const DEFAULTS: Prefs = {

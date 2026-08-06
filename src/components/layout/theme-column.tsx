@@ -1,21 +1,18 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 
 export function ThemeColumn() {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  const handleAuto = () => {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.removeItem('theme');
-    } catch {
-      // ignore
-    }
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setTheme(prefersDark ? 'dark' : 'light');
-  };
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleAuto = () => setTheme('system');
 
   const baseClass =
     'flex items-center gap-2 text-sm text-secondary hover:text-primary transition-colors';
@@ -26,7 +23,7 @@ export function ThemeColumn() {
       <button
         type="button"
         onClick={() => setTheme('light')}
-        className={`${baseClass} ${theme === 'light' ? activeClass : ''}`}
+        className={`${baseClass} ${mounted && theme === 'light' ? activeClass : ''}`}
       >
         <Sun className="h-4 w-4" />
         <span>Light</span>
@@ -34,7 +31,7 @@ export function ThemeColumn() {
       <button
         type="button"
         onClick={() => setTheme('dark')}
-        className={`${baseClass} ${theme === 'dark' ? activeClass : ''}`}
+        className={`${baseClass} ${mounted && theme === 'dark' ? activeClass : ''}`}
       >
         <Moon className="h-4 w-4" />
         <span>Dark</span>
@@ -42,7 +39,7 @@ export function ThemeColumn() {
       <button
         type="button"
         onClick={handleAuto}
-        className={baseClass}
+        className={`${baseClass} ${mounted && theme === 'system' ? activeClass : ''}`}
       >
         <Monitor className="h-4 w-4" />
         <span>Auto</span>

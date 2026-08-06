@@ -15,7 +15,7 @@ const DEFAULTS = {
 };
 
 const VALID_MARKETS = new Set(["US", "IN"]);
-const VALID_THEMES = new Set(["light", "dark", "sandal", "blue", "system"]);
+const VALID_THEMES = new Set(["light", "dark", "system"]);
 const VALID_LANG = new Set(["auto", "english", "tanglish"]);
 const VALID_CURRENCIES = new Set(["INR", "USD", "EUR", "GBP"]);
 

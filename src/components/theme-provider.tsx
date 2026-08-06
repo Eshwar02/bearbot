@@ -2,9 +2,10 @@
 
 import * as React from 'react';
 
-export type Theme = 'light' | 'dark' | 'sandal' | 'blue';
+export type Theme = 'light' | 'dark' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
 
-export const THEMES: Theme[] = ['light', 'dark', 'sandal', 'blue'];
+export const THEMES: Theme[] = ['light', 'dark', 'system'];
 
 export const THEME_META: Record<
   Theme,
@@ -20,20 +21,16 @@ export const THEME_META: Record<
     description: 'Pure black canvas, professional white text',
     swatch: { bg: '#000000', fg: '#ffffff', accent: '#10a37f' },
   },
-  sandal: {
-    label: 'Sandal',
-    description: 'Warm beige paper with terracotta accents',
-    swatch: { bg: '#f4ead5', fg: '#3d2c1e', accent: '#b8593c' },
-  },
-  blue: {
-    label: 'Blue',
-    description: 'Deep navy canvas with sky accents',
-    swatch: { bg: '#0b1a33', fg: '#e6efff', accent: '#3b82f6' },
+  system: {
+    label: 'System',
+    description: 'Follows your device appearance setting',
+    swatch: { bg: '#808080', fg: '#ffffff', accent: '#6b7280' },
   },
 };
 
 interface ThemeContextValue {
   theme: Theme;
+  resolvedTheme: ResolvedTheme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
 }
@@ -83,14 +80,24 @@ function readStoredTheme(): Theme {
     if (isTheme(attr)) return attr;
     return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
   }
-  return 'light';
+  return 'system';
+}
+
+function getSystemPrefersDark(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function resolveTheme(theme: Theme): ResolvedTheme {
+  if (theme === 'system') return getSystemPrefersDark() ? 'dark' : 'light';
+  return theme;
 }
 
 function applyTheme(theme: Theme) {
   const html = document.documentElement;
+  const resolved = resolveTheme(theme);
   html.setAttribute('data-theme', theme);
-  const isDarkFamily = theme === 'dark' || theme === 'blue';
-  html.classList.toggle('dark', isDarkFamily);
+  html.classList.toggle('dark', resolved === 'dark');
   try {
     localStorage.setItem('theme', theme);
   } catch {
@@ -101,31 +108,47 @@ function applyTheme(theme: Theme) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = React.useState<Theme>('light');
+  const [resolvedTheme, setResolvedTheme] = React.useState<ResolvedTheme>('light');
 
   React.useEffect(() => {
     const initial = readStoredTheme();
     applyTheme(initial);
     setThemeState(initial);
+    setResolvedTheme(resolveTheme(initial));
   }, []);
+
+  // Keep resolvedTheme (and the DOM) in sync with OS changes while theme === 'system'.
+  React.useEffect(() => {
+    if (theme !== 'system' || typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      const resolved = resolveTheme('system');
+      setResolvedTheme(resolved);
+      document.documentElement.classList.toggle('dark', resolved === 'dark');
+    };
+    mql.addEventListener('change', handleChange);
+    return () => mql.removeEventListener('change', handleChange);
+  }, [theme]);
 
   const setTheme = React.useCallback((next: Theme) => {
     applyTheme(next);
     setThemeState(next);
+    setResolvedTheme(resolveTheme(next));
   }, []);
 
   const toggleTheme = React.useCallback(() => {
     setThemeState((prev) => {
-      // Cycle through all themes.
       const idx = THEMES.indexOf(prev);
       const next = THEMES[(idx + 1) % THEMES.length];
       applyTheme(next);
+      setResolvedTheme(resolveTheme(next));
       return next;
     });
   }, []);
 
   const value = React.useMemo(
-    () => ({ theme, setTheme, toggleTheme }),
-    [theme, setTheme, toggleTheme]
+    () => ({ theme, resolvedTheme, setTheme, toggleTheme }),
+    [theme, resolvedTheme, setTheme, toggleTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -136,6 +159,7 @@ export function useTheme(): ThemeContextValue {
   if (!ctx) {
     return {
       theme: 'light',
+      resolvedTheme: 'light',
       setTheme: () => {},
       toggleTheme: () => {},
     };

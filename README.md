@@ -65,9 +65,9 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                    SERVICES LAYER                           │
 ├─────────────────────────────────────────────────────────────┤
-│  • Mistral AI (LLM, Embeddings)                             │
+│  • Mistral AI + Cerebras (LLM, Embeddings, Fast Routing)     │
 │  • Supabase (Auth, Postgres, RLS)                           │
-│  • Yahoo Finance (Quotes, History, Search)                  │
+│  • Yahoo Finance + Finnhub (Quotes, History, Fundamentals)  │
 │  • MarketAux & NewsData (News Synthesis)                    │
 │  • Vercel Cron (Scheduled Briefs)                           │
 └─────────────────────────────────────────────────────────────┘

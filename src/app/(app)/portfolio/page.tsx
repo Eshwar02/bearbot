@@ -20,6 +20,8 @@ import { LivePrice } from '@/components/ui/live-price';
 import { useLiveQuotes } from '@/lib/hooks/use-live-quotes';
 import type { PortfolioHolding } from '@/types/stock';
 import { AddHoldingModal } from '@/components/portfolio/add-holding-modal';
+import { ChartWidget } from '@/components/chat/chart-widget';
+import { PortfolioAllocationChart } from '@/components/portfolio/portfolio-allocation-chart';
 import { BuyMoreModal } from '@/components/portfolio/buy-more-modal';
 import { PortfolioTable } from '@/components/portfolio/portfolio-table';
 import { BacktestPanel } from '@/components/portfolio/BacktestPanel';
@@ -66,6 +68,58 @@ function momentumBadge(momentum: 'strong' | 'moderate' | 'weak') {
   if (momentum === 'strong') return 'green' as const;
   if (momentum === 'weak') return 'red' as const;
   return 'amber' as const;
+}
+
+function PortfolioCard({ holding, onClick }: { holding: EnrichedHolding; onClick?: () => void }) {
+  const isPositive = holding.livePnl >= 0;
+
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border border-borderSubtle dark:border-borderStrong bg-elevated p-4',
+        'transition-all hover:-translate-y-0.5 hover:border-borderStrong cursor-pointer'
+      )}
+      onClick={onClick}
+    >
+      <div className="mb-3 flex items-start justify-between">
+        <div>
+          <h3 className="font-semibold text-primary">{holding.symbol}</h3>
+          <p className="text-xs text-muted">{holding.name || holding.symbol}</p>
+        </div>
+        <Badge variant={isPositive ? 'green' : 'red'}>
+          {formatPercent(holding.livePnlPct)}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p className="text-muted">Quantity</p>
+          <p className="font-medium text-primary">{holding.quantity}</p>
+        </div>
+        <div>
+          <p className="text-muted">Avg Buy</p>
+          <p className="font-medium text-primary">{formatCurrency(holding.avg_buy_price)}</p>
+        </div>
+        <div>
+          <p className="text-muted">Current</p>
+          <LivePrice
+            value={holding.livePrice}
+            className="font-medium text-primary"
+            format={(v) => formatCurrency(v)}
+          />
+        </div>
+        <div>
+          <p className="text-muted">P&L</p>
+          <LivePrice
+            value={holding.livePnl}
+            flash={false}
+            format={(v) => formatCurrency(Math.abs(v))}
+            className={cn('font-medium', isPositive ? 'text-accent-green' : 'text-accent-red')}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function PortfolioSummary({ holdings }: { holdings: EnrichedHolding[] }) {
@@ -222,6 +276,8 @@ function AIIntelligencePanel({ intelligence }: { intelligence: PortfolioIntellig
 
 export default function PortfolioPage() {
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [isChartExpanded, setIsChartExpanded] = useState(false);
   const [intelligence, setIntelligence] = useState<PortfolioIntelligence | null>(null);
   const [loading, setLoading] = useState(true);
   const [intelLoading, setIntelLoading] = useState(true);
@@ -275,6 +331,14 @@ export default function PortfolioPage() {
     void fetchIntelligence();
     void fetchSparklines();
   }, []);
+
+  useEffect(() => {
+    if (holdings.length > 0 && !selectedSymbol) {
+      setSelectedSymbol(holdings[0].symbol);
+    } else if (holdings.length === 0) {
+      setSelectedSymbol(null);
+    }
+  }, [holdings, selectedSymbol]);
 
   const symbols = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
   const liveQuotes = useLiveQuotes(symbols, 2000);
@@ -380,6 +444,12 @@ export default function PortfolioPage() {
 
       {enriched.length > 0 && <PortfolioSummary holdings={enriched} />}
 
+      {enriched.length > 0 && (
+        <PortfolioAllocationChart 
+          data={enriched.map(h => ({ symbol: h.symbol, value: h.liveValue }))} 
+        />
+      )}
+
       {!intelLoading && intelligence && <AIIntelligencePanel intelligence={intelligence} />}
 
       {intelLoading && (
@@ -392,8 +462,6 @@ export default function PortfolioPage() {
           <Skeleton className="h-3 w-3/4" />
         </div>
       )}
-
-      {enriched.length > 0 && <BacktestPanel />}
 
       {enriched.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -409,7 +477,62 @@ export default function PortfolioPage() {
             Add Your First Asset
           </Button>
         </div>
+      ) : selectedSymbol ? (
+        <div
+          className={cn(
+            'mb-8 mt-4 grid grid-cols-1 gap-6',
+            isChartExpanded ? 'lg:grid-cols-1' : 'lg:grid-cols-2'
+          )}
+        >
+          <div>
+            <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-primary">
+              <BarChart3 className="h-5 w-5 text-accent-blue" />
+              {selectedSymbol} Interactive Chart
+            </h2>
+            <ChartWidget
+              symbol={selectedSymbol}
+              height={500}
+              expandable
+              className="w-full lg:w-full"
+              onExpandedChange={setIsChartExpanded}
+            />
+          </div>
+
+          <div
+            className={cn(
+              'grid grid-cols-1 gap-6',
+              isChartExpanded ? 'md:grid-cols-2 lg:grid-cols-3' : 'xl:grid-cols-2'
+            )}
+          >
+            {enriched.map((holding) => (
+              <PortfolioCard
+                key={holding.id}
+                holding={holding}
+                onClick={() => {
+                  setSelectedSymbol(holding.symbol);
+                  setIsChartExpanded(false);
+                }}
+              />
+            ))}
+          </div>
+        </div>
       ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {enriched.map((holding) => (
+            <PortfolioCard 
+              key={holding.id} 
+              holding={holding} 
+              onClick={() => {
+                setSelectedSymbol(holding.symbol);
+                setIsChartExpanded(false);
+              }} 
+            />
+          ))}
+        </div>
+      )}
+
+      {enriched.length > 0 && <BacktestPanel />}
+      {enriched.length > 0 && (
         <PortfolioTable
           holdings={enriched}
           sparklines={sparklines}

@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import path from 'node:path';
 
 // Strict security headers. Tightens CSP to known origins (Supabase, Yahoo
 // Finance, Vercel insights, Google Fonts/Tag Manager/AdSense). Adjust
@@ -67,6 +68,7 @@ const nextConfig: NextConfig = {
     ],
   },
   turbopack: {
+    root: path.resolve(__dirname),
     resolveAlias: {
       '@std/testing/mock': './src/lib/shims/empty-module.ts',
       '@std/testing/bdd': './src/lib/shims/empty-module.ts',

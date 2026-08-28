@@ -1,4 +1,4 @@
-const CACHE_NAME = 'alphasight-v2';
+// const CACHE_NAME = 'alphasight-v2';
 const STATIC_CACHE = 'alphasight-static-v2';
 const DYNAMIC_CACHE = 'alphasight-dynamic-v2';
 
@@ -60,7 +60,12 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/auth/') ||
     url.pathname.startsWith('/_next/') ||
-    event.request.mode === 'navigate'
+    event.request.mode === 'navigate' ||
+    event.request.headers.get('RSC') ||
+    event.request.headers.get('Next-Router-State-Tree') ||
+    event.request.headers.get('Next-Router-Prefetch') ||
+    event.request.headers.get('Next-Url') ||
+    event.request.headers.get('Accept')?.includes('text/x-component')
   ) {
     return;
   }
@@ -96,10 +101,12 @@ self.addEventListener('fetch', (event) => {
             // Network failed and not in cache
             if (event.request.destination === 'document') {
               // Return offline page for navigation requests
-              return caches.match('/offline.html') || new Response('Offline - Please check your connection', {
-                status: 503,
-                statusText: 'Service Unavailable',
-                headers: { 'Content-Type': 'text/plain' }
+              return caches.match('/offline.html').then((offlineResponse) => {
+                return offlineResponse || new Response('Offline - Please check your connection', {
+                  status: 503,
+                  statusText: 'Service Unavailable',
+                  headers: { 'Content-Type': 'text/plain' }
+                });
               });
             }
           });
@@ -143,6 +150,6 @@ async function getOfflineActions() {
   return [];
 }
 
-async function removeOfflineAction(id) {
+async function removeOfflineAction(_id) {
   // Remove synced action from storage
 }

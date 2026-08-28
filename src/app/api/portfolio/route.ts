@@ -231,6 +231,10 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError || !holding) {
+      console.error("Supabase insertError:", insertError);
+      return NextResponse.json(
+        { error: insertError?.message || "Failed to add holding" },
+        { status: 500 }
       return jsonWithCors(
         request,
         { error: "Failed to add holding" },
